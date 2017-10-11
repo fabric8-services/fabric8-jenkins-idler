@@ -4,4 +4,4 @@ metadata:
   name: jenkins-idler
 type: Opaque
 data:
-  openshift.namespace: "vpavlin"
+  openshift.namespace: ""
