@@ -298,6 +298,9 @@ func (oc *OpenShiftController) get(url string, token string) (resp *http.Respons
 	req.Header.Add("Authorization", "Bearer "+token)
 
 	resp, err = client.Do(req)
+	if err != nil {
+		log.Panic("Could not perform the request: ", err)
+	}
 	if resp.StatusCode != 200 {
 		log.Error("Got status  ", resp.Status)
 	}

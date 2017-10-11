@@ -25,6 +25,14 @@ func main() {
 		missingParam = true
 		log.Error("You need to provide URL to OpenShift API endpoint in JC_OPENSHIFT_API_URL environment variable")
 	}
+
+	if strings.HasPrefix(apiURL, "https://") {
+		apiURL = apiURL[8:]
+	}
+
+	if apiURL[len(apiURL)-1] == '/' {
+		apiURL = apiURL[:len(apiURL)-2]
+	}
 	token := v.GetString("openshift.api.token")
 	if len(token) == 0 {
 		missingParam = true
