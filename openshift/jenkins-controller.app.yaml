@@ -106,7 +106,7 @@ objects:
     wildcardPolicy: None
 parameters:
 - name: IMAGE
-  value: openshiftio/jenkins-controller
+  value: registry.devshift.net/fabric8-services/fabric8-jenkins-idler
   required: true
 - name: IMAGE_TAG
   value: latest

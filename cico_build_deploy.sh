@@ -2,6 +2,11 @@
 
 set -e
 
+REGISTRY_URI="push.registry.devshift.net"
+REGISTRY_NS="fabric8-services"
+REGISTRY_IMAGE="fabric8-jenkins-idler"
+REGISTRY_URL=${REGISTRY_URI}/${REGISTRY_NS}/${REGISTRY_IMAGE}
+
 BUILD_IMAGE="jenkins-controller-build"
 BUILD_CONTAINER=${BUILD_IMAGE}"-container"
 
