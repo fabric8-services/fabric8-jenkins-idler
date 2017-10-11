@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jenkins-controller
+type: Opaque
+data:
+  openshift.namespace: "vpavlin"

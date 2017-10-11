@@ -1,0 +1,115 @@
+package openshiftcontroller
+
+import (
+	"strings"
+	"time"
+	"encoding/json"
+	
+	log "github.com/sirupsen/logrus"
+)
+
+var Phases = map[string]int {
+	"Finished": 0,
+	"Complete": 0,
+	"Failed": 0,
+	"Cancelled": 0,
+	"Pending": 1,
+	"New": 1,
+	"Running": 1,
+}
+
+type Builds struct {
+	Items []Build `json:"items"`
+}
+
+type Build struct {
+	Metadata Metadata `json:"metadata"`
+	Status Status `json:"status"`
+}
+
+type Metadata struct {
+	Name string
+	Annotations struct {
+		BuildNumber string `json:"openshift.io/build.number"`
+		JenkinsNamespace string `json:"openshift.io/jenkins-namespace"`
+		IdledAt string `json:"idling.alpha.openshift.io/idled-at"`
+	} `json:"annotations"`
+}
+
+type Status struct {
+	Phase string `json:"phase"`
+	StartTimestamp BuildTime `json:"startTimestamp"`
+	CompletionTimestamp BuildTime `json:"completionTimestamp"`
+}
+
+type BuildTime struct {
+	time.Time
+}
+
+func (bt *BuildTime) UnmarshalJSON(b []byte) (err error) {
+	s := strings.Trim(string(b), "\"")
+	if len(s) == 0 {
+		bt.Time = time.Now()
+		return
+	}
+	bt.Time, err = time.Parse(time.RFC3339, s)
+
+	return
+}
+
+func (s *Status) UnmarshalJSON(b []byte) (err error) {
+	type LStatus Status
+	ns := &LStatus{
+		Phase: "",
+		StartTimestamp: BuildTime{time.Now()},
+		CompletionTimestamp: BuildTime{time.Now()},
+	}
+
+	if err := json.Unmarshal(b, ns); err != nil {
+		return err
+	}
+
+	*s = Status(*ns)
+
+	return
+}
+
+func (b Builds) GetLatest() (active, done *Build) {
+	active = nil
+	done = nil
+	for _, item := range b.Items {
+		p, ok := Phases[item.Status.Phase]
+		if !ok {
+			log.Fatal("unknown phase in build ", item.Metadata.Name)
+		}
+		if p == 1 {
+			if active == nil {
+				itemCopy := item
+				active = &itemCopy
+				continue
+			} else {
+				tx := item.Status.StartTimestamp
+				ty := active.Status.StartTimestamp
+				if tx.Time.After(ty.Time) {
+					itemCopy := item
+					active = &itemCopy
+				}
+			}
+		} else {
+			if done == nil {
+				itemCopy := item
+				done = &itemCopy
+				continue
+			} else {
+				tx := item.Status.CompletionTimestamp
+				ty := done.Status.CompletionTimestamp
+				if tx.Time.After(ty.Time) {
+					itemCopy := item
+					done = &itemCopy
+				}
+			}
+		}
+	}
+
+	return active, done
+}

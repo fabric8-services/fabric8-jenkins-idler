@@ -1,0 +1,113 @@
+kind: Template
+apiVersion: v1
+metadata:
+  name: jenkins-controller    
+labels:
+  template: jenkins-controller
+objects:
+- kind: DeploymentConfig
+  apiVersion: v1
+  metadata:
+    name: jenkins-controller
+  spec:
+    replicas: 1
+    selector:
+      service: jenkins-controller
+    strategy:
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        labels:
+          service: jenkins-controller
+      spec:
+        containers:
+        - env:
+          - name: JC_OPENSHIFT_API_URL
+            valueFrom:
+              configMapKeyRef:
+                name: f8tenant
+                key: openshift.tenant.masterurl
+          - name: JC_OPENSHIFT_API_TOKEN
+            valueFrom:
+              configMapKeyRef:
+                name: openshift-online-tokens
+                key: dsaas-service-token
+          - name: JC_OPENSHIFT_NAMESPACE
+            valueFrom:
+              configMapKeyRef:
+                name: jenkins-controller
+                key: openshift.namespace
+          image: ${IMAGE}:${IMAGE_TAG}
+          imagePullPolicy: Always
+          name: jenkins-controller
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          readinessProbe:
+            httpGet:
+              path: /builds
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /builds
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 10
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - type: ConfigChange
+- kind: Service
+  apiVersion: v1
+  metadata:
+    labels:
+      service: jenkins-controller
+    name: jenkins-controller
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      service: jenkins-controller
+    sessionAffinity: None
+    type: ClusterIP
+- kind: Route
+  apiVersion: v1
+  metadata:
+    name: jenkins-controller
+  spec:
+    host: ''
+    port:
+      targetPort: 8080-tcp
+    to:
+      kind: Service
+      name: jenkins-controller
+      weight: 100
+    wildcardPolicy: None
+parameters:
+- name: IMAGE
+  value: openshiftio/jenkins-controller
+  required: true
+- name: IMAGE_TAG
+  value: latest
+  required: true

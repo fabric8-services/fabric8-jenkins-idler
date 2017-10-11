@@ -1,0 +1,8 @@
+FROM centos:7
+MAINTAINER Vašek Pavlín <vasek@redhat.com>
+
+EXPOSE 8080
+
+COPY /go-binary/jenkins-controller /usr/local/bin/jenkins-controller
+
+ENTRYPOINT [ "jenkins-controller" ]
