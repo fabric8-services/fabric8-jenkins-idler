@@ -176,7 +176,12 @@ func (oc *OpenShiftController) initBuilds(namespaces []string) {
 
 func (oc *OpenShiftController) ServeJenkinsStates(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	err := json.NewEncoder(w).Encode(oc.Users["vpavlin"].JenkinsStateList)
+	err := json.NewEncoder(w).Encode(oc.Users)
+	if err != nil {
+		log.Error("Could not serialize users")
+		fmt.Fprintf(w, "{'msg': 'Could not serialize users'}")
+	}
+
 	log.Info(fmt.Sprintf("Items in Jenkins State list: %d", len(oc.Users["vpavlin"].JenkinsStateList)))
 	if err != nil {
 		log.Error("Could not serialize users")
