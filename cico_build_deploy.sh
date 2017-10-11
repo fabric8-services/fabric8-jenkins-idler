@@ -12,7 +12,7 @@ BUILD_CONTAINER=${BUILD_IMAGE}"-container"
 
 DEPLOY_IMAGE="jenkins-controller-deploy"
 
-PROJ_PATH="/root/go/src/github.com/vpavlin/jenkins-controller"
+PROJ_PATH="/root/go/src/github.com/fabric8-services/fabric8-jenkins-idler"
 TARGET_DIR="go-binary"
 
 

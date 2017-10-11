@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: jenkins-controller
+  name: jenkins-idler
 type: Opaque
 data:
   openshift.namespace: "vpavlin"
