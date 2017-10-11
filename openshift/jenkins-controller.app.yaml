@@ -1,18 +1,18 @@
 kind: Template
 apiVersion: v1
 metadata:
-  name: jenkins-controller    
+  name: jenkins-idler
 labels:
-  template: jenkins-controller
+  template: jenkins-idler
 objects:
 - kind: DeploymentConfig
   apiVersion: v1
   metadata:
-    name: jenkins-controller
+    name: jenkins-idler
   spec:
     replicas: 1
     selector:
-      service: jenkins-controller
+      service: jenkins-idler
     strategy:
       resources: {}
       rollingParams:
@@ -25,7 +25,7 @@ objects:
     template:
       metadata:
         labels:
-          service: jenkins-controller
+          service: jenkins-idler
       spec:
         containers:
         - env:
@@ -36,17 +36,17 @@ objects:
                 key: openshift.tenant.masterurl
           - name: JC_OPENSHIFT_API_TOKEN
             valueFrom:
-              configMapKeyRef:
+              secretKeyRef:
                 name: openshift-online-tokens
                 key: dsaas-service-token
           - name: JC_OPENSHIFT_NAMESPACE
             valueFrom:
               configMapKeyRef:
-                name: jenkins-controller
+                name: jenkins-idler
                 key: openshift.namespace
           image: ${IMAGE}:${IMAGE_TAG}
           imagePullPolicy: Always
-          name: jenkins-controller
+          name: jenkins-idler
           ports:
           - containerPort: 8080
             protocol: TCP
@@ -79,8 +79,8 @@ objects:
   apiVersion: v1
   metadata:
     labels:
-      service: jenkins-controller
-    name: jenkins-controller
+      service: jenkins-idler
+    name: jenkins-idler
   spec:
     ports:
     - name: 8080-tcp
@@ -88,20 +88,20 @@ objects:
       protocol: TCP
       targetPort: 8080
     selector:
-      service: jenkins-controller
+      service: jenkins-idler
     sessionAffinity: None
     type: ClusterIP
 - kind: Route
   apiVersion: v1
   metadata:
-    name: jenkins-controller
+    name: jenkins-idler
   spec:
     host: ''
     port:
       targetPort: 8080-tcp
     to:
       kind: Service
-      name: jenkins-controller
+      name: jenkins-idler
       weight: 100
     wildcardPolicy: None
 parameters:
