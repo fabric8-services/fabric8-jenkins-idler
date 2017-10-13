@@ -23,7 +23,7 @@ type Conditions struct {
 func (c *Conditions) Eval(o interface{}) (result bool) {
 	result = true
 	for n, ci := range c.Conditions {
-		log.Info("Evaluating condition: ", n)
+		//log.Info("Evaluating condition: ", n)
 		r, err := ci.IsTrueFor(o)
 		if err != nil {
 			log.Error(err)

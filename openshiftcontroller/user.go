@@ -76,8 +76,8 @@ type Build struct {
 }
 
 type Metadata struct {
-	Name string
-	Namespace string
+	Name string `json:"name"`
+	Namespace string `json:"namespace"`
 	Annotations struct {
 		BuildNumber string `json:"openshift.io/build.number"`
 		JenkinsNamespace string `json:"openshift.io/jenkins-namespace"`
@@ -93,6 +93,17 @@ type Status struct {
 
 type BuildTime struct {
 	time.Time
+}
+
+func NewUser(n string) (u *User) {
+	u = &User{
+		Name: n,
+		ActiveBuilds: make(map[string]Build),
+		DoneBuilds: make(map[string]Build),
+		JenkinsStateList: []JenkinsState{JenkinsState{true, time.Now().UTC(), "init"}},
+	}
+
+	return u
 }
 
 func (bt *BuildTime) UnmarshalJSON(b []byte) (err error) {

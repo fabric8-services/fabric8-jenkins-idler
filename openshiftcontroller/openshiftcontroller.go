@@ -1,13 +1,11 @@
 package openshiftcontroller
 
 import (
-	"bufio"
 	"fmt"
 	"net/http"
 	"io/ioutil"
 	"encoding/json"
 	"bytes"
-	"strings"
 	"time"
 	"sync"
 
@@ -32,6 +30,8 @@ type OpenShiftController struct {
 	Conditions Conditions
 	Users map[string]*User
 	lock *sync.Mutex
+	Groups [][]string
+	groupSleep time.Duration
 }
 
 type OpenShiftControllerI interface {
@@ -51,16 +51,21 @@ type DCStatus struct {
 	ReadyReplicas int
 }
 
-func NewOpenShiftController(apiURL string, token string) *OpenShiftController {
+func NewOpenShiftController(apiURL string, token string, nGroups int) *OpenShiftController {
 	oc := &OpenShiftController{}
 	oc.apiURL = apiURL
 	oc.token = token
 	oc.Conditions.Conditions = make(map[string]ConditionI)
 	oc.Users = make(map[string]*User)
 	oc.lock = &sync.Mutex{}
+	oc.Groups = make([][]string, nGroups)
+	oc.groupSleep = 10*time.Second
 
 	//oc.Conditions = append(oc.Conditions, &BuildCondition{})
 	//oc.Conditions = append(oc.Conditions, &UserCondition{})
+
+	oc.LoadProjects()
+
 	bc := NewBuildCondition(1*time.Minute)
 	oc.Conditions.Conditions["build"] = bc
 
@@ -81,6 +86,7 @@ func (oc *OpenShiftController) UnIdle(namespace string, service string) bool {
 func (oc *OpenShiftController) IsIdle(namespace string, service string) bool {
 	url := oc.constructRequest(namespace, "deploymentconfigs/"+service, false)
 	resp := oc.get(url, oc.token)
+	defer resp.Body.Close()
 	body, readErr := ioutil.ReadAll(resp.Body)
 	if readErr != nil {
 		log.Fatal(readErr)
@@ -103,15 +109,12 @@ func (oc *OpenShiftController) IsIdle(namespace string, service string) bool {
 func (oc *OpenShiftController) HandleBuildInfo(b *Build, spawnCheckIdle bool) {
 	namespace := b.Metadata.Namespace
 	if _, exist := oc.Users[namespace]; !exist {
-		oc.Users[namespace] = &User{
-			Name: namespace, 
-			ActiveBuilds: make(map[string]Build), 
-			DoneBuilds: make(map[string]Build), 
-			JenkinsStateList: []JenkinsState{JenkinsState{true, time.Now().UTC(), "init"}},
-		}
-		user := oc.Users[namespace]
+		oc.lock.Lock()
+		oc.Users[namespace] = NewUser(namespace)
+		oc.lock.Unlock()
 		if spawnCheckIdle {
 			log.Info("Spawning Idling Checker for ", namespace)
+			user := oc.Users[namespace]
 			go oc.CheckIdle(user)
 		}
 	} 
@@ -127,33 +130,30 @@ func (oc *OpenShiftController) HandleBuildInfo(b *Build, spawnCheckIdle bool) {
 }
 
 func (oc *OpenShiftController) CheckIdle(user *User) {
-	for {
-		oc.lock.Lock()
-		eval := oc.Conditions.Eval(user)
-		oc.lock.Unlock()
-		if eval {
-			b := user.LastDone()
-			if user.JenkinsStateList[len(user.JenkinsStateList)-1].Running {
-				log.Warn(fmt.Sprintf("I'd like to idle jenkins for %s as last build finished at %s", user.Name,
-					b.Status.CompletionTimestamp.Time))
-				oc.Idle(user.Name+"-jenkins", "jenkins")
-				user.AddJenkinsState(false, time.Now().UTC(), fmt.Sprintf("Jenkins Idled for %s, finished at %s", b.Metadata.Name, b.Status.CompletionTimestamp.Time))
-				fmt.Printf("%+v\n", user.JenkinsStateList)
-			}
-		} else {
-			b := user.LastDone()
-			if !user.JenkinsStateList[len(user.JenkinsStateList)-1].Running {
-				oc.UnIdle(user.Name+"-jenkins", "jenkins")
-				user.AddJenkinsState(true, time.Now().UTC(), fmt.Sprintf("Jenkins Unidled for %s, started at %s", b.Metadata.Name, b.Status.StartTimestamp.Time))
-			}
+	oc.lock.Lock()
+	eval := oc.Conditions.Eval(user)
+	oc.lock.Unlock()
+	if eval {
+		b := user.LastDone()
+		if user.JenkinsStateList[len(user.JenkinsStateList)-1].Running {
+			log.Warn(fmt.Sprintf("I'd like to idle jenkins for %s as last build finished at %s", user.Name,
+				b.Status.CompletionTimestamp.Time))
+			oc.Idle(user.Name+"-jenkins", "jenkins")
+			user.AddJenkinsState(false, time.Now().UTC(), fmt.Sprintf("Jenkins Idled for %s, finished at %s", b.Metadata.Name, b.Status.CompletionTimestamp.Time))
+			fmt.Printf("%+v\n", user.JenkinsStateList)
 		}
-
-		time.Sleep(5*time.Second)
+	} else {
+		b := user.LastDone()
+		if !user.JenkinsStateList[len(user.JenkinsStateList)-1].Running {
+			oc.UnIdle(user.Name+"-jenkins", "jenkins")
+			user.AddJenkinsState(true, time.Now().UTC(), fmt.Sprintf("Jenkins Unidled for %s, started at %s", b.Metadata.Name, b.Status.StartTimestamp.Time))
+		}
 	}
 }
 
-func (oc *OpenShiftController) initBuilds(namespaces []string) {
+func (oc *OpenShiftController) processBuilds(namespaces []string) {
 	for _, n := range namespaces {
+		//log.Info("Getting builds for ", n)
 		url := oc.constructRequest(n, "builds", false)
 		resp := oc.get(url, oc.token)
 	
@@ -163,10 +163,16 @@ func (oc *OpenShiftController) initBuilds(namespaces []string) {
 
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-				panic(err.Error())
+				log.Fatal(err)
 		}
 
 		json.Unmarshal(body, &bl)
+
+		if _, exist := oc.Users[n]; !exist {
+			oc.lock.Lock()
+			oc.Users[n] = NewUser(n)
+			oc.lock.Unlock()
+		}
 
 		for _, b := range bl.Items {
 			oc.HandleBuildInfo(&b, false)
@@ -190,89 +196,47 @@ func (oc *OpenShiftController) ServeJenkinsStates(w http.ResponseWriter, r *http
 	//fmt.Fprint(w, us)
 }
 
-func (oc *OpenShiftController) Run(namespaces []string) {
-	oc.initBuilds(namespaces)
-
-	http.HandleFunc("/builds", oc.ServeJenkinsStates)
-	go http.ListenAndServe(":8080", nil)
-
-	for _, u1 := range oc.Users {
-		go oc.CheckIdle(u1)
-	}
-
-	n := ""
-	if len(namespaces) == 1 {
-		n = namespaces[0]
-	}
-	url := oc.constructRequest(n, "builds", true)
-	client := &http.Client{}
-	
-	var x []Build
-
+func (oc *OpenShiftController) Run(namespaces []string, gn int) {
 	for {
-		req, err := http.NewRequest("GET", url, nil)
-		if err != nil {
-			log.Fatal(err)
+		log.Info("Running in group #", gn)
+		oc.processBuilds(namespaces)
+
+		for _, n := range namespaces {
+			oc.CheckIdle(oc.Users[n])
 		}
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", oc.token))
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Fatal(err)
-		}
-	
-	
-		reader := bufio.NewReader(resp.Body)
-		for {
-				line, err := reader.ReadBytes('\n')
-				if err != nil {
-					if err.Error() == "EOF" || err.Error() == "unexpected EOF" {	
-						log.Info("Got error ", err, " but continuing..")
-						break;
-					} 
-					fmt.Printf("It's broken %+v\n", err)
-				}
 
-				
-				var o Object
-			
-				err = json.Unmarshal(line, &o)
-				if err!=nil {
-					if strings.HasPrefix(string(line), "This request caused apisever to panic") {
-						log.WithField("error", string(line)).Warning("Communication with server failed")
-						break;
-					}
-					log.Fatal("Failed to Unmarshal: ", err)
-				}
-				//log.Info(o.Object.Metadata.Name)
-				x = append(x, o.Object)
+		log.Info("Sleeping in group #", gn)
 
-				elemIn := false
-				for _, nc := range namespaces {
-				 if nc == o.Object.Metadata.Namespace {
-					elemIn = true
-					break
-				 }
-				}
-
-				if !elemIn {
-					continue
-				}
-
-				oc.lock.Lock()
-				oc.HandleBuildInfo(&o.Object, true)
-				oc.lock.Unlock()
-
-				u := oc.Users[o.Object.Metadata.Namespace]
-				fmt.Printf("Handled event for user %s\n", o.Object.Metadata.Namespace)
-
-				fmt.Printf("# of Active Builds: %d\n", len(u.ActiveBuilds))
-				fmt.Printf("# of Done Builds: %d\n", len(u.DoneBuilds))
-				
-				
-				fmt.Printf("Event summary: Build %s -> %s, %s/%s\n", o.Object.Metadata.Name, o.Object.Status.Phase, o.Object.Status.StartTimestamp, o.Object.Status.CompletionTimestamp) 
-
-		}
+		time.Sleep(oc.groupSleep)
 	}
+}
+
+func (oc *OpenShiftController) LoadProjects() []string {
+	url := oc.constructRequest("", "projects", false)
+	resp := oc.get(url, oc.token)
+	defer resp.Body.Close()
+	body, readErr := ioutil.ReadAll(resp.Body)
+	if readErr != nil {
+		log.Fatal(readErr)
+	}
+	projects := ProcessProjects(body)
+	oc.Groups = SplitGroups(projects, oc.Groups)
+	fmt.Printf("%+v\n", oc.Groups)
+
+	return projects
+}
+
+func (oc *OpenShiftController) DownloadProjects() {
+	url := oc.constructRequest("", "projects", false)
+	resp := oc.get(url, oc.token)
+	defer resp.Body.Close()
+	body, readErr := ioutil.ReadAll(resp.Body)
+	if readErr != nil {
+		log.Fatal(readErr)
+	}
+
+	projects := ProcessProjects(body)
+	oc.Groups,_ = UpdateProjects(oc.Groups, projects)
 }
 
 
@@ -287,7 +251,7 @@ func (oc *OpenShiftController) constructRequest(namespace string, command string
 
 	url = fmt.Sprintf("%s/%s", url, command)
 
-	log.Info("Generated URL: ", url)
+	//log.Info("Generated URL: ", url)
 	return url
 }
 
