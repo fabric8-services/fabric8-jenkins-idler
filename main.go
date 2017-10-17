@@ -3,7 +3,9 @@
 package main
 
 import (
+	"time"
 	"strings"
+	"net/http"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/openshiftcontroller"
 
@@ -39,16 +41,36 @@ func main() {
 		log.Error("You need to provide an OpenShift access token in JC_OPENSHIFT_API_TOKEN environment variable")
 	}
 
+	nGroups := v.GetInt("concurrent.groups")
+	if nGroups == 0 {
+		nGroups = 1
+	}
+
+	idleAfter := v.GetInt("concurrent.groups")
+	if idleAfter == 0 {
+		idleAfter = 10
+	}
+
 	if missingParam {
 		log.Panic("A value for envinronment variable is missing")
 	}
-	namespaceArg := v.GetString("openshift.namespace")
-	namespaces := strings.Split(namespaceArg, ":")
+	//namespaceArg := v.GetString("openshift.namespace")
+	//namespaces := strings.Split(namespaceArg, ":")
 
+	oc := openshiftcontroller.NewOpenShiftController(apiURL, token, nGroups, idleAfter)
 
-	oc := openshiftcontroller.NewOpenShiftController(apiURL, token)
-
-	oc.Run(namespaces)
+	//FIXME!
+	http.HandleFunc("/builds", oc.ServeJenkinsStates)
 	
+	for gn, _ := range oc.Groups {
+		go oc.Run(gn)
+		//time.Sleep(2*time.Second)
+	}
+
+	go func() {
+		oc.DownloadProjects()
+		time.Sleep(1*time.Minute)
+	}()
 	
+	http.ListenAndServe(":8080", nil)
 }
