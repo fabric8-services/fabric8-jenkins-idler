@@ -46,22 +46,31 @@ func main() {
 		nGroups = 1
 	}
 
+	idleAfter := v.GetInt("concurrent.groups")
+	if idleAfter == 0 {
+		idleAfter = 10
+	}
+
 	if missingParam {
 		log.Panic("A value for envinronment variable is missing")
 	}
 	//namespaceArg := v.GetString("openshift.namespace")
 	//namespaces := strings.Split(namespaceArg, ":")
 
-
-	oc := openshiftcontroller.NewOpenShiftController(apiURL, token, nGroups)
+	oc := openshiftcontroller.NewOpenShiftController(apiURL, token, nGroups, idleAfter)
 
 	//FIXME!
 	http.HandleFunc("/builds", oc.ServeJenkinsStates)
 	
-	for gn, g := range oc.Groups {
-		go oc.Run(g, gn)
-		time.Sleep(2*time.Second)
+	for gn, _ := range oc.Groups {
+		go oc.Run(gn)
+		//time.Sleep(2*time.Second)
 	}
+
+	go func() {
+		oc.DownloadProjects()
+		time.Sleep(1*time.Minute)
+	}()
 	
 	http.ListenAndServe(":8080", nil)
 }

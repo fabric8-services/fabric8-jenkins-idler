@@ -5,3 +5,5 @@ metadata:
 type: Opaque
 data:
   openshift.namespace: ""
+  idle.after: 10
+  concurrent.groups: 4

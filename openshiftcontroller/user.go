@@ -13,6 +13,7 @@ type User struct {
 	DoneBuilds map[string]Build
 	Name string
 	JenkinsStateList []JenkinsState
+	FailedPulls int
 }
 
 func (u *User) HasActive() bool {
@@ -101,6 +102,7 @@ func NewUser(n string) (u *User) {
 		ActiveBuilds: make(map[string]Build),
 		DoneBuilds: make(map[string]Build),
 		JenkinsStateList: []JenkinsState{JenkinsState{true, time.Now().UTC(), "init"}},
+		FailedPulls: 0,
 	}
 
 	return u
