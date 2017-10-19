@@ -136,8 +136,10 @@ func (p *Proxy) ProcessBuffer() {
 					}
 
 					p.bufferLock.Lock()
-					if len(*rbs) > 1 {
+					if len(*rbs) > 2 {
 						*rbs = append((*rbs)[:i], (*rbs)[i+1:]...)
+					} else if len(*rbs) > 1 {
+						*rbs = append((*rbs)[:i])
 					} else {
 						*rbs = (*rbs)[:0]
 					}
