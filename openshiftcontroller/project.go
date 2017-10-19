@@ -17,7 +17,7 @@ type Project struct {
 	Metadata Metadata `json:"metadata"`
 }
 
-func ProcessProjects(data []byte) []string {
+func ProcessProjects(data []byte, filter []string) []string {
 	tmp := Projects{}
 	result := make([]string, 0)
 	err := json.Unmarshal(data, &tmp)
@@ -26,8 +26,14 @@ func ProcessProjects(data []byte) []string {
 	}
 
 	for _, proj := range tmp.Items {
+		isAllowed := false
 		if strings.HasSuffix(proj.Metadata.Name, "-jenkins") {
-			result = append(result, proj.Metadata.Name[:len(proj.Metadata.Name)-8])
+			for _, f := range filter {
+				if strings.HasPrefix(proj.Metadata.Name, f) {isAllowed = true}
+			}
+			if len(filter) == 0 || isAllowed {
+				result = append(result, proj.Metadata.Name[:len(proj.Metadata.Name)-8])
+			}
 		}
 	}
 

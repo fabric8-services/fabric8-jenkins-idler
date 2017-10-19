@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/openshiftcontroller"
+	"github.com/fabric8-services/fabric8-jenkins-idler/proxy"
 
 	viper "github.com/spf13/viper"
 	log "github.com/sirupsen/logrus"
@@ -46,21 +47,29 @@ func main() {
 		nGroups = 1
 	}
 
-	idleAfter := v.GetInt("concurrent.groups")
+	idleAfter := v.GetInt("idle.after")
 	if idleAfter == 0 {
 		idleAfter = 10
+	}
+
+	userToken := v.GetString("user.token")
+	if len(userToken) == 0 {
+		userToken = token
+		log.Warn("Using master token for user, not safe!!!")
 	}
 
 	if missingParam {
 		log.Panic("A value for envinronment variable is missing")
 	}
-	//namespaceArg := v.GetString("openshift.namespace")
-	//namespaces := strings.Split(namespaceArg, ":")
+	namespaceArg := v.GetString("filter.namespaces")
+	namespaces := strings.Split(namespaceArg, ":")
 
-	oc := openshiftcontroller.NewOpenShiftController(apiURL, token, nGroups, idleAfter)
+	oc := openshiftcontroller.NewOpenShiftController(apiURL, token, nGroups, idleAfter, namespaces)
 
 	//FIXME!
-	http.HandleFunc("/builds", oc.ServeJenkinsStates)
+
+	idlerMux := http.NewServeMux()
+	idlerMux.HandleFunc("/iapi/idler/builds", oc.ServeJenkinsStates)
 	
 	for gn, _ := range oc.Groups {
 		go oc.Run(gn)
@@ -72,5 +81,13 @@ func main() {
 		time.Sleep(1*time.Minute)
 	}()
 	
-	http.ListenAndServe(":8080", nil)
+	go func() {
+		http.ListenAndServe(":90909", idlerMux)
+	}()
+
+	prx := proxy.NewProxy(oc, userToken)
+	proxyMux := http.NewServeMux()
+	proxyMux.HandleFunc("/", prx.Handle)
+
+	http.ListenAndServe(":8080", proxyMux)
 }

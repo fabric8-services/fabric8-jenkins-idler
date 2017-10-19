@@ -39,11 +39,11 @@ objects:
               secretKeyRef:
                 name: openshift-online-tokens
                 key: dsaas-service-token
-          - name: JC_OPENSHIFT_NAMESPACE
+          - name: JC_FILTER_NAMESPACES
             valueFrom:
               configMapKeyRef:
                 name: jenkins-idler
-                key: openshift.namespace
+                key: filter.namespaces
           - name: JC_IDLE_AFTER
             valueFrom:
               configMapKeyRef:
@@ -54,6 +54,11 @@ objects:
               configMapKeyRef:
                 name: jenkins-idler
                 key: concurrent.groups
+          - name: JC_USER_TOKEN
+            valueFrom:
+              configMapKeyRef:
+                name: jenkins-idler
+                key: user.token
           image: ${IMAGE}:${IMAGE_TAG}
           imagePullPolicy: Always
           name: jenkins-idler
