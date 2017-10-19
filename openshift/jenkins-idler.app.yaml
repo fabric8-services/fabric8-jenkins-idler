@@ -70,7 +70,7 @@ objects:
           readinessProbe:
             httpGet:
               path: /iapi/idler/builds
-              port: 90909
+              port: 9090
               scheme: HTTP
             initialDelaySeconds: 15
             periodSeconds: 20
@@ -78,7 +78,7 @@ objects:
           livenessProbe:
             httpGet:
               path: /iapi/idler/builds
-              port: 90909
+              port: 9090
               scheme: HTTP
             initialDelaySeconds: 30
             periodSeconds: 20

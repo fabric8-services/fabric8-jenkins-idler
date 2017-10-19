@@ -73,6 +73,7 @@ b := ioutil.NopCloser(bytes.NewReader(body))
 		host = fmt.Sprintf(p.newUrl, name)
 		r.Host = host
 		if p.OC.IsIdle(namespace, p.service) {//p.OC.IsIdle(namespace, "jenkins") {
+			w.Header().Set("Server", "Webhook-Proxy")
 			if !p.OC.UnIdle(namespace, p.service) {
 				w.WriteHeader(http.StatusNotFound)
 				w.Write([]byte(""))
@@ -88,7 +89,6 @@ b := ioutil.NopCloser(bytes.NewReader(body))
 			*p.RequestBuffer[name] = append(*rb, BufferedReuqest{Request: r, Body: body})
 			p.bufferLock.Unlock()
 			log.Info("Webhook request buffered")
-			w.Header().Set("Server", "Webhook-Proxy")
 			w.Write([]byte(""))
 			return
 		}
