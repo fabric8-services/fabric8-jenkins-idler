@@ -82,7 +82,7 @@ func main() {
 	}()
 	
 	go func() {
-		http.ListenAndServe(":90909", idlerMux)
+		http.ListenAndServe(":9090", idlerMux)
 	}()
 
 	prx := proxy.NewProxy(oc, userToken)
