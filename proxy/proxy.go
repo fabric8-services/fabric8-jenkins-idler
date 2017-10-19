@@ -60,18 +60,13 @@ func (p *Proxy) Handle(w http.ResponseWriter, r *http.Request) {
 		isGH = strings.HasPrefix(ua[0], "GitHub-Hookshot")
 	}
 
-	host := ""
 	if isGH {
 		payload := loadHookPayload(body)
 		name := p.GetUser(payload.Repository.FullName)
 		namespace := fmt.Sprintf("%s-jenkins", name)
-		/*
-b := ioutil.NopCloser(bytes.NewReader(body))
-	req.Body = b
-		*/
-		host = fmt.Sprintf(p.newUrl, name)
-		r.Host = host
-		//if p.OC.IsIdle(namespace, p.service) {//p.OC.IsIdle(namespace, "jenkins") {
+		r.Host = fmt.Sprintf(p.newUrl, name)
+
+		if p.OC.IsIdle(namespace, p.service) {
 			w.Header().Set("Server", "Webhook-Proxy")
 			if !p.OC.UnIdle(namespace, p.service) {
 				w.WriteHeader(http.StatusNotFound)
@@ -90,12 +85,11 @@ b := ioutil.NopCloser(bytes.NewReader(body))
 			log.Info("Webhook request buffered")
 			w.Write([]byte(""))
 			return
-		//}
-		
+		}
 	} else {
-		host = fmt.Sprintf(p.newUrl, "vpavlin")
+		r.Host = fmt.Sprintf(p.newUrl, "vpavlin")
+		//Switch or add OSO token
 		r.Header["Authorization"] = []string{fmt.Sprintf("Bearer %s", p.GetToken(""))}
-		r.Host = host
 	}
 
 	(&httputil.ReverseProxy{
@@ -148,7 +142,6 @@ func (p *Proxy) ProcessBuffer() {
 						*rbs = (*rbs)[:0]
 					}
 					p.bufferLock.Unlock()
-
 				}
 			}
 		}
