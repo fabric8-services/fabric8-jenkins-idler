@@ -33,6 +33,7 @@ type OpenShiftController struct {
 	groupLock *sync.Mutex
 	Groups []*[]string
 	groupSleep time.Duration
+	FilterNamespaces []string
 }
 
 type OpenShiftControllerI interface {
@@ -52,7 +53,16 @@ type DCStatus struct {
 	ReadyReplicas int
 }
 
-func NewOpenShiftController(apiURL string, token string, nGroups int, idleAfter int) *OpenShiftController {
+type Scale struct {
+	Kind string `json:"kind"`
+	ApiVersion string `json:"apiVersion"`
+	Metadata Metadata `json:"metadata"`
+	Spec struct {
+		Replicas int `json:"replicas"`
+	} `json:"spec"`
+}
+
+func NewOpenShiftController(apiURL string, token string, nGroups int, idleAfter int, filter []string) *OpenShiftController {
 	oc := &OpenShiftController{}
 	oc.apiURL = apiURL
 	oc.token = token
@@ -62,10 +72,8 @@ func NewOpenShiftController(apiURL string, token string, nGroups int, idleAfter 
 	oc.groupLock = &sync.Mutex{}
 	oc.Groups = make([]*[]string, nGroups)
 	oc.groupSleep = 10*time.Second
-
-	//oc.Conditions = append(oc.Conditions, &BuildCondition{})
-	//oc.Conditions = append(oc.Conditions, &UserCondition{})
-
+	oc.FilterNamespaces = filter
+	
 	oc.LoadProjects()
 
 	bc := NewBuildCondition(time.Duration(idleAfter)*time.Minute)
@@ -82,6 +90,39 @@ func (oc *OpenShiftController) Idle(namespace string, service string) bool {
 
 func (oc *OpenShiftController) UnIdle(namespace string, service string) bool {
 	log.Info("Unidling ", service, " in ", namespace)
+	s := Scale{
+		Kind: "Scale",
+		ApiVersion: "extensions/v1beta1",
+		Metadata: Metadata {
+			Name: service,
+			Namespace: namespace,
+		},
+	}
+	s.Spec.Replicas = 1
+	body, err := json.Marshal(s)
+	if err != nil {
+		log.Error(err)
+		return false
+	}
+	br := ioutil.NopCloser(bytes.NewReader(body))
+	req, err := http.NewRequest("PUT", oc.constructRequest(namespace, fmt.Sprintf("deploymentconfigs/%s/scale", service), false), br) //FIXME
+	if err != nil {
+		log.Error(err)
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", oc.token))
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Error(err)
+		return false
+	}
+	defer resp.Body.Close()
+	b, e := ioutil.ReadAll(resp.Body)
+	if e != nil {
+		log.Error(err)
+	}
+	log.Warn(string(b))
+
 	return true
 }
 
@@ -97,9 +138,9 @@ func (oc *OpenShiftController) IsIdle(namespace string, service string) bool {
 	var dc DeploymentConfig
 	json.Unmarshal(body, &dc)
 	log.Info(dc)
-	if len(dc.Metadata.Annotations.IdledAt) > 0 {
+	/*if len(dc.Metadata.Annotations.IdledAt) > 0 {
 		return true
-	} 
+	} */
 
 	if dc.Status.ReadyReplicas == 0 {
 		return true
@@ -222,7 +263,7 @@ func (oc *OpenShiftController) LoadProjects() []string {
 		if readErr != nil {
 			log.Error(readErr) 
 		}
-		projects = ProcessProjects(body)
+		projects = ProcessProjects(body, oc.FilterNamespaces)
 	}
 
 	g := SplitGroups(projects, oc.Groups)
@@ -245,7 +286,7 @@ func (oc *OpenShiftController) DownloadProjects() {
 		if readErr != nil {
 			log.Fatal(readErr)
 		}
-		projects = ProcessProjects(body)
+		projects = ProcessProjects(body, oc.FilterNamespaces)
 	} else {
 		projects = []string{}
 	}
