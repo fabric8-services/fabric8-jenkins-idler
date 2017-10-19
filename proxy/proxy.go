@@ -48,7 +48,6 @@ func NewProxy(oc *oc.OpenShiftController, token string) Proxy {
 }
 
 func (p *Proxy) Handle(w http.ResponseWriter, r *http.Request) {
-	log.Info("Handling..")
 	fmt.Printf("Host: %s\nPath: %s\n", r.Host, r.URL.Path)
 	defer r.Body.Close()
 	body, err := ioutil.ReadAll(r.Body)
@@ -72,7 +71,7 @@ b := ioutil.NopCloser(bytes.NewReader(body))
 		*/
 		host = fmt.Sprintf(p.newUrl, name)
 		r.Host = host
-		if p.OC.IsIdle(namespace, p.service) {//p.OC.IsIdle(namespace, "jenkins") {
+		//if p.OC.IsIdle(namespace, p.service) {//p.OC.IsIdle(namespace, "jenkins") {
 			w.Header().Set("Server", "Webhook-Proxy")
 			if !p.OC.UnIdle(namespace, p.service) {
 				w.WriteHeader(http.StatusNotFound)
@@ -91,7 +90,7 @@ b := ioutil.NopCloser(bytes.NewReader(body))
 			log.Info("Webhook request buffered")
 			w.Write([]byte(""))
 			return
-		}
+		//}
 		
 	} else {
 		host = fmt.Sprintf(p.newUrl, "vpavlin")
@@ -102,7 +101,6 @@ b := ioutil.NopCloser(bytes.NewReader(body))
 	(&httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			req = p.prepareRequest(req, r, body)
-			log.Info(req.URL)
 		},
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -132,8 +130,12 @@ func (p *Proxy) ProcessBuffer() {
 						continue
 					}
 					req = p.prepareRequest(req, rb.Request, rb.Body)
-					client := &http.Client{}
-					log.Info("requesting: ", req.URL)
+					client := &http.Client{
+						Transport: &http.Transport{
+							Proxy: http.ProxyFromEnvironment,
+							TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+						},
+					}
 					_, err := client.Do(req) 
 					if err != nil {
 						log.Error("Error: ", err)
@@ -145,7 +147,6 @@ func (p *Proxy) ProcessBuffer() {
 					} else {
 						*rbs = (*rbs)[:0]
 					}
-					log.Info("Removed requests: ", len(*rbs))
 					p.bufferLock.Unlock()
 
 				}
@@ -160,17 +161,14 @@ func (p *Proxy) prepareRequest(dst *http.Request, src *http.Request, body []byte
 	dst.URL.Host = src.Host
 	dst.URL.Scheme = "https" //FIXME
 	dst.Host = src.Host
+	dst.Method = src.Method
 
-	for n, h := range src.Header {
-		if n == "Content-Length" {
-			continue
-		}
-		dst.Header[n] = h
+	for k, v := range src.Header {
+		dst.Header[k] = v
 	}
 	dst.Header["Server"] = []string{"Webhook-Proxy"}
 
-	b := ioutil.NopCloser(bytes.NewReader(body))
-	dst.Body = b
+	dst.Body = ioutil.NopCloser(bytes.NewReader(body))
 	
 	return dst
 }
