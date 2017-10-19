@@ -64,7 +64,7 @@ func (p *Proxy) Handle(w http.ResponseWriter, r *http.Request) {
 	host := ""
 	if isGH {
 		payload := loadHookPayload(body)
-		name := p.GetUser(payload.Name)
+		name := p.GetUser(payload.Repository.FullName)
 		namespace := fmt.Sprintf("%s-jenkins", name)
 		/*
 b := ioutil.NopCloser(bytes.NewReader(body))
@@ -176,9 +176,10 @@ func (p *Proxy) prepareRequest(dst *http.Request, src *http.Request, body []byte
 }
 
 type GHHookStruct struct {
-	Id int64 `json:"id"`
-	Sha string `json:"sha"`
-	Name string `json:"name"`
+	Repository struct {
+		Name string `json:"name"`
+		FullName string `json:"full_name"`
+	} `json:"repository"`
 }
 
 func loadHookPayload(b []byte) *GHHookStruct {
