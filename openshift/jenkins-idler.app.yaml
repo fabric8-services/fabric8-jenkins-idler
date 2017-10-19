@@ -69,16 +69,16 @@ objects:
           terminationMessagePath: /dev/termination-log
           readinessProbe:
             httpGet:
-              path: /builds
-              port: 8080
+              path: /iapi/idler/builds
+              port: 90909
               scheme: HTTP
             initialDelaySeconds: 15
             periodSeconds: 20
             timeoutSeconds: 10
           livenessProbe:
             httpGet:
-              path: /builds
-              port: 8080
+              path: /iapi/idler/builds
+              port: 90909
               scheme: HTTP
             initialDelaySeconds: 30
             periodSeconds: 20
