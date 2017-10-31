@@ -46,7 +46,7 @@ Second issue is that user gets `50x` error from OpenShift when a service is idle
 
 # Architecture
 
-![Idler Architecture](https://docs.google.com/a/redhat.com/drawings/d/e/2PACX-1vQgnz6MHLi7uA_EN_DCiDUL_QDiN-SUlZsX2KK7YV3t42lwk3I2a_XuvPFzXmvOKTyIXgesO3_QO1hB/pub?w=638&h=661)
+![Idler Architecture](https://docs.google.com/a/redhat.com/drawings/d/e/2PACX-1vQgnz6MHLi7uA_EN_DCiDUL_QDiN-SUlZsX2KK7YV3t42lwk3I2a_XuvPFzXmvOKTyIXgesO3_QO1hB/pub?w=426&amp;h=441)
 
 1. Idler watches build objects changes in OpenShift
 2. Idler controls state of Jenkins DeploymentConfig in OpenShift (Is it up? Should it be idled? Idle it! Unidle it!)
