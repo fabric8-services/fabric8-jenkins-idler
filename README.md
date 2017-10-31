@@ -43,3 +43,12 @@ Second issue is that user gets `50x` error from OpenShift when a service is idle
 **Problem:** OpenShift has a notion of builds (with its BuildConfig and Build objects). These objects are followed by a Jenkins plugin which then, based on changes in OpenShift objects, performs actions in Jenkins. The problem for us is the nature of implementation - Jenkins is polling OpenShift for information and pushing information back. So when you start a build in OpenShift while Jenkins is idled (i.e. is not running) nothing will happen and the build will hang there indefinitely.
 
 **Proposed Soltion:** Let's create a different service which will follow builds for all users and unidle Jenkins if there is a new build coming. At the same time, it will idle Jenkins when there is not build/activity happening for a long time.
+
+# Architecture
+
+![Idler Architecture](https://docs.google.com/a/redhat.com/drawings/d/e/2PACX-1vQgnz6MHLi7uA_EN_DCiDUL_QDiN-SUlZsX2KK7YV3t42lwk3I2a_XuvPFzXmvOKTyIXgesO3_QO1hB/pub?w=638&h=661)
+
+1. Idler watches build objects changes in OpenShift
+2. Idler controls state of Jenkins DeploymentConfig in OpenShift (Is it up? Should it be idled? Idle it! Unidle it!)
+3. Idler is checking Jenkins Proxy for number of buffered webhook requests and last access  to Jenkins from user
+4. Proxy caches webhook requests while Jenkins is unidling and proxies traffic to Jenkins
