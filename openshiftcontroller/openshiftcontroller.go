@@ -47,7 +47,7 @@ func NewOpenShiftController(o ic.OpenShift, nGroups int, idleAfter int, t pClien
 		uc := NewUserCondition(proxyURL, time.Duration(idleAfter)*time.Minute)
 		oc.Conditions.Conditions["user"] = uc
 	}
-	
+
 	return oc
 }
 
@@ -76,7 +76,7 @@ func (oc *OpenShiftController) CheckIdle(user *User) {
 				log.Error(err)
 				return
 			}
-			
+
 			user.AddJenkinsState(false, time.Now().UTC(), fmt.Sprintf("Jenkins Idled for %s, finished at %s", n, t))
 			fmt.Printf("%+v\n", user.JenkinsStateList)
 		}
@@ -116,7 +116,7 @@ func (oc *OpenShiftController) processBuilds(namespaces []string) {
 			oc.lock.Unlock()
 		}
 		//log.Info("Getting builds for ", n)
-		
+
 		bl, err := oc.o.GetBuilds(n)
 		if err != nil {
 			log.Error("Could not load builds: ", err)
@@ -138,8 +138,7 @@ func (oc *OpenShiftController) processBuilds(namespaces []string) {
 		oc.lock.Lock()
 		oc.Users[n].ActiveBuild = lastActive
 		oc.Users[n].DoneBuild = lastDone
-		oc.lock.Unlock() 
-		
+		oc.lock.Unlock()
 	}
 }
 

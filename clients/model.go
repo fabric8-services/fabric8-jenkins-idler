@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-//OpenShift related structs 
+//OpenShift related structs
 
 type Object struct {
 	Type string `json:"type"`

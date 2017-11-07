@@ -34,7 +34,7 @@ func GetLastBuild(b1 *ic.Build, b2 *ic.Build) (*ic.Build, error) {
 		return b1, nil
 	}
 
-	b1a := IsActive(b1) 
+	b1a := IsActive(b1)
 	b2a := IsActive(b2)
 	if b1a != b2a {
 		return nil, errors.New("Cannot compare Active and Done builds")

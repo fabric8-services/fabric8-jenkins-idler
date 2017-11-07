@@ -28,7 +28,7 @@ func NewOpenShift(apiURL string, token string) OpenShift {
 
 func (o OpenShift) Idle(namespace string, service string) (err error) {
 	log.Info("Idling "+service+" in "+namespace)
-	
+
 	idleAt, err := time.Now().UTC().MarshalText()
 	if err != nil {
 		return
@@ -61,7 +61,7 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 	if err != nil {
 		return
 	}
-	
+
 	if e.Metadata.Annotations.IdledAt != string(idleAt) {
 		return errors.New("Could not update endpoint with idle time.")
 	}
@@ -93,7 +93,7 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 	if err != nil {
 		return
 	}
-	
+
 	if ndc.Spec.Replicas != 0 {
 		return errors.New("Could not update DeploymentConfig with replica count.")
 	}
@@ -206,7 +206,7 @@ func (o *OpenShift) GetRoute(n string, s string) (r string, err error) {
 	}
 
 	r = rt.Spec.Host
-	return 
+	return
 }
 
 func (o OpenShift) GetProjects() (projects []string, err error) {
@@ -218,7 +218,7 @@ func (o OpenShift) GetProjects() (projects []string, err error) {
 	if err != nil {
 		return
 	}
-	
+
 	body, err := o.body(resp)
 	if err != nil {
 		return
@@ -294,12 +294,12 @@ func (o *OpenShift) do(req *http.Request) (resp *http.Response, err error) {
 func (o *OpenShift) patch(req *http.Request) (b []byte, err error) {
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/strategic-merge-patch+json")
-	
+
 	resp, err := o.do(req)
 	if err != nil {
 		return
 	}
-	
+
 	b, err = o.body(resp)
 	return
 }
