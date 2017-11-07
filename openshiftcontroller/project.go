@@ -1,39 +1,20 @@
 package openshiftcontroller
 
 import (
-	"encoding/json"
 	"strings"
 	"errors"
 	"sort"
-
-	log "github.com/sirupsen/logrus"
 )
 
-type Projects struct {
-	Items []*Project `json:"items"`
-}
-
-type Project struct {
-	Metadata Metadata `json:"metadata"`
-}
-
-func ProcessProjects(data []byte, filter []string) []string {
-	tmp := Projects{}
+func FilterProjects(projects []string, filter []string) []string {
 	result := make([]string, 0)
-	err := json.Unmarshal(data, &tmp)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	for _, proj := range tmp.Items {
+	for _, proj := range projects {
 		isAllowed := false
-		if strings.HasSuffix(proj.Metadata.Name, "-jenkins") {
-			for _, f := range filter {
-				if strings.HasPrefix(proj.Metadata.Name, f) {isAllowed = true}
-			}
-			if len(filter) == 0 || isAllowed {
-				result = append(result, proj.Metadata.Name[:len(proj.Metadata.Name)-8])
-			}
+		for _, f := range filter {
+			if strings.HasPrefix(proj, f) {isAllowed = true}
+		}
+		if len(filter) == 0 || isAllowed {
+			result = append(result, proj)
 		}
 	}
 
