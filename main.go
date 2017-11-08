@@ -8,11 +8,19 @@ import (
 	"net/http"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/openshiftcontroller"
-	"github.com/fabric8-services/fabric8-jenkins-idler/proxy"
+	"github.com/fabric8-services/fabric8-jenkins-idler/api"
 
+	pClients "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
+	iClients "github.com/fabric8-services/fabric8-jenkins-idler/clients"
+
+	"github.com/julienschmidt/httprouter"
 	viper "github.com/spf13/viper"
 	log "github.com/sirupsen/logrus"
 )
+
+func init() {
+  log.SetFormatter(&log.JSONFormatter{})
+}
 
 func main() {
 
@@ -36,6 +44,20 @@ func main() {
 	if apiURL[len(apiURL)-1] == '/' {
 		apiURL = apiURL[:len(apiURL)-2]
 	}
+
+	proxyURL := v.GetString("jenkins.proxy.url")
+
+	if len(proxyURL) > 0 {
+		if !strings.HasPrefix(proxyURL, "https://") && !strings.HasPrefix(proxyURL, "http://") {
+			missingParam = true
+			log.Error("Please provide a protocol - http(s) - for proxy url: ", proxyURL)
+		}
+
+		if proxyURL[len(proxyURL)-1] == '/' {
+			proxyURL = proxyURL[:len(proxyURL)-2]
+		}
+	}
+
 	token := v.GetString("openshift.api.token")
 	if len(token) == 0 {
 		missingParam = true
@@ -52,28 +74,29 @@ func main() {
 		idleAfter = 10
 	}
 
-	userToken := v.GetString("user.token")
-	if len(userToken) == 0 {
-		userToken = token
-		log.Warn("Using master token for user, not safe!!!")
-	}
-
 	if missingParam {
-		log.Panic("A value for envinronment variable is missing")
+		log.Fatal("A value for envinronment variable is missing or wrong")
 	}
 	namespaceArg := v.GetString("filter.namespaces")
 	namespaces := strings.Split(namespaceArg, ":")
 
-	oc := openshiftcontroller.NewOpenShiftController(apiURL, token, nGroups, idleAfter, namespaces)
+	t := pClients.NewTenant("", "")
+	o := iClients.NewOpenShift(apiURL, token)
+
+	oc := openshiftcontroller.NewOpenShiftController(o, nGroups, idleAfter, t, namespaces, proxyURL)
 
 	//FIXME!
 
-	idlerMux := http.NewServeMux()
-	idlerMux.HandleFunc("/iapi/idler/builds", oc.ServeJenkinsStates)
+	router := httprouter.New()
+	api := api.NewAPI(&o, oc)
+
+	router.GET("/iapi/idler/builds/:namespace", api.Builds)
+	router.GET("/iapi/idler/idle/:namespace/", api.Idle)
+	router.GET("/iapi/idler/isidle/:namespace/", api.IsIdle)
+	router.GET("/iapi/idler/route/:namespace/", api.GetRoute)
 	
 	for gn, _ := range oc.Groups {
 		go oc.Run(gn)
-		//time.Sleep(2*time.Second)
 	}
 
 	go func() {
@@ -81,13 +104,5 @@ func main() {
 		time.Sleep(1*time.Minute)
 	}()
 	
-	go func() {
-		http.ListenAndServe(":9090", idlerMux)
-	}()
-
-	prx := proxy.NewProxy(oc, userToken)
-	proxyMux := http.NewServeMux()
-	proxyMux.HandleFunc("/", prx.Handle)
-
-	http.ListenAndServe(":8080", proxyMux)
+	http.ListenAndServe(":9090", router)
 }

@@ -59,6 +59,11 @@ objects:
               configMapKeyRef:
                 name: jenkins-idler
                 key: user.token
+          - name: JC_JENKINS_PROXY_URL
+            valueFrom:
+              configMapKeyRef:
+                name: jenkins-idler
+                key: user.token
           image: ${IMAGE}:${IMAGE_TAG}
           imagePullPolicy: Always
           name: jenkins-idler

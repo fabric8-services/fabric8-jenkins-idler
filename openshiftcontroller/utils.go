@@ -1,5 +1,11 @@
 package openshiftcontroller
 
+import (
+	"errors"
+
+	ic "github.com/fabric8-services/fabric8-jenkins-idler/clients"
+)
+
 func roundP(f float64) int {
 	return int(f + 0.5)
 }
@@ -19,4 +25,36 @@ func SplitGroups(data []string, split []*[]string) []*[]string {
 	}
 
 	return split
+}
+
+func GetLastBuild(b1 *ic.Build, b2 *ic.Build) (*ic.Build, error) {
+	if b1 == nil {
+		return b2, nil
+	} else if b2 == nil {
+		return b1, nil
+	}
+
+	b1a := IsActive(b1)
+	b2a := IsActive(b2)
+	if b1a != b2a {
+		return nil, errors.New("Cannot compare Active and Done builds")
+	}
+
+	if b1a && b2a {
+		if b1.Status.StartTimestamp.Time.Before(b2.Status.StartTimestamp.Time) {
+			return b2, nil
+		} else {
+			return b1, nil
+		}
+	} else {
+		if b1.Status.CompletionTimestamp.Time.Before(b2.Status.CompletionTimestamp.Time) {
+			return b2, nil
+		} else {
+			return b1, nil
+		}
+	}
+}
+
+func IsActive(b *ic.Build) bool {
+	return ic.Phases[b.Status.Phase] == 1
 }
