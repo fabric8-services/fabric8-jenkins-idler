@@ -4,6 +4,7 @@ metadata:
   name: jenkins-idler
 type: Opaque
 data:
-  openshift.namespace: ""
+  filter.namespaces: "vpavlin"
   idle.after: "10"
   concurrent.groups: "4"
+  jenkins.proxy.url: "http://jenkins-proxy:9091"
