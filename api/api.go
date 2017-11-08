@@ -88,6 +88,6 @@ func (api *IdlerAPI) GetRoute(w http.ResponseWriter, req *http.Request, ps httpr
 		Service: "jenkins",
 	}
 
-	json.NewEncoder(w).Encode(rt)
 	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(rt)
 }

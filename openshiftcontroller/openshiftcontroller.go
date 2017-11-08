@@ -1,7 +1,6 @@
 package openshiftcontroller
 
 import (
-	pClients "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
 	ic "github.com/fabric8-services/fabric8-jenkins-idler/clients"
 	"fmt"
 	"encoding/json"
@@ -21,14 +20,12 @@ type OpenShiftController struct {
 	Groups []*[]string
 	groupSleep time.Duration
 	FilterNamespaces []string
-	tenant pClients.Tenant
 	o ic.OpenShift
 }
 
-func NewOpenShiftController(o ic.OpenShift, nGroups int, idleAfter int, t pClients.Tenant, filter []string, proxyURL string) *OpenShiftController {
+func NewOpenShiftController(o ic.OpenShift, nGroups int, idleAfter int, filter []string, proxyURL string) *OpenShiftController {
 	oc := &OpenShiftController{
 		o: o,
-		tenant: t,
 	}
 	oc.Conditions.Conditions = make(map[string]ConditionI)
 	oc.Users = make(map[string]*User)

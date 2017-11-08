@@ -85,7 +85,7 @@ func (c *UserCondition) IsTrueFor(object interface{}) (result bool, err error) {
 		return false, errors.New(fmt.Sprintf("%s is not of type *User", object))
 	}
 
-	url := fmt.Sprintf("%s/papi/info/%s", c.proxyURL, b.Name)
+	url := fmt.Sprintf("%s/papi/info/%s", c.proxyURL, fmt.Sprintf("%s-jenkins", b.Name)) //FIX sprintf!
 	resp, err := http.Get(url)
 	if err != nil {
 		return result, err

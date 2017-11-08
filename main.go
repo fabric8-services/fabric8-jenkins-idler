@@ -10,7 +10,6 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/openshiftcontroller"
 	"github.com/fabric8-services/fabric8-jenkins-idler/api"
 
-	pClients "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
 	iClients "github.com/fabric8-services/fabric8-jenkins-idler/clients"
 
 	"github.com/julienschmidt/httprouter"
@@ -80,10 +79,9 @@ func main() {
 	namespaceArg := v.GetString("filter.namespaces")
 	namespaces := strings.Split(namespaceArg, ":")
 
-	t := pClients.NewTenant("", "")
 	o := iClients.NewOpenShift(apiURL, token)
 
-	oc := openshiftcontroller.NewOpenShiftController(o, nGroups, idleAfter, t, namespaces, proxyURL)
+	oc := openshiftcontroller.NewOpenShiftController(o, nGroups, idleAfter, namespaces, proxyURL)
 
 	//FIXME!
 
