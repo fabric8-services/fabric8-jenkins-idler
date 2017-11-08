@@ -38,12 +38,12 @@ func (api *IdlerAPI) Builds(w http.ResponseWriter, r *http.Request, ps httproute
 
 func (api *IdlerAPI) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	err := api.OCli.Idle(ps.ByName("namespace"), "jenkins")
-	if err == nil {
-		w.WriteHeader(http.StatusOK)
-		return
-	} else {
+	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 type Status struct {
@@ -51,22 +51,25 @@ type Status struct {
 }
 
 func (api *IdlerAPI) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	w.Header().Set("Content-Type", "application/json")
 	state, err := api.OCli.IsIdle(ps.ByName("namespace"), "jenkins")
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
+		return
 	}
 
 	s := Status{}
 	s.IsIdle = state < ic.JenkinsStates["Running"]
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(s)
 }
 
 func (api *IdlerAPI) GetRoute(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	namespace := ps.ByName("namespace")
+	w.Header().Set("Content-Type", "application/json")
+
 	r, err := api.OCli.GetRoute(namespace, "jenkins")
 	if err != nil {
 		log.Error(err)
