@@ -91,8 +91,12 @@ func main() {
 	api := api.NewAPI(&o, oc)
 
 	router.GET("/iapi/idler/builds/:namespace", api.Builds)
+	router.GET("/iapi/idler/builds/:namespace/", api.Builds)
+	router.GET("/iapi/idler/idle/:namespace", api.Idle)
 	router.GET("/iapi/idler/idle/:namespace/", api.Idle)
+	router.GET("/iapi/idler/isidle/:namespace", api.IsIdle)
 	router.GET("/iapi/idler/isidle/:namespace/", api.IsIdle)
+	router.GET("/iapi/idler/route/:namespace", api.GetRoute)
 	router.GET("/iapi/idler/route/:namespace/", api.GetRoute)
 	
 	for gn, _ := range oc.Groups {
