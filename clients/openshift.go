@@ -47,7 +47,7 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 	}
 	br := ioutil.NopCloser(bytes.NewReader(body))
 
-	req, err := o.req("PATCH", namespace, fmt.Sprintf("endpoints/%s", service), br)
+	req, err := o.reqAPI("PATCH", namespace, fmt.Sprintf("endpoints/%s", service), br)
 	if err != nil {
 		return
 	}
@@ -83,7 +83,7 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 	}
 	br = ioutil.NopCloser(bytes.NewReader(body))
 
-	req, err = o.req("PATCH", namespace, fmt.Sprintf("deploymentconfigs/%s", service), br)
+	req, err = o.reqOAPI("PATCH", namespace, fmt.Sprintf("deploymentconfigs/%s", service), br)
 	if err != nil {
 		return
 	}
@@ -117,7 +117,7 @@ func (o *OpenShift) UnIdle(namespace string, service string) (err error) {
 		return
 	}
 	br := ioutil.NopCloser(bytes.NewReader(body))
-	req, err := o.req("PUT", namespace, fmt.Sprintf("deploymentconfigs/%s/scale", service), br) //FIXME
+	req, err := o.reqOAPI("PUT", namespace, fmt.Sprintf("deploymentconfigs/%s/scale", service), br) //FIXME
 	if err != nil {
 		return
 	}
@@ -147,7 +147,7 @@ func (o *OpenShift) UnIdle(namespace string, service string) (err error) {
 }
 
 func (o *OpenShift) IsIdle(namespace string, service string) (int, error) {
-	req, err := o.req("GET", namespace, "deploymentconfigs/"+service, nil)
+	req, err := o.reqOAPI("GET", namespace, "deploymentconfigs/"+service, nil)
 	if err != nil {
 		return -1, err
 	}
@@ -179,7 +179,7 @@ func (o *OpenShift) IsIdle(namespace string, service string) (int, error) {
 }
 
 func (o *OpenShift) GetRoute(n string, s string) (r string, err error) {
-	req, err := o.req("GET", n, fmt.Sprintf("routes/%s", s), nil)
+	req, err := o.reqOAPI("GET", n, fmt.Sprintf("routes/%s", s), nil)
 	if err != nil {
 		return
 	}
@@ -210,7 +210,7 @@ func (o *OpenShift) GetRoute(n string, s string) (r string, err error) {
 }
 
 func (o OpenShift) GetProjects() (projects []string, err error) {
-	req, err := o.req("GET", "", "projects", nil)
+	req, err := o.reqOAPI("GET", "", "projects", nil)
 	if err != nil {
 		return
 	}
@@ -240,7 +240,7 @@ func (o OpenShift) GetProjects() (projects []string, err error) {
 }
 
 func (o OpenShift) GetBuilds(namespace string) (bl BuildList, err error) {
-	req, err := o.req("GET", namespace, "builds", nil)
+	req, err := o.reqOAPI("GET", namespace, "builds", nil)
 	if err != nil {
 		return
 	}
@@ -259,8 +259,13 @@ func (o OpenShift) GetBuilds(namespace string) (bl BuildList, err error) {
 	return
 }
 
-func (o *OpenShift) req(method string, namespace string, command string, body io.Reader) (req *http.Request, err error) {
-	url := "https://"+o.apiURL+"/oapi/v1"
+func (o *OpenShift) req(method string, oapi bool, namespace string, command string, body io.Reader) (req *http.Request, err error) {
+	api := "api"
+	if oapi {
+		api = "oapi"
+	}
+
+	url := "https://"+o.apiURL+"/"+api+"/v1"
 	if len(namespace) > 0 {
 		url = fmt.Sprintf("%s/%s/%s", url, "namespaces", namespace)
 	}
@@ -275,6 +280,14 @@ func (o *OpenShift) req(method string, namespace string, command string, body io
 	req.Header.Add("Authorization", "Bearer "+o.token)
 
 	return
+}
+
+func (o *OpenShift) reqOAPI(method string, namespace string, command string, body io.Reader) (req *http.Request, err error) {
+	return o.req(method, true, namespace, command, body)
+}
+
+func (o *OpenShift) reqAPI(method string, namespace string, command string, body io.Reader) (req *http.Request, err error) {
+	return o.req(method, false, namespace, command, body)
 }
 
 
