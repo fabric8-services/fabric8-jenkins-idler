@@ -58,7 +58,7 @@ objects:
             valueFrom:
               configMapKeyRef:
                 name: jenkins-idler
-                key: user.token
+                key: jenkins.proxy.url
           image: ${IMAGE}:${IMAGE_TAG}
           imagePullPolicy: Always
           name: jenkins-idler
