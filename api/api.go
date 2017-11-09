@@ -70,7 +70,7 @@ func (api *IdlerAPI) GetRoute(w http.ResponseWriter, req *http.Request, ps httpr
 	namespace := ps.ByName("namespace")
 	w.Header().Set("Content-Type", "application/json")
 
-	r, err := api.OCli.GetRoute(namespace, "jenkins")
+	r, tls, err := api.OCli.GetRoute(namespace, "jenkins")
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -81,11 +81,13 @@ func (api *IdlerAPI) GetRoute(w http.ResponseWriter, req *http.Request, ps httpr
 	type route struct {
 		Service string `json:"service"`
 		Route string `json:"route"`
+		TLS bool `json:"tls"`
 	}
 
 	rt := route{
 		Route: r,
 		Service: "jenkins",
+		TLS: tls,
 	}
 
 	w.WriteHeader(http.StatusOK)

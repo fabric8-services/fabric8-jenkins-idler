@@ -178,7 +178,7 @@ func (o *OpenShift) IsIdle(namespace string, service string) (int, error) {
 	return JenkinsStates["Running"], nil
 }
 
-func (o *OpenShift) GetRoute(n string, s string) (r string, err error) {
+func (o *OpenShift) GetRoute(n string, s string) (r string, tls bool, err error) {
 	req, err := o.reqOAPI("GET", n, fmt.Sprintf("routes/%s", s), nil)
 	if err != nil {
 		return
@@ -191,6 +191,9 @@ func (o *OpenShift) GetRoute(n string, s string) (r string, err error) {
 	type route struct {
 		Spec struct {
 			Host string
+			TLS struct {
+				Termination string
+			} `json:"tls"`
 		}
 	}
 
@@ -206,6 +209,7 @@ func (o *OpenShift) GetRoute(n string, s string) (r string, err error) {
 	}
 
 	r = rt.Spec.Host
+	tls = len(rt.Spec.TLS.Termination) > 0
 	return
 }
 
