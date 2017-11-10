@@ -1,6 +1,7 @@
 package openshiftcontroller
 
 import (
+	"errors"
 	ic "github.com/fabric8-services/fabric8-jenkins-idler/clients"
 	"fmt"
 	"encoding/json"
@@ -48,8 +49,10 @@ func NewOpenShiftController(o ic.OpenShift, nGroups int, idleAfter int, filter [
 	return oc
 }
 
-
-func (oc *OpenShiftController) CheckIdle(user *User) {
+func (oc *OpenShiftController) CheckIdle(user *User) (error) {
+	if user == nil {
+		return errors.New("Empty user")
+	}
 	ns := user.Name+"-jenkins"
 	oc.lock.Lock()
 	eval := oc.Conditions.Eval(user)
@@ -57,8 +60,7 @@ func (oc *OpenShiftController) CheckIdle(user *User) {
 	if eval {
 		state, err := oc.o.IsIdle(ns, "jenkins")
 		if err != nil {
-			log.Error(err)
-			return
+			return err
 		}
 		if state > ic.JenkinsStates["Idle"] {
 			var n string
@@ -70,8 +72,7 @@ func (oc *OpenShiftController) CheckIdle(user *User) {
 			log.Warn(fmt.Sprintf("I'd like to idle jenkins for %s as last build finished at %s", user.Name,	t))
 			err := oc.o.Idle(user.Name+"-jenkins", "jenkins")
 			if err != nil {
-				log.Error(err)
-				return
+				return err
 			}
 
 			user.AddJenkinsState(false, time.Now().UTC(), fmt.Sprintf("Jenkins Idled for %s, finished at %s", n, t))
@@ -80,8 +81,7 @@ func (oc *OpenShiftController) CheckIdle(user *User) {
 	} else {
 		state, err := oc.o.IsIdle(ns, "jenkins")
 		if err != nil {
-			log.Error(err)
-			return
+			return err
 		}
 		if state == ic.JenkinsStates["Idle"] {
 			var n string
@@ -92,12 +92,13 @@ func (oc *OpenShiftController) CheckIdle(user *User) {
 			}
 			err := oc.o.UnIdle(ns, "jenkins")
 			if err != nil {
-				log.Error("Could not unidle Jenkins: ", err)
-				return
+				return errors.New(fmt.Sprintf("Could not unidle Jenkins: %s", err))
 			}
 			user.AddJenkinsState(true, time.Now().UTC(), fmt.Sprintf("Jenkins Unidled for %s at %s", n, t))
 		}
 	}
+
+	return nil
 }
 
 func (oc *OpenShiftController) processBuilds(namespaces []string) {
@@ -145,7 +146,11 @@ func (oc *OpenShiftController) Run(groupNumber int) {
 		oc.processBuilds(*oc.Groups[groupNumber])
 
 		for _, n := range *oc.Groups[groupNumber] {
-			oc.CheckIdle(oc.Users[n])
+			err := oc.CheckIdle(oc.Users[n])
+			if err != nil {
+				log.Error(n)
+				log.Error(err)
+			}
 		}
 		time.Sleep(oc.groupSleep)
 	}
