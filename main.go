@@ -81,7 +81,9 @@ func main() {
 
 	o := iClients.NewOpenShift(apiURL, token)
 
-	oc := openshiftcontroller.NewOpenShiftController(o, nGroups, idleAfter, namespaces, proxyURL)
+	unidleRetry := 15
+
+	oc := openshiftcontroller.NewOpenShiftController(o, nGroups, idleAfter, namespaces, proxyURL, unidleRetry)
 
 	//FIXME!
 
