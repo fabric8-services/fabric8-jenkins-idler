@@ -87,7 +87,7 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 		}
 		if state == ic.JenkinsStates["Idle"] {
 			if user.UnidleRetried > oc.MaxUnidleRetries {
-				log.Warn(fmt.Sprintf("Skipping unidle for %s, too many retries", user.Name))
+				return errors.New(fmt.Sprintf("Skipping unidle for %s, too many retries", user.Name))
 			}
 			var n string
 			var t time.Time
