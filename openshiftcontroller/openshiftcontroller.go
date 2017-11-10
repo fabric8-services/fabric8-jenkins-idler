@@ -22,9 +22,10 @@ type OpenShiftController struct {
 	groupSleep time.Duration
 	FilterNamespaces []string
 	o ic.OpenShift
+	MaxUnidleRetries int
 }
 
-func NewOpenShiftController(o ic.OpenShift, nGroups int, idleAfter int, filter []string, proxyURL string) *OpenShiftController {
+func NewOpenShiftController(o ic.OpenShift, nGroups int, idleAfter int, filter []string, proxyURL string, maxUnidleRetries int) *OpenShiftController {
 	oc := &OpenShiftController{
 		o: o,
 	}
@@ -35,6 +36,7 @@ func NewOpenShiftController(o ic.OpenShift, nGroups int, idleAfter int, filter [
 	oc.Groups = make([]*[]string, nGroups)
 	oc.groupSleep = 10*time.Second
 	oc.FilterNamespaces = filter
+	oc.MaxUnidleRetries = maxUnidleRetries
 	
 	oc.LoadProjects()
 
@@ -70,13 +72,13 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 				t = user.DoneBuild.Status.CompletionTimestamp.Time
 			}
 			log.Warn(fmt.Sprintf("I'd like to idle jenkins for %s as last build finished at %s", user.Name,	t))
+			user.UnidleRetried = 0
 			err := oc.o.Idle(user.Name+"-jenkins", "jenkins")
 			if err != nil {
 				return err
 			}
 
 			user.AddJenkinsState(false, time.Now().UTC(), fmt.Sprintf("Jenkins Idled for %s, finished at %s", n, t))
-			fmt.Printf("%+v\n", user.JenkinsStateList)
 		}
 	} else {
 		state, err := oc.o.IsIdle(ns, "jenkins")
@@ -84,6 +86,9 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 			return err
 		}
 		if state == ic.JenkinsStates["Idle"] {
+			if user.UnidleRetried > oc.MaxUnidleRetries {
+				log.Warn(fmt.Sprintf("Skipping unidle for %s, too many retries", user.Name))
+			}
 			var n string
 			var t time.Time
 			if user.ActiveBuild != nil {
@@ -94,6 +99,7 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 			if err != nil {
 				return errors.New(fmt.Sprintf("Could not unidle Jenkins: %s", err))
 			}
+			user.UnidleRetried++
 			user.AddJenkinsState(true, time.Now().UTC(), fmt.Sprintf("Jenkins Unidled for %s at %s", n, t))
 		}
 	}

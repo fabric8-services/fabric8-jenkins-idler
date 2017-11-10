@@ -12,6 +12,7 @@ type User struct {
 	Name string
 	JenkinsStateList []JenkinsState
 	FailedPulls int
+	UnidleRetried int
 }
 
 func (u *User) HasActive() bool {
@@ -49,6 +50,7 @@ func NewUser(n string, isRunning bool) (u *User) {
 		DoneBuild: nil,
 		JenkinsStateList: []JenkinsState{JenkinsState{isRunning, time.Now().UTC(), "init"}},
 		FailedPulls: 0,
+		UnidleRetried: 0,
 	}
 
 	return u
