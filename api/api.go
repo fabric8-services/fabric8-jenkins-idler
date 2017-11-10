@@ -23,8 +23,15 @@ func NewAPI(o *ic.OpenShift, oc *oc.OpenShiftController) IdlerAPI {
 }
 
 func (api *IdlerAPI) Builds(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	var err error
 	w.Header().Set("Content-Type", "application/json")
-	err := json.NewEncoder(w).Encode(api.OC.Users[ps.ByName("namespace")])
+	ns := ps.ByName("namespace")
+	if len(ns) > 0 {
+		err = json.NewEncoder(w).Encode(api.OC.Users[ns])
+	} else {
+		err = json.NewEncoder(w).Encode(api.OC.Users)
+	}
+
 	if err != nil {
 		log.Error("Could not serialize users")
 		fmt.Fprintf(w, "{'error': 'Could not serialize users'}")

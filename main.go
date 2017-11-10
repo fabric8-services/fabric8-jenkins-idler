@@ -88,6 +88,7 @@ func main() {
 	router := httprouter.New()
 	api := api.NewAPI(&o, oc)
 
+	router.GET("/iapi/idler/builds/", api.Builds)
 	router.GET("/iapi/idler/builds/:namespace", api.Builds)
 	router.GET("/iapi/idler/builds/:namespace/", api.Builds)
 	router.GET("/iapi/idler/idle/:namespace", api.Idle)
