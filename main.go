@@ -6,6 +6,7 @@ import (
 	"time"
 	"strings"
 	"net/http"
+	_ "net/http/pprof"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/openshiftcontroller"
 	"github.com/fabric8-services/fabric8-jenkins-idler/api"
@@ -105,9 +106,12 @@ func main() {
 	}
 
 	go func() {
-		oc.DownloadProjects()
-		time.Sleep(1*time.Minute)
+		for {
+			oc.DownloadProjects()
+			time.Sleep(10*time.Minute)
+		}
 	}()
 	
-	http.ListenAndServe(":8080", router)
+	go http.ListenAndServe(":8080", router)
+	http.ListenAndServe(":4000", nil)
 }

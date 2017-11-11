@@ -59,6 +59,8 @@ objects:
               configMapKeyRef:
                 name: jenkins-idler
                 key: jenkins.proxy.url
+          - name: GODEBUG
+            value: gctrace=1
           image: ${IMAGE}:${IMAGE_TAG}
           imagePullPolicy: Always
           name: jenkins-idler

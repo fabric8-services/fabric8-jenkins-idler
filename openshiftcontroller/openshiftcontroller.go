@@ -67,7 +67,7 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 		if state > ic.JenkinsStates["Idle"] {
 			var n string
 			var t time.Time
-			if user.DoneBuild != nil {
+			if user.HasDone() {
 				n = user.DoneBuild.Metadata.Name
 				t = user.DoneBuild.Status.CompletionTimestamp.Time
 			}
@@ -91,7 +91,7 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 			}
 			var n string
 			var t time.Time
-			if user.ActiveBuild != nil {
+			if user.HasActive() {
 				n = user.ActiveBuild.Metadata.Name
 				t = user.ActiveBuild.Status.CompletionTimestamp.Time
 			}
@@ -140,8 +140,12 @@ func (oc *OpenShiftController) processBuilds(namespaces []string) {
 			}
 		}
 		oc.lock.Lock()
-		oc.Users[n].ActiveBuild = lastActive
-		oc.Users[n].DoneBuild = lastDone
+		if lastActive != nil {
+			*oc.Users[n].ActiveBuild = *lastActive
+		}
+		if lastDone != nil {
+			*oc.Users[n].DoneBuild = *lastDone
+		}
 		oc.lock.Unlock()
 	}
 }

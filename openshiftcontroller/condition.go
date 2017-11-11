@@ -92,7 +92,6 @@ func (c *UserCondition) IsTrueFor(object interface{}) (result bool, err error) {
 	}
 
 	defer resp.Body.Close()
-	ar := &proxyAPI.APIResponse{}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -104,6 +103,7 @@ func (c *UserCondition) IsTrueFor(object interface{}) (result bool, err error) {
 		return result, errors.New(resp.Status)
 	}
 
+	ar := &proxyAPI.APIResponse{}
 	err = json.Unmarshal(body, &ar)
 	if err != nil {
 		return result, err

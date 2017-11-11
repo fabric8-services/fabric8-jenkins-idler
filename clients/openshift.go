@@ -17,12 +17,19 @@ import (
 type OpenShift struct {
 	token string
 	apiURL string
+	client http.Client
 }
 
 func NewOpenShift(apiURL string, token string) OpenShift {
 	return OpenShift{
 		apiURL: apiURL,
 		token: token,
+		client: http.Client{
+			Transport: &http.Transport{
+				MaxIdleConnsPerHost: 20,
+			},
+			Timeout: time.Duration(5) * time.Second,
+		},
 	}
 }
 
@@ -122,19 +129,15 @@ func (o *OpenShift) UnIdle(namespace string, service string) (err error) {
 		return
 	}
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", o.token))
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := o.client.Do(req)
 	if err != nil {
 		return
 	}
 
-	b, e := o.body(resp)
-	if e != nil {
-		return
-	}
+	defer bodyClose(resp)
 
 	ns := &Scale{}
-	err = json.Unmarshal(b, ns)
+	err = json.NewDecoder(resp.Body).Decode(ns)
 	if err != nil {
 		return
 	}
@@ -156,13 +159,10 @@ func (o *OpenShift) IsIdle(namespace string, service string) (int, error) {
 		return -1, err
 	}
 
-	body, err := o.body(resp)
-	if err != nil {
-		return -1, err
-	}
+	defer bodyClose(resp)
 
 	dc := DeploymentConfig{}
-	err = json.Unmarshal(body, &dc)
+	err = json.NewDecoder(resp.Body).Decode(&dc)
 	if err != nil {
 		return -1, err
 	}
@@ -197,13 +197,10 @@ func (o *OpenShift) GetRoute(n string, s string) (r string, tls bool, err error)
 		}
 	}
 
-	b, err := o.body(resp)
-	if err != nil {
-		return
-	}
+	defer bodyClose(resp)
 
 	rt := route{}
-	err = json.Unmarshal(b, &rt)
+	err = json.NewDecoder(resp.Body).Decode(&rt)
 	if err != nil {
 		return
 	}
@@ -223,13 +220,10 @@ func (o OpenShift) GetProjects() (projects []string, err error) {
 		return
 	}
 
-	body, err := o.body(resp)
-	if err != nil {
-		return
-	}
+	defer bodyClose(resp)
 
 	ps := Projects{}
-	err = json.Unmarshal(body, &ps)
+	err = json.NewDecoder(resp.Body).Decode(&ps)
 	if err != nil {
 		return
 	}
@@ -254,12 +248,8 @@ func (o OpenShift) GetBuilds(namespace string) (bl BuildList, err error) {
 		return
 	}
 
-	b, err := o.body(resp)
-	if err != nil {
-		return
-	}
-
-	err = json.Unmarshal(b, &bl)
+	defer bodyClose(resp)
+	err = json.NewDecoder(resp.Body).Decode(&bl)
 	return
 }
 
@@ -296,8 +286,7 @@ func (o *OpenShift) reqAPI(method string, namespace string, command string, body
 
 
 func (o *OpenShift) do(req *http.Request) (resp *http.Response, err error) {
-	client := &http.Client{}
-	resp, err = client.Do(req)
+	resp, err = o.client.Do(req)
 	if err != nil {
 		return
 	}
@@ -317,12 +306,12 @@ func (o *OpenShift) patch(req *http.Request) (b []byte, err error) {
 		return
 	}
 
-	b, err = o.body(resp)
+	defer bodyClose(resp)
+	b, err = ioutil.ReadAll(resp.Body)
 	return
 }
 
-func (o *OpenShift) body(resp *http.Response) (b []byte, err error) {
-	defer resp.Body.Close()
-	b, err = ioutil.ReadAll(resp.Body)
-	return
+func bodyClose(resp *http.Response) {
+	io.Copy(ioutil.Discard, resp.Body)
+	resp.Body.Close()
 }
