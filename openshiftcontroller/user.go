@@ -16,7 +16,11 @@ type User struct {
 }
 
 func (u *User) HasActive() bool {
-	return u.ActiveBuild != nil
+	return len(u.ActiveBuild.Metadata.Name) > 0
+}
+
+func (u *User) HasDone() bool {
+	return len(u.DoneBuild.Metadata.Name) > 0
 }
 
 func (u *User) LastBuild() clients.Build {
@@ -28,7 +32,7 @@ func (u *User) LastBuild() clients.Build {
 }
 
 func (u *User) HasBuilds() bool {
-	return u.ActiveBuild != nil || u.DoneBuild != nil
+	return u.HasActive() || u.HasDone()
 }
 
 func (u *User) AddJenkinsState(running bool, time time.Time, message string) {
@@ -41,13 +45,11 @@ type JenkinsState struct {
 	Message string
 }
 
-
-
 func NewUser(n string, isRunning bool) (u *User) {
 	u = &User{
 		Name: n,
-		ActiveBuild: nil,
-		DoneBuild: nil,
+		ActiveBuild: &clients.Build{},
+		DoneBuild: &clients.Build{},
 		JenkinsStateList: []JenkinsState{JenkinsState{isRunning, time.Now().UTC(), "init"}},
 		FailedPulls: 0,
 		UnidleRetried: 0,
