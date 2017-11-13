@@ -127,29 +127,21 @@ func (oc *OpenShiftController) processBuilds(namespaces []string) {
 			continue
 		}
 
-		var lastActive *ic.Build
-		var lastDone *ic.Build
-
-		lastActive = nil
-		lastDone = nil
+		lastActive := oc.Users[n].ActiveBuild
+		lastDone := oc.Users[n].DoneBuild
 		for i, _ := range bl.Items {
 			if IsActive(&bl.Items[i]) {
-				lastActive, _ = GetLastBuild(lastActive, &bl.Items[i])
+				lastActive, err = GetLastBuild(lastActive, &bl.Items[i])
 			} else {
-				lastDone, _ = GetLastBuild(lastDone, &bl.Items[i])
+				lastDone, err = GetLastBuild(lastDone, &bl.Items[i])
+			}
+			if err != nil {
+				log.Error(err)
 			}
 		}
 		oc.lock.Lock()
-		if lastActive != nil {
-			*oc.Users[n].ActiveBuild = *lastActive
-		} else {
-			*oc.Users[n].ActiveBuild = ic.Build{}
-		}
-		if lastDone != nil {
-			*oc.Users[n].DoneBuild = *lastDone
-		} else {
-			*oc.Users[n].DoneBuild = ic.Build{}
-		}
+		*oc.Users[n].ActiveBuild = *lastActive
+		*oc.Users[n].DoneBuild = *lastDone
 		oc.lock.Unlock()
 	}
 }

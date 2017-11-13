@@ -48,7 +48,7 @@ type JenkinsState struct {
 func NewUser(n string, isRunning bool) (u *User) {
 	u = &User{
 		Name: n,
-		ActiveBuild: &clients.Build{},
+		ActiveBuild: &clients.Build{Status: clients.Status{Phase: "New"}},
 		DoneBuild: &clients.Build{},
 		JenkinsStateList: []JenkinsState{JenkinsState{isRunning, time.Now().UTC(), "init"}},
 		FailedPulls: 0,
