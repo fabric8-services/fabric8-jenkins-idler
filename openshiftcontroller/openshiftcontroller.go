@@ -142,9 +142,13 @@ func (oc *OpenShiftController) processBuilds(namespaces []string) {
 		oc.lock.Lock()
 		if lastActive != nil {
 			*oc.Users[n].ActiveBuild = *lastActive
+		} else {
+			*oc.Users[n].ActiveBuild = ic.Build{}
 		}
 		if lastDone != nil {
 			*oc.Users[n].DoneBuild = *lastDone
+		} else {
+			*oc.Users[n].DoneBuild = ic.Build{}
 		}
 		oc.lock.Unlock()
 	}
