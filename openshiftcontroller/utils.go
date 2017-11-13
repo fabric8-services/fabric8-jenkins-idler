@@ -1,6 +1,7 @@
 package openshiftcontroller
 
 import (
+	"fmt"
 	"errors"
 
 	ic "github.com/fabric8-services/fabric8-jenkins-idler/clients"
@@ -37,7 +38,7 @@ func GetLastBuild(b1 *ic.Build, b2 *ic.Build) (*ic.Build, error) {
 	b1a := IsActive(b1)
 	b2a := IsActive(b2)
 	if b1a != b2a {
-		return nil, errors.New("Cannot compare Active and Done builds")
+		return b1, errors.New(fmt.Sprintf("Cannot compare Active and Done builds - %s vs. %s", b1.Status.Phase, b2.Status.Phase))
 	}
 
 	if b1a && b2a {
