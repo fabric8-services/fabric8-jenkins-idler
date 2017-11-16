@@ -31,7 +31,7 @@ func NewOpenShift(apiURL string, token string) OpenShift {
 			Transport: &http.Transport{
 				MaxIdleConnsPerHost: 20,
 			},
-			Timeout: time.Duration(5) * time.Second,
+			Timeout: time.Duration(10) * time.Second,
 		},
 	}
 }
