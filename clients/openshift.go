@@ -21,6 +21,9 @@ type OpenShift struct {
 }
 
 func NewOpenShift(apiURL string, token string) OpenShift {
+	if !strings.HasPrefix(apiURL, "http") {
+		apiURL = fmt.Sprintf("https://%s", strings.TrimRight(apiURL, "/"))
+	}
 	return OpenShift{
 		apiURL: apiURL,
 		token: token,
@@ -259,7 +262,7 @@ func (o *OpenShift) req(method string, oapi bool, namespace string, command stri
 		api = "oapi"
 	}
 
-	url := "https://"+o.apiURL+"/"+api+"/v1"
+	url := fmt.Sprintf("%s/%s/v1", o.apiURL, api)
 	if len(namespace) > 0 {
 		url = fmt.Sprintf("%s/%s/%s", url, "namespaces", namespace)
 	}
