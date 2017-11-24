@@ -68,7 +68,7 @@ func (api *IdlerAPI) IsIdle(w http.ResponseWriter, r *http.Request, ps httproute
 	}
 
 	s := Status{}
-	s.IsIdle = state < ic.JenkinsStates["Running"]
+	s.IsIdle = state < ic.JenkinsRunning
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(s)
 }

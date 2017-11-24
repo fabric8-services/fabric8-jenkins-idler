@@ -17,22 +17,28 @@ import (
 type OpenShift struct {
 	token string
 	apiURL string
-	client http.Client
+	client *http.Client
 }
 
 func NewOpenShift(apiURL string, token string) OpenShift {
+	c := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConnsPerHost: 20,
+		},
+		Timeout: time.Duration(10) * time.Second,
+	}
+
+	return NewOpenShiftWithClient(c, apiURL, token)
+}
+
+func NewOpenShiftWithClient(client *http.Client, apiURL string, token string) OpenShift {
 	if !strings.HasPrefix(apiURL, "http") {
 		apiURL = fmt.Sprintf("https://%s", strings.TrimRight(apiURL, "/"))
 	}
 	return OpenShift{
 		apiURL: apiURL,
 		token: token,
-		client: http.Client{
-			Transport: &http.Transport{
-				MaxIdleConnsPerHost: 20,
-			},
-			Timeout: time.Duration(10) * time.Second,
-		},
+		client: client,
 	}
 }
 
@@ -171,14 +177,12 @@ func (o *OpenShift) IsIdle(namespace string, service string) (int, error) {
 	}
 
 	if dc.Status.Replicas == 0 {
-		return JenkinsStates["Idle"], nil
+		return JenkinsIdled, nil
 	}
-
 	if dc.Status.ReadyReplicas == 0 {
-		return JenkinsStates["Starting"], nil
+		return JenkinsStarting, nil
 	}
-
-	return JenkinsStates["Running"], nil
+	return JenkinsRunning, nil
 }
 
 func (o *OpenShift) GetRoute(n string, s string) (r string, tls bool, err error) {
@@ -211,6 +215,15 @@ func (o *OpenShift) GetRoute(n string, s string) (r string, tls bool, err error)
 	r = rt.Spec.Host
 	tls = len(rt.Spec.TLS.Termination) > 0
 	return
+}
+
+func (o OpenShift) GetScheme(tls bool) string {
+	scheme := "https"
+	if !tls {
+		scheme = "http"
+	}
+
+	return scheme
 }
 
 func (o OpenShift) GetProjects() (projects []string, err error) {

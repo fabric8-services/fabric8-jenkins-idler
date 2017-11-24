@@ -8,6 +8,12 @@ import (
 
 //OpenShift related structs
 
+const (
+	JenkinsIdled = 0
+	JenkinsStarting = 1
+	JenkinsRunning = 2
+)
+
 type Object struct {
 	Type string `json:"type"`
 	Object Build `json:"object"`
@@ -119,10 +125,4 @@ var Phases = map[string]int {
 	"Pending": 1,
 	"New": 1,
 	"Running": 1,
-}
-
-var JenkinsStates = map[string]int {
-	"Idled": 0,
-	"Starting": 1,
-	"Running": 2,
 }

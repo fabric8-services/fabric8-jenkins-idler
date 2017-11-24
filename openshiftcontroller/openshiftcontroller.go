@@ -64,7 +64,7 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 		if err != nil {
 			return err
 		}
-		if state > ic.JenkinsStates["Idle"] {
+		if state > ic.JenkinsIdled {
 			var n string
 			var t time.Time
 			if user.HasDone() {
@@ -85,7 +85,7 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 		if err != nil {
 			return err
 		}
-		if state == ic.JenkinsStates["Idle"] {
+		if state == ic.JenkinsIdled {
 			if user.UnidleRetried > oc.MaxUnidleRetries {
 				return errors.New(fmt.Sprintf("Skipping unidle for %s, too many retries", user.Name))
 			}
@@ -116,7 +116,7 @@ func (oc *OpenShiftController) processBuilds(namespaces []string) {
 				continue
 			}
 			oc.lock.Lock()
-			oc.Users[n] = NewUser(n, (state == ic.JenkinsStates["Running"]))
+			oc.Users[n] = NewUser(n, (state == ic.JenkinsRunning))
 			oc.lock.Unlock()
 		}
 		//log.Info("Getting builds for ", n)
