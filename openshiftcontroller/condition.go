@@ -112,11 +112,8 @@ func (c *UserCondition) IsTrueFor(object interface{}) (result bool, err error) {
 		return result, nil
 	}
 
-	tu, err := time.Parse(time.RFC3339, ar.LastVisit)
-	if err != nil {
-		return result, err
-	}
-	tr, err := time.Parse(time.RFC3339, ar.LastRequest)
+	tu := time.Unix(ar.LastVisit, 0)
+	tr := time.Unix(ar.LastRequest, 0)
 	if err != nil {
 		return result, err
 	}
