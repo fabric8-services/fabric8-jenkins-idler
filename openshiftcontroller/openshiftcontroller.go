@@ -1,8 +1,8 @@
 package openshiftcontroller
 
 import (
+	"strconv"
 	"errors"
-	ic "github.com/fabric8-services/fabric8-jenkins-idler/clients"
 	"fmt"
 	"encoding/json"
 	"bytes"
@@ -10,6 +10,12 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
+	ic "github.com/fabric8-services/fabric8-jenkins-idler/clients"
+)
+
+const (
+	loadRetrySleep   = 10
+	availableCond    = "Available"
 )
 
 type OpenShiftController struct {
@@ -38,10 +44,21 @@ func NewOpenShiftController(o ic.OpenShift, nGroups int, idleAfter int, filter [
 	oc.FilterNamespaces = filter
 	oc.MaxUnidleRetries = maxUnidleRetries
 	
-	oc.LoadProjects()
+	var err error
+	for { //FIXME
+		_, err = oc.LoadProjects()
+		if err != nil {
+			log.Error(err)
+			time.Sleep(loadRetrySleep*time.Second)
+		} else {
+			break
+		}
+	}
 
 	bc := NewBuildCondition(time.Duration(idleAfter)*time.Minute)
 	oc.Conditions.Conditions["build"] = bc
+	dcc := NewDCCondition(time.Duration(idleAfter)*time.Minute)
+	oc.Conditions.Conditions["DC"] = dcc
 	if len(proxyURL) > 0 {
 		log.Info("Adding 'user' condition")
 		uc := NewUserCondition(proxyURL, time.Duration(idleAfter)*time.Minute)
@@ -86,6 +103,7 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 			return err
 		}
 		if state == ic.JenkinsIdled {
+			log.Info("Potential unidling event")
 			if user.UnidleRetried > oc.MaxUnidleRetries {
 				return errors.New(fmt.Sprintf("Skipping unidle for %s, too many retries", user.Name))
 			}
@@ -107,17 +125,114 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 	return nil
 }
 
-func (oc *OpenShiftController) processBuilds(namespaces []string) {
-	for _, n := range namespaces {
-		if _, exist := oc.Users[n]; !exist {
-			state, err := oc.o.IsIdle(n+"-jenkins", "jenkins")
-			if err != nil {
-				log.Error(err)
-				continue
-			}
+func (oc *OpenShiftController) HandleBuild(o ic.Object) (err error) {
+	found := false
+	ns := o.Object.Metadata.Namespace
+	for _, n := range oc.FilterNamespaces {
+		if ns == n {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		log.Infof("Throwing event away: %s (%s)", o.Object.Metadata.Name, o.Object.Metadata.Namespace)
+		return
+	}
+
+	err = oc.CheckNewUser(o.Object.Metadata.Namespace)
+	if err != nil {
+		return
+	}
+	log.Infof("Processing %s", o.Object.Metadata.Name)
+	if IsActive(&o.Object) {
+		lastActive := oc.Users[ns].ActiveBuild
+		if lastActive.Status.Phase != o.Object.Status.Phase || lastActive.Metadata.Annotations.BuildNumber != o.Object.Metadata.Annotations.BuildNumber {
 			oc.lock.Lock()
-			oc.Users[n] = NewUser(n, (state == ic.JenkinsRunning))
+			*oc.Users[ns].ActiveBuild = o.Object
 			oc.lock.Unlock()
+		}
+	} else {
+		lastDone := oc.Users[ns].DoneBuild
+		if lastDone.Status.Phase != o.Object.Status.Phase || lastDone.Metadata.Annotations.BuildNumber != o.Object.Metadata.Annotations.BuildNumber {
+			oc.lock.Lock()
+			*oc.Users[ns].DoneBuild = o.Object
+			oc.lock.Unlock()
+		}
+	}
+
+	if oc.Users[ns].ActiveBuild.Metadata.Annotations.BuildNumber == oc.Users[ns].DoneBuild.Metadata.Annotations.BuildNumber {
+		oc.lock.Lock()
+		oc.Users[ns].ActiveBuild = &ic.Build{Status: ic.Status{Phase: "New"}}
+		oc.lock.Unlock()
+	}
+
+	return
+}
+
+func (oc *OpenShiftController) HandleDeploymentConfig(dc ic.DCObject) (err error) {
+	found := false
+	ns := dc.Object.Metadata.Namespace[:len(dc.Object.Metadata.Namespace)-len("-jenkins")]
+	for _, n := range oc.FilterNamespaces {
+		if ns == n {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		log.Infof("Throwing event away: %s (%s)", dc.Object.Metadata.Name, dc.Object.Metadata.Namespace)
+		return
+	}
+
+	err = oc.CheckNewUser(ns)
+	if err != nil {
+		return
+	}
+
+	c, err := dc.Object.Status.GetByType(availableCond)
+	if err != nil {
+		return
+	}
+
+	if (dc.Object.Metadata.Generation != dc.Object.Status.ObservedGeneration && dc.Object.Spec.Replicas > 0) || dc.Object.Status.UnavailableReplicas > 0 {
+		oc.lock.Lock()
+		oc.Users[ns].JenkinsLastUpdate = time.Now().UTC()
+		oc.lock.Unlock()
+	}
+
+	status, err := strconv.ParseBool(c.Status)
+	if err != nil {
+		return
+	}
+	if status == true {
+		oc.lock.Lock()
+		oc.Users[ns].JenkinsLastUpdate = c.LastUpdateTime
+		oc.lock.Unlock()
+	}
+
+	return
+}
+
+func (oc *OpenShiftController) CheckNewUser(ns string) (err error) {
+	if _, exist := oc.Users[ns]; !exist {
+		state, err := oc.o.IsIdle(ns+"-jenkins", "jenkins")
+		if err != nil {
+			return err
+		}
+		oc.lock.Lock()
+		oc.Users[ns] = NewUser(ns, (state == ic.JenkinsRunning))
+		oc.lock.Unlock()
+	}
+
+	return
+}
+
+func (oc *OpenShiftController) processBuilds(namespaces []string) (err error) {
+	for _, n := range namespaces {
+		err := oc.CheckNewUser(n)
+		if err != nil {
+			return err
 		}
 		//log.Info("Getting builds for ", n)
 
@@ -144,9 +259,27 @@ func (oc *OpenShiftController) processBuilds(namespaces []string) {
 		*oc.Users[n].DoneBuild = *lastDone
 		oc.lock.Unlock()
 	}
+
+	return
 }
 
-func (oc *OpenShiftController) Run(groupNumber int) {
+func (oc *OpenShiftController) Run(groupNumber int, watch bool) {
+	if watch {
+		go func() {
+			for {
+				for _, u := range oc.Users {
+					err := oc.CheckIdle(u)
+					if err != nil {
+						log.Errorf("Could not check idling for %s: %s", u.Name, err)
+					}
+				}
+				time.Sleep(oc.groupSleep)
+			}
+		}()
+		go oc.o.WatchDeploymentConfigs("", "-jenkins", oc.HandleDeploymentConfig)
+		oc.o.WatchBuilds("", "JenkinsPipeline", oc.HandleBuild)
+		return
+	}
 	for {
 		log.Info("Checking group #", groupNumber)
 		oc.processBuilds(*oc.Groups[groupNumber])

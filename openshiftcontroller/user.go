@@ -13,6 +13,7 @@ type User struct {
 	JenkinsStateList []JenkinsState
 	FailedPulls int
 	UnidleRetried int
+	JenkinsLastUpdate time.Time
 }
 
 func (u *User) HasActive() bool {

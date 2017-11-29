@@ -124,3 +124,29 @@ func (c *UserCondition) IsTrueFor(object interface{}) (result bool, err error) {
 	return result, err
 
 }
+
+type DCCondition struct {
+	Condition
+	IdleAfter time.Duration
+}
+
+func NewDCCondition(idleAfter time.Duration) *DCCondition {
+	b := &DCCondition{
+		IdleAfter: idleAfter,
+	}
+	return b
+}
+
+func (c *DCCondition) IsTrueFor(object interface{}) (result bool, err error) {
+	result = false
+	b, ok := object.(*User)
+	if !ok {
+		return false, errors.New(fmt.Sprintf("%s is not of type *User", object))
+	}
+
+	if b.JenkinsLastUpdate.Add(c.IdleAfter).Before(time.Now()) {
+		result = true
+	}
+
+	return
+}
