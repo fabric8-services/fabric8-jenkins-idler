@@ -135,6 +135,10 @@ func (oc *OpenShiftController) HandleBuild(o ic.Object) (err error) {
 		}
 	}
 
+	if len(oc.FilterNamespaces) == 0 {
+		found = true
+	}
+
 	if !found {
 		log.Infof("Throwing event away: %s (%s)", o.Object.Metadata.Name, o.Object.Metadata.Namespace)
 		return
@@ -178,6 +182,10 @@ func (oc *OpenShiftController) HandleDeploymentConfig(dc ic.DCObject) (err error
 			found = true
 			break
 		}
+	}
+
+	if len(oc.FilterNamespaces) == 0 {
+		found = true
 	}
 
 	if !found {
