@@ -54,15 +54,17 @@ func main() {
 	router.GET("/iapi/idler/route/:namespace/", api.GetRoute)
 	
 	for gn, _ := range oc.Groups {
-		go oc.Run(gn)
+		go oc.Run(gn, config.GetUseWatch())
 	}
 
-	go func() {
-		for {
-			oc.DownloadProjects()
-			time.Sleep(10*time.Minute)
-		}
-	}()
+	if !config.GetUseWatch() {
+		go func() {
+			for {
+				oc.DownloadProjects()
+				time.Sleep(10*time.Minute)
+			}
+		}()
+	}
 	
 	go http.ListenAndServe(":8080", router)
 	http.ListenAndServe(":4000", nil)

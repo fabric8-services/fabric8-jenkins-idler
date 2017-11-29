@@ -14,6 +14,7 @@ const (
 	varConcurrentGroups                = "concurrent.groups"
 	varIdleAfter                       = "idle.after"	
 	varFilteredNamespaces              = "filter.namespaces"
+	varUseWatch                        = "use.watch"
 
 	varLocalDevEnv                     = "local.dev.env"
 )
@@ -45,6 +46,7 @@ func (c *Data) setConfigDefaults() {
 	c.v.SetDefault(varIdleAfter, 30)
 	c.v.SetDefault(varConcurrentGroups, 1)
 	c.v.SetDefault(varProxyURL, "http://localhost:9091")
+	c.v.SetDefault(varUseWatch, true)
 }
 
 func (c *Data) Verify() {
@@ -116,6 +118,11 @@ func (c *Data) GetConcurrentGroups() int {
 // GetIdleAfter returns the number of minutes before Jenkins is idled as set via default, config file, or environment variable
 func (c *Data) GetIdleAfter() int {
 	return c.v.GetInt(varIdleAfter)
+}
+
+// GetUseWatch returns if idler should use watch instead of poll as set via default, config file, or environment variable
+func (c *Data) GetUseWatch() bool {
+	return c.v.GetBool(varUseWatch)
 }
 
 // GetLocalDevEnv returns if it is local development env as set via default, config file, or environment variable

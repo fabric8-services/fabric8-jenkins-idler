@@ -2,6 +2,7 @@ package clients
 
 import (
 	"bytes"
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -253,6 +254,133 @@ func (o OpenShift) GetProjects() (projects []string, err error) {
 	return
 }
 
+func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func(Object) error) (err error) {
+	c := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConnsPerHost: 20,
+		},
+		Timeout: time.Duration(0) * time.Second,
+	}
+	for {
+		req, err := o.reqOAPIWatch("GET", namespace, "builds", nil)
+		if err != nil {
+			return err
+		}
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", o.token))
+
+		resp, err := c.Do(req)
+		if err != nil {
+			return err
+		}
+
+		reader := bufio.NewReader(resp.Body)
+		for {
+				line, err := reader.ReadBytes('\n')
+				if err != nil {
+					if err.Error() == "EOF" || err.Error() == "unexpected EOF" {
+						log.Info("Got error ", err, " but continuing..")
+						break;
+					}
+					fmt.Printf("It's broken %+v\n", err)
+				}
+
+				o := Object{}
+
+				err = json.Unmarshal(line, &o)
+				if err!=nil {
+					if strings.HasPrefix(string(line), "This request caused apisever to panic") {
+						log.WithField("error", string(line)).Warning("Communication with server failed")
+						break;
+					}
+					log.Errorf("Failed to Unmarshal: %s", err)
+					break
+				}
+
+				if o.Object.Spec.Strategy.Type != buildType {
+					log.Infof("Skipping build %s (type: %s)", o.Object.Metadata.Name, o.Object.Spec.Strategy.Type)
+					continue
+				}
+				log.Infof("Handling Build change for user %s", o.Object.Metadata.Namespace)
+				err = callback(o)
+				if err != nil {
+					return err
+				}
+
+				log.Infof("Event summary: Build %s -> %s, %s/%s", o.Object.Metadata.Name, o.Object.Status.Phase, o.Object.Status.StartTimestamp, o.Object.Status.CompletionTimestamp) 
+		}
+	}
+
+	return
+}
+
+func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, callback func(DCObject) error) (err error) {
+	c := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConnsPerHost: 20,
+		},
+		Timeout: time.Duration(0) * time.Second,
+	}
+	for {
+		req, err := o.reqOAPIWatch("GET", namespace, "deploymentconfigs", nil)
+		if err != nil {
+			return err
+		}
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", o.token))
+		v := req.URL.Query()
+		v.Add("labelSelector", "app=jenkins")
+		req.URL.RawQuery = v.Encode()
+		resp, err := c.Do(req)
+		if err != nil {
+			return err
+		}
+	
+	
+		reader := bufio.NewReader(resp.Body)
+		for {
+				line, err := reader.ReadBytes('\n')
+				if err != nil {
+					if err.Error() == "EOF" || err.Error() == "unexpected EOF" {	
+						log.Info("Got error ", err, " but continuing..")
+						break;
+					} 
+					fmt.Printf("It's broken %+v\n", err)
+				}
+
+				o := DCObject{}
+			
+				err = json.Unmarshal(line, &o)
+				if err!=nil {
+					if strings.HasPrefix(string(line), "This request caused apisever to panic") {
+						log.WithField("error", string(line)).Warning("Communication with server failed")
+						break;
+					}
+					log.Errorf("Failed to Unmarshal: %s", err)
+					break
+				}
+
+				if !strings.HasSuffix(o.Object.Metadata.Namespace, nsSuffix) {
+					log.Infof("Skipping DC %s", o.Object.Metadata.Namespace)
+					continue
+				}
+
+				fmt.Printf("Handling DC change for user %s\n", o.Object.Metadata.Namespace)
+				err = callback(o)
+				if err != nil {
+					return err
+				}
+		
+				c, err := o.Object.Status.GetByType("Available")
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+				fmt.Printf("Event summary: DeploymentConfig %s, %s/%s\n", o.Object.Metadata.Name, c.Status, c.LastUpdateTime) 
+		}
+	}
+
+	return
+}
+
 func (o OpenShift) GetBuilds(namespace string) (bl BuildList, err error) {
 	req, err := o.reqOAPI("GET", namespace, "builds", nil)
 	if err != nil {
@@ -269,7 +397,7 @@ func (o OpenShift) GetBuilds(namespace string) (bl BuildList, err error) {
 	return
 }
 
-func (o *OpenShift) req(method string, oapi bool, namespace string, command string, body io.Reader) (req *http.Request, err error) {
+func (o *OpenShift) req(method string, oapi bool, namespace string, command string, body io.Reader, watch bool) (req *http.Request, err error) {
 	api := "api"
 	if oapi {
 		api = "oapi"
@@ -288,16 +416,29 @@ func (o *OpenShift) req(method string, oapi bool, namespace string, command stri
 	}
 
 	req.Header.Add("Authorization", "Bearer "+o.token)
+	if watch {
+		v := req.URL.Query()
+		v.Add("watch", "true")
+		req.URL.RawQuery = v.Encode()
+	}
 
 	return
 }
 
 func (o *OpenShift) reqOAPI(method string, namespace string, command string, body io.Reader) (req *http.Request, err error) {
-	return o.req(method, true, namespace, command, body)
+	return o.req(method, true, namespace, command, body, false)
 }
 
 func (o *OpenShift) reqAPI(method string, namespace string, command string, body io.Reader) (req *http.Request, err error) {
-	return o.req(method, false, namespace, command, body)
+	return o.req(method, false, namespace, command, body, false)
+}
+
+func (o *OpenShift) reqOAPIWatch(method string, namespace string, command string, body io.Reader) (req *http.Request, err error) {
+	return o.req(method, true, namespace, command, body, true)
+}
+
+func (o *OpenShift) reqAPIWatch(method string, namespace string, command string, body io.Reader) (req *http.Request, err error) {
+	return o.req(method, false, namespace, command, body, true)
 }
 
 

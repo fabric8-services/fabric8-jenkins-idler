@@ -1,6 +1,7 @@
 package clients
 
 import (
+	"fmt"
 	"encoding/json"
 	"time"
 	"strings"
@@ -19,6 +20,11 @@ type Object struct {
 	Object Build `json:"object"`
 }
 
+type DCObject struct {
+	Type string `json:"type"`
+	Object DeploymentConfig `json:"object"`
+}
+
 type BuildList struct {
 	Kind string
 	Items []Build `json:"items"`
@@ -27,12 +33,14 @@ type BuildList struct {
 type Build struct {
 	Metadata Metadata `json:"metadata"`
 	Status Status `json:"status"`
+	Spec Spec `json:"spec"`
 }
 
 type Metadata struct {
 	Name string `json:"name,omitempty"`
 	Namespace string `json:"namespace,omitempty"`
 	Annotations Annotations `json:"annotations"`
+	Generation int
 }
 
 type Annotations struct {
@@ -62,10 +70,24 @@ type DeploymentConfig struct {
 type DCStatus struct {
 	Replicas int
 	ReadyReplicas int
+	Conditions []Condition
+	ObservedGeneration int `json:"observedGeneration,omitempty"`
+	UnavailableReplicas int `json:"unavailableReplicas, omitempty"`
+}
+
+type Condition struct {
+	Type string
+	LastUpdateTime time.Time
+	Status string
 }
 
 type Spec struct {
 	Replicas int `json:"replicas"`
+	Strategy Strategy
+}
+
+type Strategy struct {
+	Type string
 }
 
 type Scale struct {
@@ -88,6 +110,8 @@ type Project struct {
 type BuildTime struct {
 	time.Time
 }
+
+
 
 func (bt *BuildTime) UnmarshalJSON(b []byte) (err error) {
 	s := strings.Trim(string(b), "\"")
@@ -115,6 +139,16 @@ func (s *Status) UnmarshalJSON(b []byte) (err error) {
 	*s = Status(*ns)
 
 	return
+}
+
+func (s DCStatus) GetByType(t string) (Condition, error) {
+	for _, c := range s.Conditions {
+		if c.Type == t {
+			return c, nil
+		}
+	}
+
+	return Condition{}, fmt.Errorf("Could not find condition '%s'", t)
 }
 
 var Phases = map[string]int {
