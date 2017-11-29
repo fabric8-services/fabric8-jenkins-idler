@@ -107,7 +107,12 @@ func (c *Data) GetProxyURL() string {
 
 // GetFilteredNamespaces returns the list of namespaces to handle as set via default, config file, or environment variable
 func (c *Data) GetFilteredNamespaces() []string {
-	return strings.Split(c.v.GetString(varFilteredNamespaces), ":")
+	fn := strings.Split(c.v.GetString(varFilteredNamespaces), ":")
+	if len(fn) == 1 && len(fn[0]) == 0 {
+		return []string{}
+	}
+
+	return fn
 }
 
 // GetConcurrentGroups returns the number of concurrent groups that shoul run as set via default, config file, or environment variable
