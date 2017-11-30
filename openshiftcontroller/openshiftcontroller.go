@@ -74,8 +74,10 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 	}
 	ns := user.Name+"-jenkins"
 	oc.lock.Lock()
-	eval := oc.Conditions.Eval(user)
+	eval, condStates := oc.Conditions.Eval(user)
 	oc.lock.Unlock()
+	cs, _ := json.Marshal(condStates) //Ignore errors
+	log.Infof("Conditions: %b = %s", eval, string(cs))
 	if eval {
 		state, err := oc.o.IsIdle(ns, "jenkins")
 		if err != nil {
@@ -128,14 +130,14 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 func (oc *OpenShiftController) HandleBuild(o ic.Object) (err error) {
 	found := false
 	ns := o.Object.Metadata.Namespace
-	for _, n := range oc.FilterNamespaces {
-		if ns == n {
-			found = true
-			break
+	if len(oc.FilterNamespaces) > 0 {
+		for _, n := range oc.FilterNamespaces {
+			if ns == n {
+				found = true
+				break
+			}
 		}
-	}
-
-	if len(oc.FilterNamespaces) == 0 {
+	} else {
 		found = true
 	}
 

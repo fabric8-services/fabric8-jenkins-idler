@@ -264,13 +264,14 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 	for {
 		req, err := o.reqOAPIWatch("GET", namespace, "builds", nil)
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", o.token))
 
 		resp, err := c.Do(req)
 		if err != nil {
-			return err
+			log.Errorf("Request failed: %s", err)
+			continue
 		}
 
 		reader := bufio.NewReader(resp.Body)
@@ -303,7 +304,8 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 				log.Infof("Handling Build change for user %s", o.Object.Metadata.Namespace)
 				err = callback(o)
 				if err != nil {
-					return err
+					log.Errorf("Error from callback: %s", err)
+					continue
 				}
 
 				log.Infof("Event summary: Build %s -> %s, %s/%s", o.Object.Metadata.Name, o.Object.Status.Phase, o.Object.Status.StartTimestamp, o.Object.Status.CompletionTimestamp) 
@@ -323,7 +325,7 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 	for {
 		req, err := o.reqOAPIWatch("GET", namespace, "deploymentconfigs", nil)
 		if err != nil {
-			return err
+			log.Fatal(err)
 		}
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", o.token))
 		v := req.URL.Query()
@@ -331,9 +333,9 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 		req.URL.RawQuery = v.Encode()
 		resp, err := c.Do(req)
 		if err != nil {
-			return err
+			log.Errorf("Request failed: %s", err)
+			continue
 		}
-	
 	
 		reader := bufio.NewReader(resp.Body)
 		for {
@@ -366,7 +368,8 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 				fmt.Printf("Handling DC change for user %s\n", o.Object.Metadata.Namespace)
 				err = callback(o)
 				if err != nil {
-					return err
+					log.Errorf("Error from DC callback: %s", err)
+					continue
 				}
 		
 				c, err := o.Object.Status.GetByType("Available")
