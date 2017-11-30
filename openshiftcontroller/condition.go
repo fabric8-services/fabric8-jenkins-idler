@@ -25,18 +25,21 @@ type Conditions struct {
 	Conditions map[string]ConditionI
 }
 
-func (c *Conditions) Eval(o interface{}) (result bool) {
+func (c *Conditions) Eval(o interface{}) (result bool, condStates map[string]bool) {
 	result = true
-	for _, ci := range c.Conditions {
+	condStates = make(map[string]bool)
+	for name, ci := range c.Conditions {
 		r, err := ci.IsTrueFor(o)
 		if err != nil {
 			log.Error(err)
-		} else if !r {
+		} 
+		if !r {
 			result = false
 		}
+		condStates[name] = r
 	}
 
-	return result
+	return result, condStates
 }
 
 type BuildCondition struct {
