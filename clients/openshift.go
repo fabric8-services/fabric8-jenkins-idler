@@ -308,7 +308,7 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 					continue
 				}
 
-				log.Infof("Event summary: Build %s -> %s, %s/%s", o.Object.Metadata.Name, o.Object.Status.Phase, o.Object.Status.StartTimestamp, o.Object.Status.CompletionTimestamp) 
+				log.Debugf("Event summary: Build %s -> %s, %s/%s", o.Object.Metadata.Name, o.Object.Status.Phase, o.Object.Status.StartTimestamp, o.Object.Status.CompletionTimestamp) 
 		}
 	}
 
@@ -365,7 +365,7 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 					continue
 				}
 
-				fmt.Printf("Handling DC change for user %s\n", o.Object.Metadata.Namespace)
+				log.Infof("Handling DC change for user %s\n", o.Object.Metadata.Namespace)
 				err = callback(o)
 				if err != nil {
 					log.Errorf("Error from DC callback: %s", err)
@@ -377,7 +377,7 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 					log.Error(err)
 					continue
 				}
-				fmt.Printf("Event summary: DeploymentConfig %s, %s/%s\n", o.Object.Metadata.Name, c.Status, c.LastUpdateTime) 
+				log.Debugf("Event summary: DeploymentConfig %s, %s/%s\n", o.Object.Metadata.Name, c.Status, c.LastUpdateTime) 
 		}
 	}
 

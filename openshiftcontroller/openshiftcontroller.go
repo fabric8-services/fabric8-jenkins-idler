@@ -77,7 +77,7 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 	eval, condStates := oc.Conditions.Eval(user)
 	oc.lock.Unlock()
 	cs, _ := json.Marshal(condStates) //Ignore errors
-	log.Infof("Conditions: %b = %s", eval, string(cs))
+	log.Debugf("Conditions: %b = %s", eval, string(cs))
 	if eval {
 		state, err := oc.o.IsIdle(ns, "jenkins")
 		if err != nil {
