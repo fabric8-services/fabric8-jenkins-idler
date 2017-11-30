@@ -90,7 +90,7 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 				n = user.DoneBuild.Metadata.Name
 				t = user.DoneBuild.Status.CompletionTimestamp.Time
 			}
-			log.Warn(fmt.Sprintf("I'd like to idle jenkins for %s as last build finished at %s", user.Name,	t))
+			log.Info(fmt.Sprintf("I'd like to idle jenkins for %s as last build finished at %s", user.Name,	t))
 			user.UnidleRetried = 0
 			err := oc.o.Idle(user.Name+"-jenkins", "jenkins")
 			if err != nil {
@@ -105,9 +105,11 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 			return err
 		}
 		if state == ic.JenkinsIdled {
-			log.Info("Potential unidling event")
-			if user.UnidleRetried > oc.MaxUnidleRetries {
-				return errors.New(fmt.Sprintf("Skipping unidle for %s, too many retries", user.Name))
+			log.Debug("Potential unidling event")
+			if user.UnidleRetried > oc.MaxUnidleRetries && (user.UnidleRetried % oc.MaxUnidleRetries != 0) { //Skip some retries,but check from time to time if things are fixed
+				user.UnidleRetried++
+				 log.Debug(fmt.Sprintf("Skipping unidle for %s, too many retries", user.Name))
+				 return nil
 			}
 			var n string
 			var t time.Time
@@ -275,6 +277,7 @@ func (oc *OpenShiftController) processBuilds(namespaces []string) (err error) {
 
 func (oc *OpenShiftController) Run(groupNumber int, watch bool) {
 	if watch {
+		//FIXME
 		go func() {
 			for {
 				for _, u := range oc.Users {
