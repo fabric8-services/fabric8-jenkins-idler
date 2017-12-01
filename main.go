@@ -1,5 +1,3 @@
-// You can edit this code!
-// Click here and start typing.
 package main
 
 import (
@@ -18,6 +16,7 @@ import (
 )
 
 const (
+	//How many times to retry to unidle before giving up
 	unidleRetry = 15
 )
 
@@ -26,20 +25,23 @@ func init() {
 }
 
 func main() {
+	//Init configuration
 	config, err := configuration.NewData()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	//Verify if we have all the info
 	config.Verify()
 
+	//Create OpenShift client
 	o := iClients.NewOpenShift(config.GetOpenShiftURL(), config.GetOpenShiftToken())
 
+	//Create Idler controller
 	oc := openshiftcontroller.NewOpenShiftController(o, config.GetConcurrentGroups(),
-										config.GetIdleAfter(), config.GetFilteredNamespaces(), config.GetProxyURL(), unidleRetry)
+										config.GetIdleAfter(), config.GetFilteredNamespaces(), config.GetProxyURL(), unidleRetry, config.GetUseWatch())
 
-	//FIXME!
-
+	//Create router for Idler API
 	router := httprouter.New()
 	api := api.NewAPI(&o, oc)
 
@@ -53,10 +55,12 @@ func main() {
 	router.GET("/iapi/idler/route/:namespace", api.GetRoute)
 	router.GET("/iapi/idler/route/:namespace/", api.GetRoute)
 	
+	//Spawn the main loop
 	for gn, _ := range oc.Groups {
-		go oc.Run(gn, config.GetUseWatch())
+		go oc.Run(gn)
 	}
 
+	//If we do not use websocket to get events from OpenShift, we need to update list of projects regularly (to spot new users)
 	if !config.GetUseWatch() {
 		go func() {
 			for {
@@ -66,6 +70,6 @@ func main() {
 		}()
 	}
 	
-	go http.ListenAndServe(":8080", router)
-	http.ListenAndServe(":4000", nil)
+	//Start Idler API
+	http.ListenAndServe(":8080", router)
 }

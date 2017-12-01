@@ -13,7 +13,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+//ConditionI is a minimal interface a condition needs to implement
 type ConditionI interface {
+	//Return true if the condition is true for a given object
 	IsTrueFor(object interface{}) (bool, error)
 }
 
@@ -25,6 +27,8 @@ type Conditions struct {
 	Conditions map[string]ConditionI
 }
 
+//Eval evaluates a list of conditions for a given object. It returns false if 
+//any of the conditions evals as false
 func (c *Conditions) Eval(o interface{}) (result bool, condStates map[string]bool) {
 	result = true
 	condStates = make(map[string]bool)
@@ -42,6 +46,7 @@ func (c *Conditions) Eval(o interface{}) (result bool, condStates map[string]boo
 	return result, condStates
 }
 
+//BuildCondition covers builds a user has/had running
 type BuildCondition struct {
 	Condition
 	IdleAfter time.Duration
@@ -52,6 +57,8 @@ func NewBuildCondition(idleAfter time.Duration) *BuildCondition {
 	return b
 }
 
+//IsTrueFor returns true if a User does not have any Builds or does not have any
+//Active builds and last Done build happened IdleAfter (time.Duration) before
 func (c *BuildCondition) IsTrueFor(object interface{}) (result bool, err error) {
 	result = false
 	u, ok := object.(*User)
@@ -67,6 +74,7 @@ func (c *BuildCondition) IsTrueFor(object interface{}) (result bool, err error) 
 
 }
 
+//UserCondition covers information about User passed from Proxy
 type UserCondition struct {
 	Condition
 	IdleAfter time.Duration
@@ -81,6 +89,8 @@ func NewUserCondition(proxyURL string, idleAfter time.Duration) *UserCondition {
 	return b
 }
 
+//IsTrueFor returns true if there are no buffered request, last request was forwarded at least before
+//IdleAfter (time.Duration) and the user accessed Jenkins UI at least before IdleAfter
 func (c *UserCondition) IsTrueFor(object interface{}) (result bool, err error) {
 	result = false
 	b, ok := object.(*User)
@@ -128,6 +138,7 @@ func (c *UserCondition) IsTrueFor(object interface{}) (result bool, err error) {
 
 }
 
+//DCCondition covers changes to Jenkins DeploymentConfigs
 type DCCondition struct {
 	Condition
 	IdleAfter time.Duration
@@ -140,6 +151,8 @@ func NewDCCondition(idleAfter time.Duration) *DCCondition {
 	return b
 }
 
+//IsTrueFor returns true if the last change to DC happened at least 
+//before IdleAfter (time.Duration)
 func (c *DCCondition) IsTrueFor(object interface{}) (result bool, err error) {
 	result = false
 	b, ok := object.(*User)
