@@ -24,7 +24,7 @@ type Data struct {
 	v *viper.Viper
 }
 
-// NewData creates a configuration reader object using a configurable configuration file path
+// NewData creates a configuration reader object
 func NewData() (*Data, error) {
 	c := Data{
 		v: viper.New(),

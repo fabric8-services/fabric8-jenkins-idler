@@ -11,6 +11,8 @@ func roundP(f float64) int {
 	return int(f + 0.5)
 }
 
+//SplitGroups takes a list of strings and splits them in N groups evenly.
+//N is given by length second parameter
 func SplitGroups(data []string, split []*[]string) []*[]string {
 	n := len(split)
 
@@ -28,6 +30,9 @@ func SplitGroups(data []string, split []*[]string) []*[]string {
 	return split
 }
 
+
+//GetLastBuild compares 2 builds and returns the newer one. There are differences between
+//active (StartTimestamp) and done (CompletionTimestamp) builds.
 func GetLastBuild(b1 *ic.Build, b2 *ic.Build) (*ic.Build, error) {
 	if b1 == nil {
 		return b2, nil
@@ -56,6 +61,8 @@ func GetLastBuild(b1 *ic.Build, b2 *ic.Build) (*ic.Build, error) {
 	}
 }
 
+//IsActive returns true ifa build phase suggests a build is active.
+//It returns false otherwise.
 func IsActive(b *ic.Build) bool {
 	return ic.Phases[b.Status.Phase] == 1
 }

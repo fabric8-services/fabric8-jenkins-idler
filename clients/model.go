@@ -111,8 +111,6 @@ type BuildTime struct {
 	time.Time
 }
 
-
-
 func (bt *BuildTime) UnmarshalJSON(b []byte) (err error) {
 	s := strings.Trim(string(b), "\"")
 	if len(s) == 0 {

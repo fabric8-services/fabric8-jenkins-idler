@@ -6,6 +6,9 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/clients"
 )
 
+//User represents a single user (user namespace) in the system. Mainly, it holds information
+//about latest builds and changes to Jenkins DC for the user, which is then used in decision
+//whether to (un)idle Jenkins
 type User struct {
 	ActiveBuild *clients.Build
 	DoneBuild *clients.Build

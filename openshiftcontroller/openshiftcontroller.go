@@ -29,9 +29,10 @@ type OpenShiftController struct {
 	FilterNamespaces []string
 	o ic.OpenShift
 	MaxUnidleRetries int
+	watch bool
 }
 
-func NewOpenShiftController(o ic.OpenShift, nGroups int, idleAfter int, filter []string, proxyURL string, maxUnidleRetries int) *OpenShiftController {
+func NewOpenShiftController(o ic.OpenShift, nGroups int, idleAfter int, filter []string, proxyURL string, maxUnidleRetries int, watch bool) *OpenShiftController {
 	oc := &OpenShiftController{
 		o: o,
 	}
@@ -43,22 +44,30 @@ func NewOpenShiftController(o ic.OpenShift, nGroups int, idleAfter int, filter [
 	oc.groupSleep = 10*time.Second
 	oc.FilterNamespaces = filter
 	oc.MaxUnidleRetries = maxUnidleRetries
+	oc.watch = watch
 	
 	var err error
-	for { //FIXME
-		_, err = oc.LoadProjects()
-		if err != nil {
-			log.Error(err)
-			time.Sleep(loadRetrySleep*time.Second)
-		} else {
-			break
+
+	//If we do not use watch, load projects/namespaces to take care of
+	if !oc.watch {
+		for { //FIXME
+			_, err = oc.LoadProjects()
+			if err != nil {
+				log.Error(err)
+				time.Sleep(loadRetrySleep*time.Second)
+			} else {
+				break
+			}
 		}
 	}
 
+	//Add a Build condition
 	bc := NewBuildCondition(time.Duration(idleAfter)*time.Minute)
 	oc.Conditions.Conditions["build"] = bc
+	//Add a DeploymentConfig condition
 	dcc := NewDCCondition(time.Duration(idleAfter)*time.Minute)
 	oc.Conditions.Conditions["DC"] = dcc
+	//If we have access to Proxy, add User condition
 	if len(proxyURL) > 0 {
 		log.Info("Adding 'user' condition")
 		uc := NewUserCondition(proxyURL, time.Duration(idleAfter)*time.Minute)
@@ -68,6 +77,8 @@ func NewOpenShiftController(o ic.OpenShift, nGroups int, idleAfter int, filter [
 	return oc
 }
 
+//CheckIdle verifies the state of conditions and decides if we should idle/unidle
+//and performs the required action if needed
 func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 	if user == nil {
 		return errors.New("Empty user")
@@ -78,7 +89,9 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 	oc.lock.Unlock()
 	cs, _ := json.Marshal(condStates) //Ignore errors
 	log.Debugf("Conditions: %b = %s", eval, string(cs))
+	//Eval == true -> do Idle, Eval == false -> do Unidle
 	if eval {
+		//Check if Jenkins is running
 		state, err := oc.o.IsIdle(ns, "jenkins")
 		if err != nil {
 			return err
@@ -91,22 +104,25 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 				t = user.DoneBuild.Status.CompletionTimestamp.Time
 			}
 			log.Info(fmt.Sprintf("I'd like to idle jenkins for %s as last build finished at %s", user.Name,	t))
+			//Reset unidle retries and idle
 			user.UnidleRetried = 0
-			err := oc.o.Idle(user.Name+"-jenkins", "jenkins")
+			err := oc.o.Idle(user.Name+"-jenkins", "jenkins") //FIXME - find better way to generate Jenkins namespace
 			if err != nil {
 				return err
 			}
 
 			user.AddJenkinsState(false, time.Now().UTC(), fmt.Sprintf("Jenkins Idled for %s, finished at %s", n, t))
 		}
-	} else {
+	} else { //Unidle
 		state, err := oc.o.IsIdle(ns, "jenkins")
 		if err != nil {
 			return err
 		}
 		if state == ic.JenkinsIdled {
 			log.Debug("Potential unidling event")
-			if user.UnidleRetried > oc.MaxUnidleRetries && (user.UnidleRetried % oc.MaxUnidleRetries != 0) { //Skip some retries,but check from time to time if things are fixed
+
+			//Skip some retries,but check from time to time if things are fixed
+			if user.UnidleRetried > oc.MaxUnidleRetries && (user.UnidleRetried % oc.MaxUnidleRetries != 0) { 
 				user.UnidleRetried++
 				 log.Debug(fmt.Sprintf("Skipping unidle for %s, too many retries", user.Name))
 				 return nil
@@ -117,11 +133,12 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 				n = user.ActiveBuild.Metadata.Name
 				t = user.ActiveBuild.Status.CompletionTimestamp.Time
 			}
+			//Inc unidle retries
+			user.UnidleRetried++
 			err := oc.o.UnIdle(ns, "jenkins")
 			if err != nil {
 				return errors.New(fmt.Sprintf("Could not unidle Jenkins: %s", err))
 			}
-			user.UnidleRetried++
 			user.AddJenkinsState(true, time.Now().UTC(), fmt.Sprintf("Jenkins Unidled for %s at %s", n, t))
 		}
 	}
@@ -129,8 +146,14 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 	return nil
 }
 
+//HandlBuild processes new Build event collected from OpenShift and updates
+//user structure with latest build info. NOTE: In most cases the only change in 
+//build object is stage timesstamp, which we don't care about, so this function
+//just does couple comparisons and returns
 func (oc *OpenShiftController) HandleBuild(o ic.Object) (err error) {
 	found := false
+
+	//Filter for configured namespaces, FIXME: Use toggle service instead
 	ns := o.Object.Metadata.Namespace
 	if len(oc.FilterNamespaces) > 0 {
 		for _, n := range oc.FilterNamespaces {
@@ -169,6 +192,8 @@ func (oc *OpenShiftController) HandleBuild(o ic.Object) (err error) {
 		}
 	}
 
+	//If we have same build number in Active and Done build reference, it means last event was transition of an Active build into
+	//Done build, we need to clean up the Active build ref
 	if oc.Users[ns].ActiveBuild.Metadata.Annotations.BuildNumber == oc.Users[ns].DoneBuild.Metadata.Annotations.BuildNumber {
 		oc.lock.Lock()
 		oc.Users[ns].ActiveBuild = &ic.Build{Status: ic.Status{Phase: "New"}}
@@ -178,6 +203,10 @@ func (oc *OpenShiftController) HandleBuild(o ic.Object) (err error) {
 	return
 }
 
+//HandleDeploymentConfig processes new DC event collected from OpenShift and updates
+//user structure with info about the changes in DC. NOTE: This is important for cases
+//like reset tenant and update tenant when DC is updated and Jenkins starts because
+//of ConfigChange or manual intervention.
 func (oc *OpenShiftController) HandleDeploymentConfig(dc ic.DCObject) (err error) {
 	found := false
 	ns := dc.Object.Metadata.Namespace[:len(dc.Object.Metadata.Namespace)-len("-jenkins")]
@@ -207,12 +236,14 @@ func (oc *OpenShiftController) HandleDeploymentConfig(dc ic.DCObject) (err error
 		return
 	}
 
+	//This is either a new version of DC or we existing version waiting to come up;FIXME: Verify if we need Generation vs. ObservedGeneration
 	if (dc.Object.Metadata.Generation != dc.Object.Status.ObservedGeneration && dc.Object.Spec.Replicas > 0) || dc.Object.Status.UnavailableReplicas > 0 {
 		oc.lock.Lock()
 		oc.Users[ns].JenkinsLastUpdate = time.Now().UTC()
 		oc.lock.Unlock()
 	}
 
+	//Also check if the event means that Jenkins just started (OS AvailableCondition.Status == true) and update time
 	status, err := strconv.ParseBool(c.Status)
 	if err != nil {
 		return
@@ -226,6 +257,7 @@ func (oc *OpenShiftController) HandleDeploymentConfig(dc ic.DCObject) (err error
 	return
 }
 
+//Check existance of a user in the map, initialise if it does not exist
 func (oc *OpenShiftController) CheckNewUser(ns string) (err error) {
 	if _, exist := oc.Users[ns]; !exist {
 		state, err := oc.o.IsIdle(ns+"-jenkins", "jenkins")
@@ -240,13 +272,14 @@ func (oc *OpenShiftController) CheckNewUser(ns string) (err error) {
 	return
 }
 
+//ProcessBuilds processes builds when not using `watch` (i.e. using polling)
+//and updates user's structure
 func (oc *OpenShiftController) processBuilds(namespaces []string) (err error) {
 	for _, n := range namespaces {
 		err := oc.CheckNewUser(n)
 		if err != nil {
 			return err
 		}
-		//log.Info("Getting builds for ", n)
 
 		bl, err := oc.o.GetBuilds(n)
 		if err != nil {
@@ -275,11 +308,14 @@ func (oc *OpenShiftController) processBuilds(namespaces []string) (err error) {
 	return
 }
 
-func (oc *OpenShiftController) Run(groupNumber int, watch bool) {
-	if watch {
-		//FIXME
+//Run implements main loop of the application
+func (oc *OpenShiftController) Run(groupNumber int) {
+	//Use watch instead of polling
+	if oc.watch {
+		//FIXME - this looks ugly
 		go func() {
 			for {
+				//For each user we know about, check if there is any action needed
 				for _, u := range oc.Users {
 					err := oc.CheckIdle(u)
 					if err != nil {
@@ -289,10 +325,12 @@ func (oc *OpenShiftController) Run(groupNumber int, watch bool) {
 				time.Sleep(oc.groupSleep)
 			}
 		}()
+
 		go oc.o.WatchDeploymentConfigs("", "-jenkins", oc.HandleDeploymentConfig)
 		oc.o.WatchBuilds("", "JenkinsPipeline", oc.HandleBuild)
 		return
 	}
+	//Use polling
 	for {
 		log.Info("Checking group #", groupNumber)
 		oc.processBuilds(*oc.Groups[groupNumber])
@@ -308,6 +346,7 @@ func (oc *OpenShiftController) Run(groupNumber int, watch bool) {
 	}
 }
 
+//LoadProjects loads OpenShift projects and initializes groups (used with polling)
 func (oc *OpenShiftController) LoadProjects() (projects[] string, err error) {
 	projects, err = oc.o.GetProjects()
 	if err != nil {
@@ -324,6 +363,7 @@ func (oc *OpenShiftController) LoadProjects() (projects[] string, err error) {
 	return
 }
 
+//DownloadProjects loads OpenShift projects and updates groups (used with polling)
 func (oc *OpenShiftController) DownloadProjects() (err error) {
 	projects, err := oc.o.GetProjects()
 	if err != nil {
@@ -342,8 +382,6 @@ func (oc *OpenShiftController) DownloadProjects() (err error) {
 
 	return
 }
-
-
 
 func (oc *OpenShiftController) prettyPrint(data []byte) {
 	var prettyJSON bytes.Buffer
