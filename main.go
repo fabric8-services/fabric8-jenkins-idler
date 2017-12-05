@@ -8,8 +8,11 @@ import (
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/openshiftcontroller"
 	"github.com/fabric8-services/fabric8-jenkins-idler/api"
+	"github.com/fabric8-services/fabric8-jenkins-idler/testutils"
+	"github.com/fabric8-services/fabric8-jenkins-idler/toggles"
 
 	iClients "github.com/fabric8-services/fabric8-jenkins-idler/clients"
+	pClients "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
 
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
@@ -18,6 +21,8 @@ import (
 const (
 	//How many times to retry to unidle before giving up
 	unidleRetry = 15
+	//How many times to wait for toggles service to become ready
+	togglesReadyRetry = 10
 )
 
 func init() {
@@ -31,14 +36,39 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if config.GetLocalDevEnv() {
+		testutils.Run()
+		return
+	}
 	//Verify if we have all the info
 	config.Verify()
+
 
 	//Create OpenShift client
 	o := iClients.NewOpenShift(config.GetOpenShiftURL(), config.GetOpenShiftToken())
 
+	//Create Tenant client
+	t := pClients.NewTenant(config.GetTenantURL(), config.GetAuthToken())
+
+	//Create Toggle (Unleash) Service client
+	toggles.Init("jenkins-idler", config.GetToggleURL())
+	for i := 0; i < togglesReadyRetry; i++ {
+		if toggles.IsReady() {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	//If toggles is not ready, Idler will ignore all namespaces - i.e. will be useless,
+	//but toggles might get ready later
+	if toggles.IsReady() {
+		log.Info("Toggles are available and ready")
+	} else {
+		log.Error("Toggles not in ready state yet")
+	}
+
 	//Create Idler controller
-	oc := openshiftcontroller.NewOpenShiftController(o, config.GetConcurrentGroups(),
+	oc := openshiftcontroller.NewOpenShiftController(o, t, config.GetConcurrentGroups(),
 										config.GetIdleAfter(), config.GetFilteredNamespaces(), config.GetProxyURL(), unidleRetry, config.GetUseWatch())
 
 	//Create router for Idler API

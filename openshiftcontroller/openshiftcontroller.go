@@ -11,6 +11,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	ic "github.com/fabric8-services/fabric8-jenkins-idler/clients"
+	pc "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
+	"github.com/fabric8-services/fabric8-jenkins-idler/toggles"
 )
 
 const (
@@ -30,21 +32,24 @@ type OpenShiftController struct {
 	o ic.OpenShift
 	MaxUnidleRetries int
 	watch bool
+	tenant pc.Tenant
 }
 
-func NewOpenShiftController(o ic.OpenShift, nGroups int, idleAfter int, filter []string, proxyURL string, maxUnidleRetries int, watch bool) *OpenShiftController {
+func NewOpenShiftController(o ic.OpenShift, t pc.Tenant, nGroups int, idleAfter int, filter []string, proxyURL string, maxUnidleRetries int, watch bool) *OpenShiftController {
 	oc := &OpenShiftController{
 		o: o,
+		Users: make(map[string]*User),
+		lock: &sync.Mutex{},
+		groupLock: &sync.Mutex{},
+		Groups: make([]*[]string, nGroups),
+		groupSleep: 10*time.Second,
+		FilterNamespaces: filter,
+		MaxUnidleRetries: maxUnidleRetries,
+		watch: watch,
+		tenant: t,
 	}
+
 	oc.Conditions.Conditions = make(map[string]ConditionI)
-	oc.Users = make(map[string]*User)
-	oc.lock = &sync.Mutex{}
-	oc.groupLock = &sync.Mutex{}
-	oc.Groups = make([]*[]string, nGroups)
-	oc.groupSleep = 10*time.Second
-	oc.FilterNamespaces = filter
-	oc.MaxUnidleRetries = maxUnidleRetries
-	oc.watch = watch
 	
 	var err error
 
@@ -150,32 +155,34 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 //user structure with latest build info. NOTE: In most cases the only change in 
 //build object is stage timesstamp, which we don't care about, so this function
 //just does couple comparisons and returns
-func (oc *OpenShiftController) HandleBuild(o ic.Object) (err error) {
-	found := false
+func (oc *OpenShiftController) HandleBuild(o ic.Object) (watched bool, err error) {
+	watched = false
 
-	//Filter for configured namespaces, FIXME: Use toggle service instead
 	ns := o.Object.Metadata.Namespace
-	if len(oc.FilterNamespaces) > 0 {
-		for _, n := range oc.FilterNamespaces {
-			if ns == n {
-				found = true
-				break
-			}
-		}
-	} else {
-		found = true
-	}
-
-	if !found {
-		log.Infof("Throwing event away: %s (%s)", o.Object.Metadata.Name, o.Object.Metadata.Namespace)
-		return
-	}
-
 	err = oc.CheckNewUser(o.Object.Metadata.Namespace)
 	if err != nil {
 		return
 	}
-	log.Infof("Processing %s", o.Object.Metadata.Name)
+
+	//Filter for configured namespaces, FIXME: Use toggle service instead
+	if toggles.IsEnabled(oc.Users[ns].ID, "jenkins.idler", false) {
+		log.Infof("Idler enabled for %s", ns)
+		watched = true
+	} else if len(oc.FilterNamespaces) > 0 {
+		for _, n := range oc.FilterNamespaces {
+			if ns == n {
+				watched = true
+				break
+			}
+		}
+	}
+
+	if !watched {
+		log.Infof("Throwing event away: %s (%s)", o.Object.Metadata.Name, o.Object.Metadata.Namespace)
+		return
+	}
+
+	log.Infof("Processing %s", ns)
 	if IsActive(&o.Object) {
 		lastActive := oc.Users[ns].ActiveBuild
 		if lastActive.Status.Phase != o.Object.Status.Phase || lastActive.Metadata.Annotations.BuildNumber != o.Object.Metadata.Annotations.BuildNumber {
@@ -207,27 +214,28 @@ func (oc *OpenShiftController) HandleBuild(o ic.Object) (err error) {
 //user structure with info about the changes in DC. NOTE: This is important for cases
 //like reset tenant and update tenant when DC is updated and Jenkins starts because
 //of ConfigChange or manual intervention.
-func (oc *OpenShiftController) HandleDeploymentConfig(dc ic.DCObject) (err error) {
-	found := false
+func (oc *OpenShiftController) HandleDeploymentConfig(dc ic.DCObject) (watched bool, err error) {
+	watched = false
 	ns := dc.Object.Metadata.Namespace[:len(dc.Object.Metadata.Namespace)-len("-jenkins")]
-	for _, n := range oc.FilterNamespaces {
-		if ns == n {
-			found = true
-			break
+	err = oc.CheckNewUser(ns)
+	if err != nil {
+		return
+	}
+	log.Info(oc.Users[ns].ID)
+	if toggles.IsEnabled(oc.Users[ns].ID, "jenkins.idler", false) {
+		log.Infof("Idler enabled for %s", ns)
+		watched = true
+	} else if len(oc.FilterNamespaces) > 0 {
+		for _, n := range oc.FilterNamespaces {
+			if ns == n {
+				watched = true
+				break
+			}
 		}
 	}
 
-	if len(oc.FilterNamespaces) == 0 {
-		found = true
-	}
-
-	if !found {
+	if !watched {
 		log.Infof("Throwing event away: %s (%s)", dc.Object.Metadata.Name, dc.Object.Metadata.Namespace)
-		return
-	}
-
-	err = oc.CheckNewUser(ns)
-	if err != nil {
 		return
 	}
 
@@ -264,8 +272,17 @@ func (oc *OpenShiftController) CheckNewUser(ns string) (err error) {
 		if err != nil {
 			return err
 		}
+		ti, err := oc.tenant.GetTenantInfoByNamespace(oc.o.GetApiURL(), ns)
+		if err != nil {
+			return err
+		}
+
+		if ti.Meta.TotalCount > 1 {
+			return fmt.Errorf("Could not add new user - Tenant service returned multiple items: %d", ti.Meta.TotalCount)
+		}
+
 		oc.lock.Lock()
-		oc.Users[ns] = NewUser(ns, (state == ic.JenkinsRunning))
+		oc.Users[ns] = NewUser(ti.Data[0].Id, ns, (state == ic.JenkinsRunning))
 		oc.lock.Unlock()
 	}
 

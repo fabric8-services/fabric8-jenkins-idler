@@ -17,6 +17,7 @@ type User struct {
 	FailedPulls int
 	UnidleRetried int
 	JenkinsLastUpdate time.Time
+	ID string
 }
 
 func (u *User) HasActive() bool {
@@ -49,8 +50,9 @@ type JenkinsState struct {
 	Message string
 }
 
-func NewUser(n string, isRunning bool) (u *User) {
+func NewUser(id string, n string, isRunning bool) (u *User) {
 	u = &User{
+		ID: id,
 		Name: n,
 		ActiveBuild: &clients.Build{Status: clients.Status{Phase: "New"}},
 		DoneBuild: &clients.Build{},

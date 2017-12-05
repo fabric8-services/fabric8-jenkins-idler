@@ -15,6 +15,9 @@ const (
 	varIdleAfter                       = "idle.after"	
 	varFilteredNamespaces              = "filter.namespaces"
 	varUseWatch                        = "use.watch"
+	varTenantURL                       = "f8tenant.api.url" 
+	varAuthToken                       = "auth.token"
+	varToggleURL                       = "toggle.api.url"
 
 	varLocalDevEnv                     = "local.dev.env"
 )
@@ -47,6 +50,7 @@ func (c *Data) setConfigDefaults() {
 	c.v.SetDefault(varConcurrentGroups, 1)
 	c.v.SetDefault(varProxyURL, "http://localhost:9091")
 	c.v.SetDefault(varUseWatch, true)
+	c.v.SetDefault(varToggleURL, "http://f8toggles/api")
 }
 
 func (c *Data) Verify() {
@@ -75,14 +79,9 @@ func (c *Data) Verify() {
 		log.Error("You need to provide an OpenShift access token in JC_OPENSHIFT_API_TOKEN environment variable")
 	}
 
-	nGroups := c.GetConcurrentGroups()
-	if nGroups == 0 {
-		nGroups = 1
-	}
-
-	idleAfter := c.GetIdleAfter()
-	if idleAfter == 0 {
-		idleAfter = 10
+	if len(c.GetToggleURL()) == 0 {
+		missingParam = true
+		log.Error("You need to provide a Toggle Service URL in JC_TOGGLE_API_URL environment variable")
 	}
 
 	if missingParam {
@@ -133,4 +132,19 @@ func (c *Data) GetUseWatch() bool {
 // GetLocalDevEnv returns if it is local development env as set via default, config file, or environment variable
 func (c *Data) GetLocalDevEnv() bool {
 	return c.v.GetBool(varLocalDevEnv)
+}
+
+// GetTenantURL returns the F8 Tenant API URL as set via default, config file, or environment variable
+func (c *Data) GetTenantURL() string {
+	return c.v.GetString(varTenantURL)
+}
+
+// GetAuthToken returns the Auth token as set via default, config file, or environment variable
+func (c *Data) GetAuthToken() string {
+	return c.v.GetString(varAuthToken)
+}
+
+// GetToggleURL returns the Toggle Service URL as set via default, config file, or environment variable
+func (c *Data) GetToggleURL() string {
+	return c.v.GetString(varToggleURL)
 }
