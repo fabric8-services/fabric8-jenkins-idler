@@ -275,7 +275,7 @@ func (o OpenShift) GetProjects() (projects []string, err error) {
 }
 
 //WatchBuilds consumes stream of build events from OpenShift and calls callback to process them
-func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func(Object) error) (err error) {
+func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func(Object) (bool, error)) (err error) {
 	//Use a http client with disabled timeout
 	c := &http.Client{
 		Transport: &http.Transport{
@@ -326,13 +326,15 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 					continue
 				}
 				log.Infof("Handling Build change for user %s", o.Object.Metadata.Namespace)
-				err = callback(o)
+				ok, err := callback(o)
 				if err != nil {
 					log.Errorf("Error from callback: %s", err)
 					continue
 				}
 
-				log.Debugf("Event summary: Build %s -> %s, %s/%s", o.Object.Metadata.Name, o.Object.Status.Phase, o.Object.Status.StartTimestamp, o.Object.Status.CompletionTimestamp) 
+				if ok {
+					log.Debugf("Event summary: Build %s -> %s, %s/%s", o.Object.Metadata.Name, o.Object.Status.Phase, o.Object.Status.StartTimestamp, o.Object.Status.CompletionTimestamp) 
+				}
 		}
 	}
 
@@ -341,7 +343,7 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 
 //WatchDeploymentConfigs consumes stream of DC events from OpenShift and calls callback to process them; FIXME - a lot of copy&paste from
 //watch builds, refactor!
-func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, callback func(DCObject) error) (err error) {
+func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, callback func(DCObject) (bool, error)) (err error) {
 	//Use a http client with disabled timeout
 	c := &http.Client{
 		Transport: &http.Transport{
@@ -394,18 +396,22 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 				}
 
 				log.Infof("Handling DC change for user %s\n", o.Object.Metadata.Namespace)
-				err = callback(o)
+				ok, err := callback(o)
 				if err != nil {
 					log.Errorf("Error from DC callback: %s", err)
 					continue
 				}
-				//Get piece of status for debug info;FIXME - should this go away or at least be conditional?
-				c, err := o.Object.Status.GetByType("Available")
-				if err != nil {
-					log.Error(err)
-					continue
+
+				if ok {
+					//Get piece of status for debug info;FIXME - should this go away or at least be conditional?
+					c, err := o.Object.Status.GetByType("Available")
+					if err != nil {
+						log.Error(err)
+						continue
+					}
+
+					log.Debugf("Event summary: DeploymentConfig %s, %s/%s\n", o.Object.Metadata.Name, c.Status, c.LastUpdateTime) 
 				}
-				log.Debugf("Event summary: DeploymentConfig %s, %s/%s\n", o.Object.Metadata.Name, c.Status, c.LastUpdateTime) 
 		}
 	}
 
@@ -504,6 +510,10 @@ func (o *OpenShift) patch(req *http.Request) (b []byte, err error) {
 	defer bodyClose(resp)
 	b, err = ioutil.ReadAll(resp.Body)
 	return
+}
+
+func (o *OpenShift) GetApiURL() string {
+	return o.apiURL
 }
 
 func bodyClose(resp *http.Response) {
