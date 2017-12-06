@@ -279,6 +279,8 @@ func (oc *OpenShiftController) CheckNewUser(ns string) (err error) {
 
 		if ti.Meta.TotalCount > 1 {
 			return fmt.Errorf("Could not add new user - Tenant service returned multiple items: %d", ti.Meta.TotalCount)
+		} else if len(ti.Data) == 0 {
+			return fmt.Errorf("Could not find tenant in cluster %s for namespace %s", oc.o.GetApiURL(), ns)
 		}
 
 		oc.lock.Lock()
