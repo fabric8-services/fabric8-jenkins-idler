@@ -64,6 +64,11 @@ objects:
               configMapKeyRef:
                 name: jenkins-proxy
                 key: f8tenant.api.url
+          - name: JC_AUTH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: jenkins-proxy
+                key: proxy.auth.token
           - name: GODEBUG
             value: gctrace=1
           image: ${IMAGE}:${IMAGE_TAG}
