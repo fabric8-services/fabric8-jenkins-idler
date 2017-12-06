@@ -59,6 +59,11 @@ objects:
               configMapKeyRef:
                 name: jenkins-idler
                 key: jenkins.proxy.url
+          - name: JC_F8TENANT_API_URL
+            valueFrom:
+              configMapKeyRef:
+                name: jenkins-proxy
+                key: f8tenant.api.url
           - name: GODEBUG
             value: gctrace=1
           image: ${IMAGE}:${IMAGE_TAG}

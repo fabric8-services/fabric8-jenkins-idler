@@ -84,6 +84,11 @@ func (c *Data) Verify() {
 		log.Error("You need to provide a Toggle Service URL in JC_TOGGLE_API_URL environment variable")
 	}
 
+	if len(c.GetTenantURL()) == 0 {
+		missingParam = true
+		log.Error("You need to provide a Tenant Service URL in JC_F8TENANT_API_URL environment variable")
+	}
+
 	if missingParam {
 		log.Fatal("A value for envinronment variable is missing or wrong")
 	}
