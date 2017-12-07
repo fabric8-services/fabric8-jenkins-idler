@@ -18,6 +18,7 @@ import (
 const (
 	loadRetrySleep   = 10
 	availableCond    = "Available"
+	toggleFeature    = "jenkins.idler"
 )
 
 type OpenShiftController struct {
@@ -165,7 +166,7 @@ func (oc *OpenShiftController) HandleBuild(o ic.Object) (watched bool, err error
 	}
 
 	//Filter for configured namespaces, FIXME: Use toggle service instead
-	if toggles.IsEnabled(oc.Users[ns].ID, "jenkins.idler", false) {
+	if toggles.IsEnabled(oc.Users[ns].ID, toggleFeature, false) {
 		log.Infof("Idler enabled for %s", ns)
 		watched = true
 	} else if len(oc.FilterNamespaces) > 0 {
@@ -222,7 +223,7 @@ func (oc *OpenShiftController) HandleDeploymentConfig(dc ic.DCObject) (watched b
 		return
 	}
 	log.Info(oc.Users[ns].ID)
-	if toggles.IsEnabled(oc.Users[ns].ID, "jenkins.idler", false) {
+	if toggles.IsEnabled(oc.Users[ns].ID, toggleFeature, false) {
 		log.Infof("Idler enabled for %s", ns)
 		watched = true
 	} else if len(oc.FilterNamespaces) > 0 {
@@ -336,6 +337,11 @@ func (oc *OpenShiftController) Run(groupNumber int) {
 			for {
 				//For each user we know about, check if there is any action needed
 				for _, u := range oc.Users {
+
+					if !toggles.IsEnabled(u.ID, toggleFeature, false) {
+						log.Debugf("Skipping check for %s.", u.Name)
+						return
+					}
 					err := oc.CheckIdle(u)
 					if err != nil {
 						log.Errorf("Could not check idling for %s: %s", u.Name, err)
