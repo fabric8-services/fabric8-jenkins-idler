@@ -340,7 +340,7 @@ func (oc *OpenShiftController) Run(groupNumber int) {
 
 					if !toggles.IsEnabled(u.ID, toggleFeature, false) {
 						log.Debugf("Skipping check for %s.", u.Name)
-						return
+						continue
 					}
 					err := oc.CheckIdle(u)
 					if err != nil {
