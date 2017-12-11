@@ -200,9 +200,10 @@ func (oc *OpenShiftController) HandleBuild(o ic.Object) (watched bool, err error
 		}
 	}
 
-	//If we have same build number in Active and Done build reference, it means last event was transition of an Active build into
+	//If we have same build name (space name + build number) in Active and Done build reference, it means last event was transition of an Active build into
 	//Done build, we need to clean up the Active build ref
-	if oc.Users[ns].ActiveBuild.Metadata.Annotations.BuildNumber == oc.Users[ns].DoneBuild.Metadata.Annotations.BuildNumber {
+	if oc.Users[ns].ActiveBuild.Metadata.Name == oc.Users[ns].DoneBuild.Metadata.Name {
+		log.Infof("Active and Done builds for %s are the same (%s), claning active builds", ns, oc.Users[ns].ActiveBuild.Metadata.Name)
 		oc.lock.Lock()
 		oc.Users[ns].ActiveBuild = &ic.Build{Status: ic.Status{Phase: "New"}}
 		oc.lock.Unlock()
