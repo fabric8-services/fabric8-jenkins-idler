@@ -186,14 +186,14 @@ func (oc *OpenShiftController) HandleBuild(o ic.Object) (watched bool, err error
 	log.Infof("Processing %s", ns)
 	if IsActive(&o.Object) {
 		lastActive := oc.Users[ns].ActiveBuild
-		if lastActive.Status.Phase != o.Object.Status.Phase || lastActive.Metadata.Annotations.BuildNumber != o.Object.Metadata.Annotations.BuildNumber {
+		if lastActive.Status.Phase != o.Object.Status.Phase || lastActive.Metadata.Name != o.Object.Metadata.Name {
 			oc.lock.Lock()
 			*oc.Users[ns].ActiveBuild = o.Object
 			oc.lock.Unlock()
 		}
 	} else {
 		lastDone := oc.Users[ns].DoneBuild
-		if lastDone.Status.Phase != o.Object.Status.Phase || lastDone.Metadata.Annotations.BuildNumber != o.Object.Metadata.Annotations.BuildNumber {
+		if lastDone.Status.Phase != o.Object.Status.Phase || lastDone.Metadata.Name != o.Object.Metadata.Name {
 			oc.lock.Lock()
 			*oc.Users[ns].DoneBuild = o.Object
 			oc.lock.Unlock()
