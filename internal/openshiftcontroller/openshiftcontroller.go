@@ -10,7 +10,7 @@ import (
 	"time"
 
 	ic "github.com/fabric8-services/fabric8-jenkins-idler/clients"
-	"github.com/fabric8-services/fabric8-jenkins-idler/toggles"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 	pc "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
 	log "github.com/sirupsen/logrus"
 )
@@ -152,7 +152,7 @@ func (oc *OpenShiftController) CheckIdle(user *User) error {
 	return nil
 }
 
-//HandlBuild processes new Build event collected from OpenShift and updates
+//HandleBuild processes new Build event collected from OpenShift and updates
 //user structure with latest build info. NOTE: In most cases the only change in
 //build object is stage timesstamp, which we don't care about, so this function
 //just does couple comparisons and returns

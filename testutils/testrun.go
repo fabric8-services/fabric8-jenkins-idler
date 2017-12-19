@@ -3,10 +3,10 @@ package testutils
 import (
 	"net/http"
 
-	"github.com/fabric8-services/fabric8-jenkins-idler/api"
 	iClients "github.com/fabric8-services/fabric8-jenkins-idler/clients"
-	"github.com/fabric8-services/fabric8-jenkins-idler/configuration"
-	"github.com/fabric8-services/fabric8-jenkins-idler/openshiftcontroller"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/api"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshiftcontroller"
 	pClients "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
