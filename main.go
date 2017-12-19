@@ -34,6 +34,7 @@ func main() {
 	config, err := configuration.NewData()
 	if err != nil {
 		log.Fatal(err)
+		return
 	}
 
 	if config.GetLocalDevEnv() {

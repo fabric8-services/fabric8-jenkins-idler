@@ -59,9 +59,7 @@ func (c *Data) Verify() {
 	if len(apiURL) == 0 {
 		missingParam = true
 		log.Error("You need to provide URL to OpenShift API endpoint in JC_OPENSHIFT_API_URL environment variable")
-	}
-
-	if apiURL[len(apiURL)-1] == '/' {
+	} else if apiURL[len(apiURL)-1] == '/' {
 		apiURL = apiURL[:len(apiURL)-2]
 	}
 
