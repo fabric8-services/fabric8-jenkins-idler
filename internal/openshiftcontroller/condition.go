@@ -13,18 +13,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//ConditionI is a minimal interface a condition needs to implement
-type ConditionI interface {
+//Condition is a minimal interface a condition needs to implement
+type Condition interface {
 	//Return true if the condition is true for a given object
 	IsTrueFor(object interface{}) (bool, error)
 }
 
-type Condition struct {
-	ConditionI
-}
-
 type Conditions struct {
-	Conditions map[string]ConditionI
+	Conditions map[string]Condition
 }
 
 //Eval evaluates a list of conditions for a given object. It returns false if

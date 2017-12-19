@@ -50,7 +50,7 @@ func NewOpenShiftController(o ic.OpenShift, t pc.Tenant, nGroups int, idleAfter 
 		tenant:           t,
 	}
 
-	oc.Conditions.Conditions = make(map[string]ConditionI)
+	oc.Conditions.Conditions = make(map[string]Condition)
 
 	var err error
 
