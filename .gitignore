@@ -1,0 +1,11 @@
+# Build artefacts
+vendor
+tools.timestamp
+out
+
+# Idea
+.idea
+*.iml
+
+# Misc
+.virtualgo

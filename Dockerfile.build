@@ -1,8 +1,0 @@
-FROM centos:7
-MAINTAINER Vašek Pavlín <vasek@redhat.com>
-
-RUN yum -y --enablerepo=centosplus install\
-      golang \
-      git
-
-ENTRYPOINT ["/bin/bash"]
