@@ -337,8 +337,6 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 			}
 		}
 	}
-
-	return
 }
 
 //WatchDeploymentConfigs consumes stream of DC events from OpenShift and calls callback to process them; FIXME - a lot of copy&paste from
@@ -414,8 +412,6 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 			}
 		}
 	}
-
-	return
 }
 
 //GetBuilds loads builds for a given namespace from OpenShift
