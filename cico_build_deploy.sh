@@ -1,74 +1,67 @@
 #!/bin/bash
+#
+# Build script for CI builds on CentOS CI https://ci.centos.org/view/Devtools/job/devtools-fabric8-jenkins-idler-build-master/
 
 set -e
 
-REGISTRY_URI="push.registry.devshift.net"
-REGISTRY_NS="fabric8-services"
-REGISTRY_IMAGE="fabric8-jenkins-idler"
-REGISTRY_URL=${REGISTRY_URI}/${REGISTRY_NS}/${REGISTRY_IMAGE}
-
-BUILD_IMAGE="jenkins-controller-build"
-BUILD_CONTAINER=${BUILD_IMAGE}"-container"
-
-DEPLOY_IMAGE="jenkins-controller-deploy"
-
-PROJ_PATH="/root/go/src/github.com/fabric8-services/fabric8-jenkins-idler"
-TARGET_DIR="go-binary"
-
-
-function tag_push() {
-    TARGET_IMAGE=$1
-    USERNAME=$2
-    PASSWORD=$3
-    REGISTRY=$4
-
-    docker tag ${DEPLOY_IMAGE} ${TARGET_IMAGE}
-    if [ -n "${USERNAME}" ] && [ -n "${PASSWORD}" ]; then
-        docker login -u ${USERNAME} -p ${PASSWORD} ${REGISTRY}
-    fi
-    docker push ${TARGET_IMAGE}
-
-}
-
-if [ -z $CICO_LOCAL ]; then
-    [ -f jenkins-env ] && cat jenkins-env | grep -e PASS -e GIT -e DEVSHIFT > inherit-env
+###################################################################################
+# Installs all requires build tools to compile, test and build the container image
+# Arguments:
+#   None
+# Returns:
+#   None
+###################################################################################
+function setup_build_environment() {
+    [ -f jenkins-env ] && cat jenkins-env | grep -e GIT -e DEVSHIFT -e JOB_NAME > inherit-env
     [ -f inherit-env ] && . inherit-env
 
     # We need to disable selinux for now, XXX
     /usr/sbin/setenforce 0
 
-    # Get all the deps in
-    yum -y install docker make git
-
-    # Get all the deps in
-    yum -y install docker make git
+    yum -y install docker make golang git
     service docker start
-fi
 
-docker ps | grep -q ${BUILD_CONTAINER} && docker stop ${BUILD_CONTAINER}
-docker ps -a | grep -q ${BUILD_CONTAINER} && docker rm ${BUILD_CONTAINER}
-rm -rf ${TARGET_DIR}/
+    echo 'CICO: Build environment created.'
+}
 
-docker build -t ${BUILD_IMAGE} -f Dockerfile.build .
+###################################################################################
+# Setup the environment for Go, aka the GOPATH
+# Arguments:
+#   None
+# Returns:
+#   None
+###################################################################################
+function setup_golang() {
+  # Show Go version
+  go version
+  # Setup GOPATH
+  mkdir $HOME/go $HOME/go/src $HOME/go/bin $HOME/go/pkg
+  export GOPATH=$HOME/go
+  export PATH=${GOPATH}/bin:$PATH
+}
 
-mkdir ${TARGET_DIR}/
+###################################################################################
+# Make sure the Go sources are at their proper location within GOPATH.
+# See https://golang.org/doc/code.html
+# Arguments:
+#   None
+# Returns:
+#   None
+###################################################################################
+function setup_workspace() {
+  mkdir -p ${GOPATH}/src/github.com/fabric8-services
+  cp -r $HOME/payload ${GOPATH}/src/github.com/fabric8-services/fabric8-jenkins-idler
+}
 
-docker run -t -d -v ${PWD}:${PROJ_PATH} -v ${PWD}/${TARGET_DIR}:/${TARGET_DIR} --name ${BUILD_CONTAINER} ${BUILD_IMAGE} 
+setup_build_environment
+setup_golang
+setup_workspace
 
-echo "==> Getting dependencies"
-docker exec -it ${BUILD_CONTAINER} bash -c "cd /root/go/src/ && go get ./..."
-echo "==> Building the build image"
-docker exec -it ${BUILD_CONTAINER} bash -c "cd ${PROJ_PATH} && go build "
+cd $GOPATH/src/github.com/fabric8-services/fabric8-jenkins-idler
+echo "HEAD of repository `git rev-parse --short HEAD`"
+make image
 
-echo "==> Copying the result"
-docker exec -it ${BUILD_CONTAINER} bash -c "cp /root/go/bin/* /${TARGET_DIR} && chown $(id -u):$(id -g) /${TARGET_DIR}/*"
-
-echo "==> Building the deploy image"
-docker build -t ${DEPLOY_IMAGE} -f Dockerfile.deploy .
-
-if [ -z ${CICO_LOCAL} ]; then
+if [[ "$JOB_NAME" = "devtools-fabric8-jenkins-idler-build-master" ]]; then
     TAG=$(echo ${GIT_COMMIT} | cut -c1-${DEVSHIFT_TAG_LEN})
-
-    tag_push "${REGISTRY_URL}:${TAG}" ${DEVSHIFT_USERNAME} ${DEVSHIFT_PASSWORD} ${REGISTRY_URI}
-    tag_push "${REGISTRY_URL}:latest" ${DEVSHIFT_USERNAME} ${DEVSHIFT_PASSWORD} ${REGISTRY_URI}
+    make push REGISTRY_USER=${DEVSHIFT_USERNAME} REGISTRY_PASSWORD=${DEVSHIFT_PASSWORD} IMAGE_TAG=${TAG}
 fi

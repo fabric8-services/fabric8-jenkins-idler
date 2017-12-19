@@ -1,0 +1,24 @@
+branches:
+  only:
+  - /.*/
+
+sudo: required
+services:
+  - docker
+
+language: go
+
+go:
+- 1.9.1
+
+install:
+- mkdir -p /home/travis/gopath/bin
+- mkdir -p /home/travis/gopath/pkg
+- cd $HOME/gopath/src/github.com
+# to allow to build from forks we need to make sure the repo is called 'fabric8-services'
+- mv `ls` foo
+- mv foo fabric8-services
+- cd fabric8-services/fabric8-jenkins-idler
+
+script:
+- make image
