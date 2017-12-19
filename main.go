@@ -1,15 +1,15 @@
 package main
 
 import (
-	"github.com/fabric8-services/fabric8-jenkins-idler/configuration"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
 	"time"
 	"net/http"
 	_ "net/http/pprof"
 
-	"github.com/fabric8-services/fabric8-jenkins-idler/openshiftcontroller"
-	"github.com/fabric8-services/fabric8-jenkins-idler/api"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshiftcontroller"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/api"
 	"github.com/fabric8-services/fabric8-jenkins-idler/testutils"
-	"github.com/fabric8-services/fabric8-jenkins-idler/toggles"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 
 	iClients "github.com/fabric8-services/fabric8-jenkins-idler/clients"
 	pClients "github.com/fabric8-services/fabric8-jenkins-proxy/clients"

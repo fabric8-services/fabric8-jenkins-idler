@@ -6,8 +6,8 @@ import (
 	"time"
 
 	ic "github.com/fabric8-services/fabric8-jenkins-idler/clients"
-	"github.com/fabric8-services/fabric8-jenkins-idler/openshiftcontroller"
-	"github.com/fabric8-services/fabric8-jenkins-idler/toggles"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshiftcontroller"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 	pc "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
 )
 

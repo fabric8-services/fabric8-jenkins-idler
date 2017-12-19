@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	ic "github.com/fabric8-services/fabric8-jenkins-idler/clients"
-	oc "github.com/fabric8-services/fabric8-jenkins-idler/openshiftcontroller"
+	oc "github.com/fabric8-services/fabric8-jenkins-idler/internal/openshiftcontroller"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
 	"net/http"
