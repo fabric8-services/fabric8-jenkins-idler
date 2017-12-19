@@ -8,18 +8,18 @@ import (
 )
 
 const (
-	varOpenShiftToken                  = "openshift.api.token"
-	varOpenShiftURL                    = "openshift.api.url"
-	varProxyURL                        = "jenkins.proxy.api.url"
-	varConcurrentGroups                = "concurrent.groups"
-	varIdleAfter                       = "idle.after"	
-	varFilteredNamespaces              = "filter.namespaces"
-	varUseWatch                        = "use.watch"
-	varTenantURL                       = "f8tenant.api.url" 
-	varAuthToken                       = "auth.token"
-	varToggleURL                       = "toggle.api.url"
+	varOpenShiftToken     = "openshift.api.token"
+	varOpenShiftURL       = "openshift.api.url"
+	varProxyURL           = "jenkins.proxy.api.url"
+	varConcurrentGroups   = "concurrent.groups"
+	varIdleAfter          = "idle.after"
+	varFilteredNamespaces = "filter.namespaces"
+	varUseWatch           = "use.watch"
+	varTenantURL          = "f8tenant.api.url"
+	varAuthToken          = "auth.token"
+	varToggleURL          = "toggle.api.url"
 
-	varLocalDevEnv                     = "local.dev.env"
+	varLocalDevEnv = "local.dev.env"
 )
 
 // Data encapsulates the Viper configuration object which stores the configuration data in-memory.

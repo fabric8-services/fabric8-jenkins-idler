@@ -1,12 +1,12 @@
 package openshiftcontroller
 
 import (
-	"fmt"
-	"time"
-	"errors"
-	"net/http"
-	"io/ioutil"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"time"
 
 	proxyAPI "github.com/fabric8-services/fabric8-jenkins-proxy/api"
 
@@ -27,7 +27,7 @@ type Conditions struct {
 	Conditions map[string]ConditionI
 }
 
-//Eval evaluates a list of conditions for a given object. It returns false if 
+//Eval evaluates a list of conditions for a given object. It returns false if
 //any of the conditions evals as false
 func (c *Conditions) Eval(o interface{}) (result bool, condStates map[string]bool) {
 	result = true
@@ -36,7 +36,7 @@ func (c *Conditions) Eval(o interface{}) (result bool, condStates map[string]boo
 		r, err := ci.IsTrueFor(o)
 		if err != nil {
 			log.Error(err)
-		} 
+		}
 		if !r {
 			result = false
 		}
@@ -78,12 +78,12 @@ func (c *BuildCondition) IsTrueFor(object interface{}) (result bool, err error) 
 type UserCondition struct {
 	Condition
 	IdleAfter time.Duration
-	proxyURL string
+	proxyURL  string
 }
 
 func NewUserCondition(proxyURL string, idleAfter time.Duration) *UserCondition {
 	b := &UserCondition{
-		proxyURL: proxyURL,
+		proxyURL:  proxyURL,
 		IdleAfter: idleAfter,
 	}
 	return b
@@ -108,7 +108,7 @@ func (c *UserCondition) IsTrueFor(object interface{}) (result bool, err error) {
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-			return result, err
+		return result, err
 	}
 
 	if resp.StatusCode != 200 {
@@ -151,7 +151,7 @@ func NewDCCondition(idleAfter time.Duration) *DCCondition {
 	return b
 }
 
-//IsTrueFor returns true if the last change to DC happened at least 
+//IsTrueFor returns true if the last change to DC happened at least
 //before IdleAfter (time.Duration)
 func (c *DCCondition) IsTrueFor(object interface{}) (result bool, err error) {
 	result = false

@@ -1,24 +1,24 @@
 package api
 
 import (
-	"fmt"
 	"encoding/json"
-	"net/http"
-	"github.com/julienschmidt/httprouter"
+	"fmt"
 	ic "github.com/fabric8-services/fabric8-jenkins-idler/clients"
 	oc "github.com/fabric8-services/fabric8-jenkins-idler/openshiftcontroller"
+	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
+	"net/http"
 )
 
 type IdlerAPI struct {
 	OCli *ic.OpenShift
-	OC *oc.OpenShiftController
+	OC   *oc.OpenShiftController
 }
 
 func NewAPI(o *ic.OpenShift, oc *oc.OpenShiftController) IdlerAPI {
 	return IdlerAPI{
 		OCli: o,
-		OC: oc,
+		OC:   oc,
 	}
 }
 
@@ -87,14 +87,14 @@ func (api *IdlerAPI) GetRoute(w http.ResponseWriter, req *http.Request, ps httpr
 
 	type route struct {
 		Service string `json:"service"`
-		Route string `json:"route"`
-		TLS bool `json:"tls"`
+		Route   string `json:"route"`
+		TLS     bool   `json:"tls"`
 	}
 
 	rt := route{
-		Route: r,
+		Route:   r,
 		Service: "jenkins",
-		TLS: tls,
+		TLS:     tls,
 	}
 
 	w.WriteHeader(http.StatusOK)

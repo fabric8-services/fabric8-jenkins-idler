@@ -10,14 +10,14 @@ import (
 //about latest builds and changes to Jenkins DC for the user, which is then used in decision
 //whether to (un)idle Jenkins
 type User struct {
-	ActiveBuild *clients.Build
-	DoneBuild *clients.Build
-	Name string
-	JenkinsStateList []JenkinsState
-	FailedPulls int
-	UnidleRetried int
+	ActiveBuild       *clients.Build
+	DoneBuild         *clients.Build
+	Name              string
+	JenkinsStateList  []JenkinsState
+	FailedPulls       int
+	UnidleRetried     int
 	JenkinsLastUpdate time.Time
-	ID string
+	ID                string
 }
 
 func (u *User) HasActive() bool {
@@ -46,19 +46,19 @@ func (u *User) AddJenkinsState(running bool, time time.Time, message string) {
 
 type JenkinsState struct {
 	Running bool
-	Time time.Time
+	Time    time.Time
 	Message string
 }
 
 func NewUser(id string, n string, isRunning bool) (u *User) {
 	u = &User{
-		ID: id,
-		Name: n,
-		ActiveBuild: &clients.Build{Status: clients.Status{Phase: "New"}},
-		DoneBuild: &clients.Build{},
-		JenkinsStateList: []JenkinsState{JenkinsState{isRunning, time.Now().UTC(), "init"}},
-		FailedPulls: 0,
-		UnidleRetried: 0,
+		ID:               id,
+		Name:             n,
+		ActiveBuild:      &clients.Build{Status: clients.Status{Phase: "New"}},
+		DoneBuild:        &clients.Build{},
+		JenkinsStateList: []JenkinsState{{isRunning, time.Now().UTC(), "init"}},
+		FailedPulls:      0,
+		UnidleRetried:    0,
 	}
 
 	return u

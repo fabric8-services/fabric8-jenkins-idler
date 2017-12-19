@@ -1,8 +1,8 @@
 package openshiftcontroller
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 
 	ic "github.com/fabric8-services/fabric8-jenkins-idler/clients"
 )
@@ -16,10 +16,10 @@ func roundP(f float64) int {
 func SplitGroups(data []string, split []*[]string) []*[]string {
 	n := len(split)
 
-	for i:=0;i<n;i++ {
-		div := float64(len(data))/float64(n)
-		start := div*float64(i)
-		end := div*float64(i+1)
+	for i := 0; i < n; i++ {
+		div := float64(len(data)) / float64(n)
+		start := div * float64(i)
+		end := div * float64(i+1)
 
 		p := make([]string, len(data[roundP(start):roundP(end)]))
 		split[i] = &p
@@ -29,7 +29,6 @@ func SplitGroups(data []string, split []*[]string) []*[]string {
 
 	return split
 }
-
 
 //GetLastBuild compares 2 builds and returns the newer one. There are differences between
 //active (StartTimestamp) and done (CompletionTimestamp) builds.
