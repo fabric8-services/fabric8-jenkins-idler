@@ -1,9 +1,9 @@
 package openshiftcontroller
 
 import (
-	"strings"
 	"errors"
 	"sort"
+	"strings"
 )
 
 func FilterProjects(projects []string, filter []string) []string {
@@ -11,7 +11,9 @@ func FilterProjects(projects []string, filter []string) []string {
 	for _, proj := range projects {
 		isAllowed := false
 		for _, f := range filter {
-			if strings.HasPrefix(proj, f) {isAllowed = true}
+			if strings.HasPrefix(proj, f) {
+				isAllowed = true
+			}
 		}
 		if len(filter) == 0 || isAllowed {
 			result = append(result, proj)
@@ -58,7 +60,7 @@ func UpdateProjects(groups []*[]string, projects []string) ([]*[]string, error) 
 			e := sort.SearchStrings(projects, p)
 			if e < len(projects) && projects[e] == p {
 				projects = append(projects[:e], projects[e+1:]...)
-			} 
+			}
 		}
 	}
 

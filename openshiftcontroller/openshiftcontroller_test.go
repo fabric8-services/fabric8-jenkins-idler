@@ -67,7 +67,7 @@ func TestToggleHandleDC(t *testing.T) {
 			},
 			Status: ic.DCStatus{
 				Conditions: []ic.Condition{
-					ic.Condition{
+					{
 						Type:   "Available",
 						Status: "false",
 					},
@@ -81,7 +81,7 @@ func TestToggleHandleDC(t *testing.T) {
 		if toggles.IsReady() {
 			break
 		}
-		time.Sleep(1* time.Second)
+		time.Sleep(1 * time.Second)
 	}
 
 	ok, err := oc.HandleDeploymentConfig(obj)

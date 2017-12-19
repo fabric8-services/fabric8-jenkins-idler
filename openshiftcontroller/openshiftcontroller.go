@@ -1,57 +1,57 @@
 package openshiftcontroller
 
 import (
-	"strconv"
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"encoding/json"
-	"bytes"
-	"time"
+	"strconv"
 	"sync"
+	"time"
 
-	log "github.com/sirupsen/logrus"
 	ic "github.com/fabric8-services/fabric8-jenkins-idler/clients"
-	pc "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
 	"github.com/fabric8-services/fabric8-jenkins-idler/toggles"
+	pc "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
-	loadRetrySleep   = 10
-	availableCond    = "Available"
-	toggleFeature    = "jenkins.idler"
+	loadRetrySleep = 10
+	availableCond  = "Available"
+	toggleFeature  = "jenkins.idler"
 )
 
 type OpenShiftController struct {
-	Phases map[string]int
-	Conditions Conditions
-	Users map[string]*User
-	lock *sync.Mutex
-	groupLock *sync.Mutex
-	Groups []*[]string
-	groupSleep time.Duration
+	Phases           map[string]int
+	Conditions       Conditions
+	Users            map[string]*User
+	lock             *sync.Mutex
+	groupLock        *sync.Mutex
+	Groups           []*[]string
+	groupSleep       time.Duration
 	FilterNamespaces []string
-	o ic.OpenShift
+	o                ic.OpenShift
 	MaxUnidleRetries int
-	watch bool
-	tenant pc.Tenant
+	watch            bool
+	tenant           pc.Tenant
 }
 
 func NewOpenShiftController(o ic.OpenShift, t pc.Tenant, nGroups int, idleAfter int, filter []string, proxyURL string, maxUnidleRetries int, watch bool) *OpenShiftController {
 	oc := &OpenShiftController{
-		o: o,
-		Users: make(map[string]*User),
-		lock: &sync.Mutex{},
-		groupLock: &sync.Mutex{},
-		Groups: make([]*[]string, nGroups),
-		groupSleep: 10*time.Second,
+		o:                o,
+		Users:            make(map[string]*User),
+		lock:             &sync.Mutex{},
+		groupLock:        &sync.Mutex{},
+		Groups:           make([]*[]string, nGroups),
+		groupSleep:       10 * time.Second,
 		FilterNamespaces: filter,
 		MaxUnidleRetries: maxUnidleRetries,
-		watch: watch,
-		tenant: t,
+		watch:            watch,
+		tenant:           t,
 	}
 
 	oc.Conditions.Conditions = make(map[string]ConditionI)
-	
+
 	var err error
 
 	//If we do not use watch, load projects/namespaces to take care of
@@ -60,7 +60,7 @@ func NewOpenShiftController(o ic.OpenShift, t pc.Tenant, nGroups int, idleAfter 
 			_, err = oc.LoadProjects()
 			if err != nil {
 				log.Error(err)
-				time.Sleep(loadRetrySleep*time.Second)
+				time.Sleep(loadRetrySleep * time.Second)
 			} else {
 				break
 			}
@@ -68,10 +68,10 @@ func NewOpenShiftController(o ic.OpenShift, t pc.Tenant, nGroups int, idleAfter 
 	}
 
 	//Add a Build condition
-	bc := NewBuildCondition(time.Duration(idleAfter)*time.Minute)
+	bc := NewBuildCondition(time.Duration(idleAfter) * time.Minute)
 	oc.Conditions.Conditions["build"] = bc
 	//Add a DeploymentConfig condition
-	dcc := NewDCCondition(time.Duration(idleAfter)*time.Minute)
+	dcc := NewDCCondition(time.Duration(idleAfter) * time.Minute)
 	oc.Conditions.Conditions["DC"] = dcc
 	//If we have access to Proxy, add User condition
 	if len(proxyURL) > 0 {
@@ -85,11 +85,11 @@ func NewOpenShiftController(o ic.OpenShift, t pc.Tenant, nGroups int, idleAfter 
 
 //CheckIdle verifies the state of conditions and decides if we should idle/unidle
 //and performs the required action if needed
-func (oc *OpenShiftController) CheckIdle(user *User) (error) {
+func (oc *OpenShiftController) CheckIdle(user *User) error {
 	if user == nil {
 		return errors.New("Empty user")
 	}
-	ns := user.Name+"-jenkins"
+	ns := user.Name + "-jenkins"
 	oc.lock.Lock()
 	eval, condStates := oc.Conditions.Eval(user)
 	oc.lock.Unlock()
@@ -109,7 +109,7 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 				n = user.DoneBuild.Metadata.Name
 				t = user.DoneBuild.Status.CompletionTimestamp.Time
 			}
-			log.Info(fmt.Sprintf("I'd like to idle jenkins for %s as last build finished at %s", user.Name,	t))
+			log.Info(fmt.Sprintf("I'd like to idle jenkins for %s as last build finished at %s", user.Name, t))
 			//Reset unidle retries and idle
 			user.UnidleRetried = 0
 			err := oc.o.Idle(user.Name+"-jenkins", "jenkins") //FIXME - find better way to generate Jenkins namespace
@@ -128,10 +128,10 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 			log.Debug("Potential unidling event")
 
 			//Skip some retries,but check from time to time if things are fixed
-			if user.UnidleRetried > oc.MaxUnidleRetries && (user.UnidleRetried % oc.MaxUnidleRetries != 0) { 
+			if user.UnidleRetried > oc.MaxUnidleRetries && (user.UnidleRetried%oc.MaxUnidleRetries != 0) {
 				user.UnidleRetried++
-				 log.Debug(fmt.Sprintf("Skipping unidle for %s, too many retries", user.Name))
-				 return nil
+				log.Debug(fmt.Sprintf("Skipping unidle for %s, too many retries", user.Name))
+				return nil
 			}
 			var n string
 			var t time.Time
@@ -153,7 +153,7 @@ func (oc *OpenShiftController) CheckIdle(user *User) (error) {
 }
 
 //HandlBuild processes new Build event collected from OpenShift and updates
-//user structure with latest build info. NOTE: In most cases the only change in 
+//user structure with latest build info. NOTE: In most cases the only change in
 //build object is stage timesstamp, which we don't care about, so this function
 //just does couple comparisons and returns
 func (oc *OpenShiftController) HandleBuild(o ic.Object) (watched bool, err error) {
@@ -310,7 +310,7 @@ func (oc *OpenShiftController) processBuilds(namespaces []string) (err error) {
 
 		lastActive := oc.Users[n].ActiveBuild
 		lastDone := oc.Users[n].DoneBuild
-		for i, _ := range bl.Items {
+		for i := range bl.Items {
 			if IsActive(&bl.Items[i]) {
 				lastActive, err = GetLastBuild(lastActive, &bl.Items[i])
 			} else {
@@ -373,13 +373,13 @@ func (oc *OpenShiftController) Run(groupNumber int) {
 }
 
 //LoadProjects loads OpenShift projects and initializes groups (used with polling)
-func (oc *OpenShiftController) LoadProjects() (projects[] string, err error) {
+func (oc *OpenShiftController) LoadProjects() (projects []string, err error) {
 	projects, err = oc.o.GetProjects()
 	if err != nil {
 		return
 	}
 	projects = FilterProjects(projects, oc.FilterNamespaces)
-	
+
 	g := SplitGroups(projects, oc.Groups)
 	oc.groupLock.Lock()
 	oc.Groups = g
@@ -400,7 +400,7 @@ func (oc *OpenShiftController) DownloadProjects() (err error) {
 	g, err := UpdateProjects(oc.Groups, projects)
 	if err != nil {
 		return
-	} 
+	}
 
 	oc.groupLock.Lock()
 	oc.Groups = g
@@ -413,9 +413,9 @@ func (oc *OpenShiftController) prettyPrint(data []byte) {
 	var prettyJSON bytes.Buffer
 	error := json.Indent(&prettyJSON, data, "", "\t")
 	if error != nil {
-			log.Println("JSON parse error: ", error)
-			return
+		log.Println("JSON parse error: ", error)
+		return
 	}
 
-	log.Println(string(prettyJSON.Bytes()))	
+	log.Println(string(prettyJSON.Bytes()))
 }
