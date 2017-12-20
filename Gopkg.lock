@@ -13,6 +13,12 @@
   revision = "be883ea1af714aff427d0668dbd4fc549d4f701c"
 
 [[projects]]
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
+
+[[projects]]
   name = "github.com/fabric8-services/fabric8-jenkins-proxy"
   packages = [
     "api",
@@ -89,6 +95,12 @@
   version = "v1.0.1"
 
 [[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/satori/go.uuid"
   packages = ["."]
   revision = "879c5887cd475cd7864858769793b2ceb0d44feb"
@@ -134,6 +146,12 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/stretchr/testify"
+  packages = ["assert"]
+  revision = "69483b4bd14f5845b5a1e55bca19e954e827f1d0"
+  version = "v1.1.4"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
@@ -161,6 +179,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "80a3e2f90d922f9a7a029b05307d62a48ca9ec22fa6a39941e35273566373184"
+  inputs-digest = "d16e4b6ead149a1dadeb370fc44cb870b888f96918cda2429022a09be6c48e1c"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -7,9 +7,11 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/api"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshiftcontroller"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/common"
 	pClients "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
+	"io/ioutil"
 )
 
 const (
@@ -23,7 +25,11 @@ func Run() {
 		log.Fatal(err)
 	}
 
-	ts := MockServer(TenantData())
+	tenantData, err := ioutil.ReadFile("internal/testutils/testdata/tenant.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	ts := common.MockServer(tenantData)
 	defer ts.Close()
 
 	o := iClients.NewOpenShift(config.GetOpenShiftURL(), config.GetOpenShiftToken())

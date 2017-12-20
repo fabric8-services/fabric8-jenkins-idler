@@ -8,7 +8,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshiftcontroller"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/api"
-	"github.com/fabric8-services/fabric8-jenkins-idler/testutils"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 
 	iClients "github.com/fabric8-services/fabric8-jenkins-idler/clients"
