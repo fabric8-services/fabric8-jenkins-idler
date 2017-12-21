@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshiftcontroller"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/common"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 	pClients "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
@@ -35,8 +36,22 @@ func Run() {
 	o := iClients.NewOpenShift(config.GetOpenShiftURL(), config.GetOpenShiftToken())
 	t := pClients.NewTenant(ts.URL, "xxx")
 
-	oc := openshiftcontroller.NewOpenShiftController(o, t, config.GetConcurrentGroups(),
-		config.GetIdleAfter(), config.GetFilteredNamespaces(), config.GetProxyURL(), unidleRetry, config.GetUseWatch())
+	//Create Toggle (Unleash) Service client
+	features, err := toggles.NewUnleashToggle("http://unleash.herokuapp.com/api/")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	oc := openshiftcontroller.NewOpenShiftController(o,
+		t,
+		config.GetConcurrentGroups(),
+		config.GetIdleAfter(),
+		config.GetFilteredNamespaces(),
+		config.GetProxyURL(),
+		unidleRetry,
+		config.GetUseWatch(),
+		features,
+	)
 
 	go oc.Run(0)
 

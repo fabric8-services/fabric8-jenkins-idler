@@ -14,7 +14,6 @@ import (
 	pClients "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
 
 	"github.com/julienschmidt/httprouter"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -25,46 +24,36 @@ const (
 )
 
 type Idler struct {
+	features toggles.Features
+	config   *configuration.Data
 }
 
-func NewIdler() *Idler {
-	return &Idler{}
-}
-
-func (i *Idler) Run() {
-	//Init configuration
-	config, err := configuration.NewData()
-	if err != nil {
-		log.Fatal(err)
+func NewIdler(config *configuration.Data, features toggles.Features) *Idler {
+	return &Idler{
+		config:   config,
+		features: features,
 	}
-	config.Verify()
+}
 
+func (idler *Idler) Run() {
 	//Create OpenShift client
-	o := iClients.NewOpenShift(config.GetOpenShiftURL(), config.GetOpenShiftToken())
+	o := iClients.NewOpenShift(idler.config.GetOpenShiftURL(), idler.config.GetOpenShiftToken())
 
 	//Create Tenant client
-	t := pClients.NewTenant(config.GetTenantURL(), config.GetAuthToken())
-
-	//Create Toggle (Unleash) Service client
-	toggles.Init("jenkins-idler", config.GetToggleURL())
-	for i := 0; i < togglesReadyRetry; i++ {
-		if toggles.IsReady() {
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
-
-	//If toggles is not ready, Idler will ignore all namespaces - i.e. will be useless,
-	//but toggles might get ready later
-	if toggles.IsReady() {
-		log.Info("Toggles are available and ready")
-	} else {
-		log.Error("Toggles not in ready state yet")
-	}
+	t := pClients.NewTenant(idler.config.GetTenantURL(), idler.config.GetAuthToken())
 
 	//Create Idler controller
-	oc := openshiftcontroller.NewOpenShiftController(o, t, config.GetConcurrentGroups(),
-		config.GetIdleAfter(), config.GetFilteredNamespaces(), config.GetProxyURL(), unidleRetry, config.GetUseWatch())
+	oc := openshiftcontroller.NewOpenShiftController(
+		o,
+		t,
+		idler.config.GetConcurrentGroups(),
+		idler.config.GetIdleAfter(),
+		idler.config.GetFilteredNamespaces(),
+		idler.config.GetProxyURL(),
+		unidleRetry,
+		idler.config.GetUseWatch(),
+		idler.features,
+	)
 
 	//Create router for Idler API
 	router := httprouter.New()
@@ -86,7 +75,7 @@ func (i *Idler) Run() {
 	}
 
 	//If we do not use websocket to get events from OpenShift, we need to update list of projects regularly (to spot new users)
-	if !config.GetUseWatch() {
+	if !idler.config.GetUseWatch() {
 		go func() {
 			for {
 				oc.DownloadProjects()

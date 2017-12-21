@@ -3,7 +3,6 @@ package openshiftcontroller
 import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/common"
 	"testing"
-	"time"
 
 	"fmt"
 	idlerClient "github.com/fabric8-services/fabric8-jenkins-idler/clients"
@@ -21,7 +20,7 @@ var openShiftService *httptest.Server
 var openShiftController *OpenShiftController
 var origWriter io.Writer
 
-func TestToggleHandleBuild(t *testing.T) {
+func Test_handle_build(t *testing.T) {
 	setUp(t)
 	defer tearDown()
 
@@ -36,10 +35,10 @@ func TestToggleHandleBuild(t *testing.T) {
 
 	ok, err := openShiftController.HandleBuild(obj)
 	assert.NoError(t, err)
-	assert.Equal(t, true, ok, fmt.Sprintf("Namespace '%s' should be watched", obj.Object.Metadata.Namespace))
+	assert.True(t, ok, fmt.Sprintf("Namespace '%s' should be watched", obj.Object.Metadata.Namespace))
 }
 
-func TestToggleHandleDC(t *testing.T) {
+func Test_handle_deployment_config(t *testing.T) {
 	setUp(t)
 	defer tearDown()
 
@@ -62,7 +61,7 @@ func TestToggleHandleDC(t *testing.T) {
 
 	ok, err := openShiftController.HandleDeploymentConfig(obj)
 	assert.NoError(t, err)
-	assert.Equal(t, true, ok, fmt.Sprintf("Namespace '%s' should be watched", obj.Object.Metadata.Namespace))
+	assert.True(t, ok, fmt.Sprintf("Namespace '%s' should be watched", obj.Object.Metadata.Namespace))
 }
 
 func setUp(t *testing.T) {
@@ -85,15 +84,10 @@ func setUp(t *testing.T) {
 	o := idlerClient.NewOpenShift(openShiftService.URL, "")
 	tc := proxyClient.NewTenant(tenantService.URL, "")
 
-	openShiftController = NewOpenShiftController(o, tc, 0, 10, []string{}, "", 0, true)
+	features, err := toggles.NewUnleashToggle("http://unleash.herokuapp.com/api/")
+	assert.NoError(t, err)
 
-	toggles.Init("jenkins-idler", "http://unleash.herokuapp.com/api/")
-	for i := 0; i < 10; i++ {
-		if toggles.IsReady() {
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
+	openShiftController = NewOpenShiftController(o, tc, 0, 10, []string{}, "", 0, true, features)
 }
 
 func tearDown() {
