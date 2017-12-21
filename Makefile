@@ -1,6 +1,6 @@
-REGISTRY_URI = "push.registry.devshift.net"
-REGISTRY_NS = "fabric8-services"
-REGISTRY_IMAGE = "fabric8-jenkins-idler"
+REGISTRY_URI = push.registry.devshift.net
+REGISTRY_NS = fabric8-services
+REGISTRY_IMAGE = fabric8-jenkins-idler
 REGISTRY_URL = ${REGISTRY_URI}/${REGISTRY_NS}/${REGISTRY_IMAGE}
 IMAGE_TAG ?= $(shell git rev-parse --short HEAD)
 
@@ -26,13 +26,13 @@ __check_defined = \
 all: tools build test fmtcheck vet image ## Compiles binary and runs format and style checks
 
 build: vendor ## Builds the binary into $GOPATH/bin
-	go install .
+	go install ./cmd/fabric8-jenkins-idler
 
 $(BUILD_DIR):
 	mkdir $(BUILD_DIR)
 
 $(BUILD_DIR)/$(REGISTRY_IMAGE): vendor $(BUILD_DIR) ## Builds the Linux binary for the container image $BUILD_DIR
-	CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -o $(BUILD_DIR)/$(REGISTRY_IMAGE) .
+	CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -o $(BUILD_DIR)/$(REGISTRY_IMAGE) ./cmd/fabric8-jenkins-idler
 
 image: $(BUILD_DIR)/$(REGISTRY_IMAGE) ## Builds the container image
 	docker build -t $(REGISTRY_URL) -f Dockerfile.deploy .

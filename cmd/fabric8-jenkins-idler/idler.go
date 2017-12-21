@@ -2,13 +2,12 @@ package main
 
 import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
-	"time"
 	"net/http"
 	_ "net/http/pprof"
+	"time"
 
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshiftcontroller"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/api"
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshiftcontroller"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 
 	iClients "github.com/fabric8-services/fabric8-jenkins-idler/clients"
@@ -25,25 +24,20 @@ const (
 	togglesReadyRetry = 10
 )
 
-func init() {
-  log.SetFormatter(&log.JSONFormatter{})
+type Idler struct {
 }
 
-func main() {
+func NewIdler() *Idler {
+	return &Idler{}
+}
+
+func (i *Idler) Run() {
 	//Init configuration
 	config, err := configuration.NewData()
 	if err != nil {
 		log.Fatal(err)
-		return
 	}
-
-	if config.GetLocalDevEnv() {
-		testutils.Run()
-		return
-	}
-	//Verify if we have all the info
 	config.Verify()
-
 
 	//Create OpenShift client
 	o := iClients.NewOpenShift(config.GetOpenShiftURL(), config.GetOpenShiftToken())
@@ -70,7 +64,7 @@ func main() {
 
 	//Create Idler controller
 	oc := openshiftcontroller.NewOpenShiftController(o, t, config.GetConcurrentGroups(),
-										config.GetIdleAfter(), config.GetFilteredNamespaces(), config.GetProxyURL(), unidleRetry, config.GetUseWatch())
+		config.GetIdleAfter(), config.GetFilteredNamespaces(), config.GetProxyURL(), unidleRetry, config.GetUseWatch())
 
 	//Create router for Idler API
 	router := httprouter.New()
@@ -85,9 +79,9 @@ func main() {
 	router.GET("/iapi/idler/isidle/:namespace/", api.IsIdle)
 	router.GET("/iapi/idler/route/:namespace", api.GetRoute)
 	router.GET("/iapi/idler/route/:namespace/", api.GetRoute)
-	
+
 	//Spawn the main loop
-	for gn, _ := range oc.Groups {
+	for gn := range oc.Groups {
 		go oc.Run(gn)
 	}
 
@@ -96,11 +90,11 @@ func main() {
 		go func() {
 			for {
 				oc.DownloadProjects()
-				time.Sleep(10*time.Minute)
+				time.Sleep(10 * time.Minute)
 			}
 		}()
 	}
-	
+
 	//Start Idler API
 	http.ListenAndServe(":8080", router)
 }
