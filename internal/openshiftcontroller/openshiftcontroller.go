@@ -18,7 +18,6 @@ import (
 const (
 	loadRetrySleep = 10
 	availableCond  = "Available"
-	toggleFeature  = "jenkins.idler"
 )
 
 type OpenShiftController struct {
@@ -34,9 +33,10 @@ type OpenShiftController struct {
 	MaxUnidleRetries int
 	watch            bool
 	tenant           pc.Tenant
+	features         toggles.Features
 }
 
-func NewOpenShiftController(o ic.OpenShift, t pc.Tenant, nGroups int, idleAfter int, filter []string, proxyURL string, maxUnidleRetries int, watch bool) *OpenShiftController {
+func NewOpenShiftController(o ic.OpenShift, t pc.Tenant, nGroups int, idleAfter int, filter []string, proxyURL string, maxUnidleRetries int, watch bool, features toggles.Features) *OpenShiftController {
 	oc := &OpenShiftController{
 		o:                o,
 		Users:            make(map[string]*User),
@@ -48,6 +48,7 @@ func NewOpenShiftController(o ic.OpenShift, t pc.Tenant, nGroups int, idleAfter 
 		MaxUnidleRetries: maxUnidleRetries,
 		watch:            watch,
 		tenant:           t,
+		features:         features,
 	}
 
 	oc.Conditions.Conditions = make(map[string]Condition)
@@ -166,7 +167,11 @@ func (oc *OpenShiftController) HandleBuild(o ic.Object) (watched bool, err error
 	}
 
 	//Filter for configured namespaces, FIXME: Use toggle service instead
-	if toggles.IsEnabled(oc.Users[ns].ID, toggleFeature, false) {
+	enabled, err := oc.features.IsIdlerEnabled(oc.Users[ns].ID)
+	if err != nil {
+		return
+	}
+	if enabled {
 		log.Infof("Idler enabled for %s", ns)
 		watched = true
 	} else if len(oc.FilterNamespaces) > 0 {
@@ -224,7 +229,13 @@ func (oc *OpenShiftController) HandleDeploymentConfig(dc ic.DCObject) (watched b
 		return
 	}
 	log.Info(oc.Users[ns].ID)
-	if toggles.IsEnabled(oc.Users[ns].ID, toggleFeature, false) {
+
+	enabled, err := oc.features.IsIdlerEnabled(oc.Users[ns].ID)
+	if err != nil {
+		return
+	}
+
+	if enabled {
 		log.Infof("Idler enabled for %s", ns)
 		watched = true
 	} else if len(oc.FilterNamespaces) > 0 {
@@ -338,12 +349,16 @@ func (oc *OpenShiftController) Run(groupNumber int) {
 			for {
 				//For each user we know about, check if there is any action needed
 				for _, u := range oc.Users {
-
-					if !toggles.IsEnabled(u.ID, toggleFeature, false) {
+					enabled, err := oc.features.IsIdlerEnabled(u.ID)
+					if err != nil {
+						log.Error("Error checking for idler feature", err)
+						continue
+					}
+					if !enabled {
 						log.Debugf("Skipping check for %s.", u.Name)
 						continue
 					}
-					err := oc.CheckIdle(u)
+					err = oc.CheckIdle(u)
 					if err != nil {
 						log.Errorf("Could not check idling for %s: %s", u.Name, err)
 					}

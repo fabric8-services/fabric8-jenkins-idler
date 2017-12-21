@@ -1,7 +1,9 @@
 package main
 
 import (
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 	log "github.com/sirupsen/logrus"
 	"os"
 )
@@ -18,6 +20,19 @@ func main() {
 		return
 	}
 
-	idler := NewIdler()
+	//Init configuration
+	config, err := configuration.NewData()
+	if err != nil {
+		log.Fatal(err)
+	}
+	config.Verify()
+
+	//Create Toggle (Unleash) Service client
+	features, err := toggles.NewUnleashToggle(config.GetToggleURL())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	idler := NewIdler(config, features)
 	idler.Run()
 }

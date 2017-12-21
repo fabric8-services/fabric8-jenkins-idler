@@ -31,7 +31,7 @@ build: vendor ## Builds the binary into $GOPATH/bin
 $(BUILD_DIR):
 	mkdir $(BUILD_DIR)
 
-$(BUILD_DIR)/$(REGISTRY_IMAGE): vendor $(BUILD_DIR) ## Builds the Linux binary for the container image $BUILD_DIR
+$(BUILD_DIR)/$(REGISTRY_IMAGE): vendor $(BUILD_DIR) ## Builds the Linux binary for the container image into $BUILD_DIR
 	CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -o $(BUILD_DIR)/$(REGISTRY_IMAGE) ./cmd/fabric8-jenkins-idler
 
 image: $(BUILD_DIR)/$(REGISTRY_IMAGE) ## Builds the container image
