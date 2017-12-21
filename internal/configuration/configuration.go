@@ -18,8 +18,6 @@ const (
 	varTenantURL          = "f8tenant.api.url"
 	varAuthToken          = "auth.token"
 	varToggleURL          = "toggle.api.url"
-
-	varLocalDevEnv = "local.dev.env"
 )
 
 // Data encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -130,11 +128,6 @@ func (c *Data) GetIdleAfter() int {
 // GetUseWatch returns if idler should use watch instead of poll as set via default, config file, or environment variable
 func (c *Data) GetUseWatch() bool {
 	return c.v.GetBool(varUseWatch)
-}
-
-// GetLocalDevEnv returns if it is local development env as set via default, config file, or environment variable
-func (c *Data) GetLocalDevEnv() bool {
-	return c.v.GetBool(varLocalDevEnv)
 }
 
 // GetTenantURL returns the F8 Tenant API URL as set via default, config file, or environment variable
