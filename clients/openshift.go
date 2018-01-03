@@ -87,7 +87,7 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 
 	//Check if returned object got updated
 	if e.Metadata.Annotations.IdledAt != string(idleAt) {
-		return errors.New("Could not update endpoint with idle time.")
+		return fmt.Errorf("Could not update endpoint with idle time")
 	}
 
 	//Update DeploymentConfig - scale down
@@ -121,13 +121,13 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 
 	//Check successful scale-down
 	if ndc.Spec.Replicas != 0 {
-		return errors.New("Could not update DeploymentConfig with replica count.")
+		return fmt.Errorf("Could not update DeploymentConfig with replica count")
 	}
 
 	return
 }
 
-//Unidle forces a service in OpenShift namespace to start
+//UnIdle forces a service in OpenShift namespace to start
 func (o *OpenShift) UnIdle(namespace string, service string) (err error) {
 	log.Info("Unidling ", service, " in ", namespace)
 	//Scale up
@@ -288,7 +288,6 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 		if err != nil {
 			log.Fatal(err)
 		}
-		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", o.token))
 
 		resp, err := c.Do(req)
 		if err != nil {
@@ -336,6 +335,7 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 				log.Debugf("Event summary: Build %s -> %s, %s/%s", o.Object.Metadata.Name, o.Object.Status.Phase, o.Object.Status.StartTimestamp, o.Object.Status.CompletionTimestamp)
 			}
 		}
+		log.Debug("Fell out of loop for Build")
 	}
 }
 
@@ -411,6 +411,7 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 				log.Debugf("Event summary: DeploymentConfig %s, %s/%s\n", o.Object.Metadata.Name, c.Status, c.LastUpdateTime)
 			}
 		}
+		log.Debugf("Fall out od loop for watching DC")
 	}
 }
 
@@ -487,7 +488,7 @@ func (o *OpenShift) do(req *http.Request) (resp *http.Response, err error) {
 		return
 	}
 	if resp.StatusCode != 200 {
-		err = errors.New(fmt.Sprintf("Got status %s (%d) from %s.", resp.Status, resp.StatusCode, req.URL))
+		err = fmt.Errorf("Got status %s (%d) from %s", resp.Status, resp.StatusCode, req.URL)
 	}
 
 	return
@@ -508,6 +509,7 @@ func (o *OpenShift) patch(req *http.Request) (b []byte, err error) {
 	return
 }
 
+//GetApiURL returns API Url for OpenShift cluster
 func (o *OpenShift) GetApiURL() string {
 	return o.apiURL
 }

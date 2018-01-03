@@ -6,6 +6,7 @@ import (
 
 	"errors"
 	"fmt"
+
 	unleash "github.com/Unleash/unleash-client-go"
 	"github.com/Unleash/unleash-client-go/context"
 	log "github.com/sirupsen/logrus"
@@ -24,6 +25,7 @@ type unleashToggle struct {
 
 func NewUnleashToggle(hostURL string) (Features, error) {
 	unleashClient, err := unleash.NewClient(unleash.WithAppName(appName),
+		unleash.WithListener(&listener{}),
 		unleash.WithInstanceId(os.Getenv("HOSTNAME")),
 		unleash.WithUrl(hostURL),
 		unleash.WithMetricsInterval(1*time.Minute),
@@ -57,4 +59,47 @@ func (t *unleashToggle) withContext(uid string) unleash.FeatureOption {
 	}
 
 	return unleash.WithContext(ctx)
+}
+
+type listener struct{}
+
+// OnError prints out errors.
+func (l listener) OnError(err error) {
+	log.Error(nil, map[string]interface{}{
+		"err": err.Error(),
+	}, "toggles error")
+}
+
+// OnWarning prints out warning.
+func (l listener) OnWarning(warning error) {
+	log.Warn(nil, map[string]interface{}{
+		"err": warning.Error(),
+	}, "toggles warning")
+}
+
+// OnReady prints to the console when the repository is ready.
+func (l listener) OnReady() {
+	log.Info(nil, map[string]interface{}{}, "toggles ready")
+}
+
+// OnCount prints to the console when the feature is queried.
+func (l listener) OnCount(name string, enabled bool) {
+	log.Info(nil, map[string]interface{}{
+		"name":    name,
+		"enabled": enabled,
+	}, "toggles count")
+}
+
+// OnSent prints to the console when the server has uploaded metrics.
+func (l listener) OnSent(payload unleash.MetricsData) {
+	log.Info(nil, map[string]interface{}{
+		"payload": payload,
+	}, "toggles sent")
+}
+
+// OnRegistered prints to the console when the client has registered.
+func (l listener) OnRegistered(payload unleash.ClientData) {
+	log.Info(nil, map[string]interface{}{
+		"payload": payload,
+	}, "toggles registered")
 }

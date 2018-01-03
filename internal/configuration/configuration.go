@@ -51,6 +51,7 @@ func (c *Data) setConfigDefaults() {
 	c.v.SetDefault(varToggleURL, "http://f8toggles/api")
 }
 
+//Verify checks whether all needed config options are set
 func (c *Data) Verify() {
 	missingParam := false
 	apiURL := c.GetOpenShiftURL()
