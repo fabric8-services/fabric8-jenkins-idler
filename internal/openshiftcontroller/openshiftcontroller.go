@@ -166,15 +166,19 @@ func (oc *OpenShiftController) HandleBuild(o ic.Object) (watched bool, err error
 		return
 	}
 
+	log.Debugf("Checking if idler is enabled for %s (%s)", ns, oc.Users[ns].ID)
 	//Filter for configured namespaces, FIXME: Use toggle service instead
 	enabled, err := oc.features.IsIdlerEnabled(oc.Users[ns].ID)
 	if err != nil {
 		return
 	}
+
+	log.Debugf("Result of toggle check for %s: %t", ns, enabled)
 	if enabled {
 		log.Infof("Idler enabled for %s", ns)
 		watched = true
 	} else if len(oc.FilterNamespaces) > 0 {
+		log.Debug("Filtering namespaces")
 		for _, n := range oc.FilterNamespaces {
 			if ns == n {
 				watched = true
@@ -228,7 +232,7 @@ func (oc *OpenShiftController) HandleDeploymentConfig(dc ic.DCObject) (watched b
 	if err != nil {
 		return
 	}
-	log.Info(oc.Users[ns].ID)
+	log.Debugf("Checking if user %s (%s) is enabled", oc.Users[ns].Name, oc.Users[ns].ID)
 
 	enabled, err := oc.features.IsIdlerEnabled(oc.Users[ns].ID)
 	if err != nil {
@@ -278,9 +282,10 @@ func (oc *OpenShiftController) HandleDeploymentConfig(dc ic.DCObject) (watched b
 	return
 }
 
-//Check existance of a user in the map, initialise if it does not exist
+//CheckNewUser check existance of a user in the map, initialise if it does not exist
 func (oc *OpenShiftController) CheckNewUser(ns string) (err error) {
 	if _, exist := oc.Users[ns]; !exist {
+		log.Debugf("New user %s", ns)
 		state, err := oc.o.IsIdle(ns+"-jenkins", "jenkins")
 		if err != nil {
 			return err
@@ -299,6 +304,9 @@ func (oc *OpenShiftController) CheckNewUser(ns string) (err error) {
 		oc.lock.Lock()
 		oc.Users[ns] = NewUser(ti.Data[0].Id, ns, (state == ic.JenkinsRunning))
 		oc.lock.Unlock()
+		log.Debugf("Recorded new user %s", ns)
+	} else {
+		log.Debugf("User %s exists", ns)
 	}
 
 	return

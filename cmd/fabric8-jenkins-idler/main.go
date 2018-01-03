@@ -1,15 +1,31 @@
 package main
 
 import (
+	"os"
+
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 	log "github.com/sirupsen/logrus"
-	"os"
 )
 
 func init() {
 	log.SetFormatter(&log.JSONFormatter{})
+
+	level := log.InfoLevel
+	switch levelStr, _ := os.LookupEnv("JC_LOG_LEVEL"); levelStr {
+	case "info":
+		level = log.InfoLevel
+	case "debug":
+		level = log.DebugLevel
+	case "warning":
+		level = log.WarnLevel
+	case "error":
+		level = log.ErrorLevel
+	default:
+		level = log.InfoLevel
+	}
+	log.SetLevel(level)
 }
 
 func main() {
