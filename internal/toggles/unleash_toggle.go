@@ -84,7 +84,7 @@ func (l listener) OnReady() {
 
 // OnCount prints to the console when the feature is queried.
 func (l listener) OnCount(name string, enabled bool) {
-	log.Info(nil, map[string]interface{}{
+	log.Debug(nil, map[string]interface{}{
 		"name":    name,
 		"enabled": enabled,
 	}, "toggles count")
@@ -92,7 +92,7 @@ func (l listener) OnCount(name string, enabled bool) {
 
 // OnSent prints to the console when the server has uploaded metrics.
 func (l listener) OnSent(payload unleash.MetricsData) {
-	log.Info(nil, map[string]interface{}{
+	log.Debug(nil, map[string]interface{}{
 		"payload": payload,
 	}, "toggles sent")
 }
