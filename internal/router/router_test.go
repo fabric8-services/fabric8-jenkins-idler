@@ -1,0 +1,138 @@
+package router
+
+import (
+	"bytes"
+	"fmt"
+	"github.com/julienschmidt/httprouter"
+	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
+	"io/ioutil"
+	"net"
+	"net/http"
+	"testing"
+	"time"
+)
+
+type mockResponseWriter struct {
+	buffer bytes.Buffer
+}
+
+func (m *mockResponseWriter) Header() (h http.Header) {
+	return http.Header{}
+}
+
+func (m *mockResponseWriter) Write(p []byte) (n int, err error) {
+	m.buffer.Write(p)
+	return len(p), nil
+}
+
+func (m *mockResponseWriter) WriteString(s string) (n int, err error) {
+	m.buffer.WriteString(s)
+	return len(s), nil
+}
+
+func (m *mockResponseWriter) WriteHeader(int) {}
+
+func (m *mockResponseWriter) GetBody() string {
+	return m.buffer.String()
+}
+
+type mockIdlerAPI struct {
+}
+
+func (i *mockIdlerAPI) User(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	w.Write([]byte("User"))
+	w.WriteHeader(http.StatusOK)
+}
+
+func (i *mockIdlerAPI) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	w.Write([]byte("Idle"))
+	w.WriteHeader(http.StatusOK)
+}
+
+func (i *mockIdlerAPI) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	w.Write([]byte("IsIdle"))
+	w.WriteHeader(http.StatusOK)
+}
+
+func (i *mockIdlerAPI) GetRoute(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	w.Write([]byte("GetRoute"))
+	w.WriteHeader(http.StatusOK)
+}
+
+func Test_all_routes_are_setup(t *testing.T) {
+	router := createRouter(&mockIdlerAPI{})
+
+	var routes = []struct {
+		route  string
+		target string
+	}{
+		{"/iapi/idler/builds", "User"},
+		{"/iapi/idler/builds/", "User"},
+		{"/iapi/idler/builds/my-namepace", "User"},
+		{"/iapi/idler/builds/my-namepace/", "User"},
+		{"/iapi/idler/idle/my-namepace", "Idle"},
+		{"/iapi/idler/idle/my-namepace/", "Idle"},
+		{"/iapi/idler/isidle/my-namepace", "IsIdle"},
+		{"/iapi/idler/isidle/my-namepace/", "IsIdle"},
+		{"/iapi/idler/route/my-namepace", "GetRoute"},
+		{"/iapi/idler/route/my-namepace/", "GetRoute"},
+
+		{"/iapi/idler/foo", "404 page not found\n"},
+		{"/iapi/idler/builds/foo/bar", "404 page not found\n"},
+	}
+
+	for _, testRoute := range routes {
+		w := new(mockResponseWriter)
+
+		req, _ := http.NewRequest("GET", testRoute.route, nil)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, testRoute.target, w.GetBody(), fmt.Sprintf("Routing failed for %s", testRoute.route))
+	}
+}
+
+func Test_router_start(t *testing.T) {
+	log.SetOutput(ioutil.Discard)
+
+	testLogger, hook := test.NewNullLogger()
+	routerLogger = testLogger.WithFields(log.Fields{"component": "router"})
+
+	testPort := 48080
+
+	assert.True(t, isTCPPortAvailable(testPort), fmt.Sprintf("Port '%d' should be free.", testPort))
+
+	done := make(chan interface{})
+
+	router := NewRouterWithPort(&mockIdlerAPI{}, testPort)
+	terminated := router.Start(done)
+
+	// we need to give a bit time for the server to come up
+	time.Sleep(1 * time.Second)
+	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/iapi/idler/builds", testPort))
+	assert.NoError(t, err, "The call to the API should have succeeded.")
+	body, err := ioutil.ReadAll(resp.Body)
+	assert.Equal(t, "User", string(body), "Unexpected result from HTTP request")
+
+	go func() {
+		// Cancel the operation after 2 second.
+		time.Sleep(2 * time.Second)
+		log.Info("Signaling done channel")
+		close(done)
+	}()
+
+	<-terminated
+
+	assert.True(t, isTCPPortAvailable(testPort), fmt.Sprintf("Port '%d' should be free.", testPort))
+	assert.Equal(t, "Idler router stopped.", hook.LastEntry().Message)
+}
+
+func isTCPPortAvailable(port int) bool {
+	conn, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
+}

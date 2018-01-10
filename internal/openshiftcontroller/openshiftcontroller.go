@@ -27,13 +27,13 @@ type OpenShiftController struct {
 	lock             *sync.Mutex
 	checkIdleSleep   time.Duration
 	FilterNamespaces []string
-	o                ic.OpenShift
+	o                *ic.OpenShift
 	MaxUnidleRetries int
-	tenant           pc.Tenant
+	tenant           *pc.Tenant
 	features         toggles.Features
 }
 
-func NewOpenShiftController(o ic.OpenShift, t pc.Tenant, idleAfter int, filter []string, proxyURL string, maxUnidleRetries int, features toggles.Features) *OpenShiftController {
+func NewOpenShiftController(o *ic.OpenShift, t *pc.Tenant, idleAfter int, filter []string, proxyURL string, maxUnidleRetries int, features toggles.Features) *OpenShiftController {
 	oc := &OpenShiftController{
 		o:                o,
 		Users:            make(map[string]*User),

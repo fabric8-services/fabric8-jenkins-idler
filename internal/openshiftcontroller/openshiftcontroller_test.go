@@ -81,13 +81,13 @@ func setUp(t *testing.T) {
 	}
 	openShiftService = common.MockServer(deploymentConfigData)
 
-	o := idlerClient.NewOpenShift(openShiftService.URL, "")
-	tc := proxyClient.NewTenant(tenantService.URL, "")
+	openShiftClient := idlerClient.NewOpenShift(openShiftService.URL, "")
+	tenantClient := proxyClient.NewTenant(tenantService.URL, "")
 
 	features, err := toggles.NewUnleashToggle("http://unleash.herokuapp.com/api/")
 	assert.NoError(t, err)
 
-	openShiftController = NewOpenShiftController(o, tc, 10, []string{}, "", 0, features)
+	openShiftController = NewOpenShiftController(&openShiftClient, &tenantClient, 10, []string{}, "", 0, features)
 }
 
 func tearDown() {
