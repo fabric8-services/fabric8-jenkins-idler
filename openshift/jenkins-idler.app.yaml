@@ -49,11 +49,6 @@ objects:
               configMapKeyRef:
                 name: jenkins-idler
                 key: idle.after
-          - name: JC_CONCURRENT_GROUPS
-            valueFrom:
-              configMapKeyRef:
-                name: jenkins-idler
-                key: concurrent.groups
           - name: JC_JENKINS_PROXY_API_URL
             valueFrom:
               configMapKeyRef:

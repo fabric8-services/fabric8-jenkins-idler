@@ -25,48 +25,26 @@ type OpenShiftController struct {
 	Conditions       Conditions
 	Users            map[string]*User
 	lock             *sync.Mutex
-	groupLock        *sync.Mutex
-	Groups           []*[]string
-	groupSleep       time.Duration
+	checkIdleSleep   time.Duration
 	FilterNamespaces []string
 	o                ic.OpenShift
 	MaxUnidleRetries int
-	watch            bool
 	tenant           pc.Tenant
 	features         toggles.Features
 }
 
-func NewOpenShiftController(o ic.OpenShift, t pc.Tenant, nGroups int, idleAfter int, filter []string, proxyURL string, maxUnidleRetries int, watch bool, features toggles.Features) *OpenShiftController {
+func NewOpenShiftController(o ic.OpenShift, t pc.Tenant, idleAfter int, filter []string, proxyURL string, maxUnidleRetries int, features toggles.Features) *OpenShiftController {
 	oc := &OpenShiftController{
 		o:                o,
 		Users:            make(map[string]*User),
 		lock:             &sync.Mutex{},
-		groupLock:        &sync.Mutex{},
-		Groups:           make([]*[]string, nGroups),
-		groupSleep:       10 * time.Second,
 		FilterNamespaces: filter,
 		MaxUnidleRetries: maxUnidleRetries,
-		watch:            watch,
 		tenant:           t,
 		features:         features,
 	}
 
 	oc.Conditions.Conditions = make(map[string]Condition)
-
-	var err error
-
-	//If we do not use watch, load projects/namespaces to take care of
-	if !oc.watch {
-		for { //FIXME
-			_, err = oc.LoadProjects()
-			if err != nil {
-				log.Error(err)
-				time.Sleep(loadRetrySleep * time.Second)
-			} else {
-				break
-			}
-		}
-	}
 
 	//Add a Build condition
 	bc := NewBuildCondition(time.Duration(idleAfter) * time.Minute)
@@ -312,124 +290,33 @@ func (oc *OpenShiftController) CheckNewUser(ns string) (err error) {
 	return
 }
 
-//ProcessBuilds processes builds when not using `watch` (i.e. using polling)
-//and updates user's structure
-func (oc *OpenShiftController) processBuilds(namespaces []string) (err error) {
-	for _, n := range namespaces {
-		err := oc.CheckNewUser(n)
-		if err != nil {
-			return err
-		}
-
-		bl, err := oc.o.GetBuilds(n)
-		if err != nil {
-			log.Error("Could not load builds: ", err)
-			continue
-		}
-
-		lastActive := oc.Users[n].ActiveBuild
-		lastDone := oc.Users[n].DoneBuild
-		for i := range bl.Items {
-			if IsActive(&bl.Items[i]) {
-				lastActive, err = GetLastBuild(lastActive, &bl.Items[i])
-			} else {
-				lastDone, err = GetLastBuild(lastDone, &bl.Items[i])
-			}
-			if err != nil {
-				log.Error(err)
-			}
-		}
-		oc.lock.Lock()
-		*oc.Users[n].ActiveBuild = *lastActive
-		*oc.Users[n].DoneBuild = *lastDone
-		oc.lock.Unlock()
-	}
-
-	return
-}
-
 //Run implements main loop of the application
-func (oc *OpenShiftController) Run(groupNumber int) {
-	//Use watch instead of polling
-	if oc.watch {
-		//FIXME - this looks ugly
-		go func() {
-			for {
-				//For each user we know about, check if there is any action needed
-				for _, u := range oc.Users {
-					enabled, err := oc.features.IsIdlerEnabled(u.ID)
-					if err != nil {
-						log.Error("Error checking for idler feature", err)
-						continue
-					}
-					if !enabled {
-						log.Debugf("Skipping check for %s.", u.Name)
-						continue
-					}
-					err = oc.CheckIdle(u)
-					if err != nil {
-						log.Errorf("Could not check idling for %s: %s", u.Name, err)
-					}
+func (oc *OpenShiftController) Run() {
+	go oc.o.WatchDeploymentConfigs("", "-jenkins", oc.HandleDeploymentConfig)
+	go oc.o.WatchBuilds("", "JenkinsPipeline", oc.HandleBuild)
+
+	//FIXME - this looks ugly
+	go func() {
+		for {
+			//For each user we know about, check if there is any action needed
+			for _, u := range oc.Users {
+				enabled, err := oc.features.IsIdlerEnabled(u.ID)
+				if err != nil {
+					log.Error("Error checking for idler feature", err)
+					continue
 				}
-				time.Sleep(oc.groupSleep)
+				if !enabled {
+					log.Debugf("Skipping check for %s.", u.Name)
+					continue
+				}
+				err = oc.CheckIdle(u)
+				if err != nil {
+					log.Errorf("Could not check idling for %s: %s", u.Name, err)
+				}
 			}
-		}()
-
-		go oc.o.WatchDeploymentConfigs("", "-jenkins", oc.HandleDeploymentConfig)
-		oc.o.WatchBuilds("", "JenkinsPipeline", oc.HandleBuild)
-		return
-	}
-	//Use polling
-	for {
-		log.Info("Checking group #", groupNumber)
-		oc.processBuilds(*oc.Groups[groupNumber])
-
-		for _, n := range *oc.Groups[groupNumber] {
-			err := oc.CheckIdle(oc.Users[n])
-			if err != nil {
-				log.Error(n)
-				log.Error(err)
-			}
+			time.Sleep(oc.checkIdleSleep)
 		}
-		time.Sleep(oc.groupSleep)
-	}
-}
-
-//LoadProjects loads OpenShift projects and initializes groups (used with polling)
-func (oc *OpenShiftController) LoadProjects() (projects []string, err error) {
-	projects, err = oc.o.GetProjects()
-	if err != nil {
-		return
-	}
-	projects = FilterProjects(projects, oc.FilterNamespaces)
-
-	g := SplitGroups(projects, oc.Groups)
-	oc.groupLock.Lock()
-	oc.Groups = g
-	oc.groupLock.Unlock()
-	fmt.Printf("%+v\n", oc.Groups)
-
-	return
-}
-
-//DownloadProjects loads OpenShift projects and updates groups (used with polling)
-func (oc *OpenShiftController) DownloadProjects() (err error) {
-	projects, err := oc.o.GetProjects()
-	if err != nil {
-		return err
-	}
-	projects = FilterProjects(projects, oc.FilterNamespaces)
-
-	g, err := UpdateProjects(oc.Groups, projects)
-	if err != nil {
-		return
-	}
-
-	oc.groupLock.Lock()
-	oc.Groups = g
-	oc.groupLock.Unlock()
-
-	return
+	}()
 }
 
 func (oc *OpenShiftController) prettyPrint(data []byte) {

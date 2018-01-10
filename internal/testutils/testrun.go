@@ -3,6 +3,8 @@ package testutils
 import (
 	"net/http"
 
+	"io/ioutil"
+
 	iClients "github.com/fabric8-services/fabric8-jenkins-idler/clients"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/api"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
@@ -12,7 +14,6 @@ import (
 	pClients "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
-	"io/ioutil"
 )
 
 const (
@@ -44,16 +45,14 @@ func Run() {
 
 	oc := openshiftcontroller.NewOpenShiftController(o,
 		t,
-		config.GetConcurrentGroups(),
 		config.GetIdleAfter(),
 		config.GetFilteredNamespaces(),
 		config.GetProxyURL(),
 		unidleRetry,
-		config.GetUseWatch(),
 		features,
 	)
 
-	go oc.Run(0)
+	go oc.Run()
 
 	//Create router for Idler API
 	router := httprouter.New()
