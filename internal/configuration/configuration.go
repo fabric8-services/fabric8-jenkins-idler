@@ -11,10 +11,8 @@ const (
 	varOpenShiftToken     = "openshift.api.token"
 	varOpenShiftURL       = "openshift.api.url"
 	varProxyURL           = "jenkins.proxy.api.url"
-	varConcurrentGroups   = "concurrent.groups"
 	varIdleAfter          = "idle.after"
 	varFilteredNamespaces = "filter.namespaces"
-	varUseWatch           = "use.watch"
 	varTenantURL          = "f8tenant.api.url"
 	varAuthToken          = "auth.token"
 	varToggleURL          = "toggle.api.url"
@@ -45,9 +43,7 @@ func (c *Data) setConfigDefaults() {
 	//---------
 	c.v.SetTypeByDefaultValue(true)
 	c.v.SetDefault(varIdleAfter, 30)
-	c.v.SetDefault(varConcurrentGroups, 1)
 	c.v.SetDefault(varProxyURL, "http://localhost:9091")
-	c.v.SetDefault(varUseWatch, true)
 	c.v.SetDefault(varToggleURL, "http://f8toggles/api")
 }
 
@@ -116,19 +112,9 @@ func (c *Data) GetFilteredNamespaces() []string {
 	return fn
 }
 
-// GetConcurrentGroups returns the number of concurrent groups that shoul run as set via default, config file, or environment variable
-func (c *Data) GetConcurrentGroups() int {
-	return c.v.GetInt(varConcurrentGroups)
-}
-
 // GetIdleAfter returns the number of minutes before Jenkins is idled as set via default, config file, or environment variable
 func (c *Data) GetIdleAfter() int {
 	return c.v.GetInt(varIdleAfter)
-}
-
-// GetUseWatch returns if idler should use watch instead of poll as set via default, config file, or environment variable
-func (c *Data) GetUseWatch() bool {
-	return c.v.GetBool(varUseWatch)
 }
 
 // GetTenantURL returns the F8 Tenant API URL as set via default, config file, or environment variable

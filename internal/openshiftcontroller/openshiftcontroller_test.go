@@ -87,7 +87,7 @@ func setUp(t *testing.T) {
 	features, err := toggles.NewUnleashToggle("http://unleash.herokuapp.com/api/")
 	assert.NoError(t, err)
 
-	openShiftController = NewOpenShiftController(o, tc, 0, 10, []string{}, "", 0, true, features)
+	openShiftController = NewOpenShiftController(o, tc, 10, []string{}, "", 0, features)
 }
 
 func tearDown() {
