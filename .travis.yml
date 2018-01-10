@@ -21,4 +21,4 @@ install:
 - cd fabric8-services/fabric8-jenkins-idler
 
 script:
-- make image
+- make all
