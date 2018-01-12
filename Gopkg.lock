@@ -108,7 +108,10 @@
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
-  packages = ["."]
+  packages = [
+    ".",
+    "hooks/test"
+  ]
   revision = "202f25545ea4cf9b191ff7f846df5d87c9382c2b"
   version = "v1.0.0"
 
@@ -153,6 +156,12 @@
 
 [[projects]]
   branch = "master"
+  name = "golang.org/x/net"
+  packages = ["context"]
+  revision = "ab555f366c4508dbe0802550b1b20c46c5c18aa0"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
   revision = "571f7bbbe08da2a8955aed9d4db316e78630e9a3"
@@ -179,6 +188,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d16e4b6ead149a1dadeb370fc44cb870b888f96918cda2429022a09be6c48e1c"
+  inputs-digest = "57af21e5f7d71b21b44e2620dc9242ac93d65f8c71a6f9e564a4a0fd2f530c30"
   solver-name = "gps-cdcl"
   solver-version = 1

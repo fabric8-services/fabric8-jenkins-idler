@@ -43,8 +43,9 @@ func Run() {
 		log.Fatal(err)
 	}
 
-	oc := openshiftcontroller.NewOpenShiftController(o,
-		t,
+	oc := openshiftcontroller.NewOpenShiftController(
+		&o,
+		&t,
 		config.GetIdleAfter(),
 		config.GetFilteredNamespaces(),
 		config.GetProxyURL(),
@@ -56,11 +57,11 @@ func Run() {
 
 	//Create router for Idler API
 	router := httprouter.New()
-	api := api.NewAPI(&o, oc)
+	api := api.NewIdlerAPI(&o, oc)
 
-	router.GET("/iapi/idler/builds/", api.Builds)
-	router.GET("/iapi/idler/builds/:namespace", api.Builds)
-	router.GET("/iapi/idler/builds/:namespace/", api.Builds)
+	router.GET("/iapi/idler/builds/", api.User)
+	router.GET("/iapi/idler/builds/:namespace", api.User)
+	router.GET("/iapi/idler/builds/:namespace/", api.User)
 	router.GET("/iapi/idler/idle/:namespace", api.Idle)
 	router.GET("/iapi/idler/idle/:namespace/", api.Idle)
 	router.GET("/iapi/idler/isidle/:namespace", api.IsIdle)
