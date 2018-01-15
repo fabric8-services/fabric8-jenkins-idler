@@ -28,11 +28,11 @@ const (
 // A third go routine is used to serve a HTTP REST API.
 type Idler struct {
 	features toggles.Features
-	config   *configuration.Data
+	config   configuration.Configuration
 }
 
 // NewIdler creates a new instance of Idler. The configuration as well as feature toggle handler needs to be passed.
-func NewIdler(config *configuration.Data, features toggles.Features) *Idler {
+func NewIdler(config configuration.Configuration, features toggles.Features) *Idler {
 	return &Idler{
 		config:   config,
 		features: features,

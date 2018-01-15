@@ -57,7 +57,7 @@ vendor: tools.timestamp ## Runs dep to vendor project dependencies
 
 .PHONY: test
 test: vendor ## Runs unit tests
-	go test -v $(PACKAGES)
+	go test $(PACKAGES)
 
 .PHONY: fmtcheck
 fmtcheck: ## Runs gofmt and returns error in case of violations

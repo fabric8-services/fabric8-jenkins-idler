@@ -25,7 +25,7 @@ func Test_graceful_shutdown(t *testing.T) {
 	// register a global log hook to cpature the log output
 	hook := test.NewGlobal()
 
-	config, _ := configuration.NewData()
+	config, _ := configuration.NewConfiguration()
 	idler := NewIdler(config, &mockFeatureToggle{})
 
 	var wg sync.WaitGroup
