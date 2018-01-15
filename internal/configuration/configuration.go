@@ -24,6 +24,7 @@ func init() {
 	settings["GetAuthToken"] = Setting{"JC_AUTH_TOKEN", "", []func(interface{}, string) error{util.IsNotEmpty}}
 
 	settings["GetIdleAfter"] = Setting{"JC_ILDE_AFTER", "30", []func(interface{}, string) error{util.IsInt}}
+	settings["GetUnIdleRetry"] = Setting{"JC_UN_IDLE_RETRY", "15", []func(interface{}, string) error{util.IsInt}}
 	settings["GetFilteredNamespaces"] = Setting{"JC_FILTER_NAMESPACES", "", []func(interface{}, string) error{}}
 }
 
@@ -54,6 +55,9 @@ type Configuration interface {
 
 	// GetIdleAfter returns the number of minutes before Jenkins is idled.
 	GetIdleAfter() int
+
+	// GetUnIdleRetry returns the maximum number of retries to un-idle the Jenkins service.
+	GetUnIdleRetry() int
 
 	// GetFilteredNamespaces returns the list of namespaces to handle
 	GetFilteredNamespaces() []string
@@ -115,6 +119,15 @@ func (c *EnvConfig) GetFilteredNamespaces() []string {
 
 // GetIdleAfter returns the number of minutes before Jenkins is idled as set via default, config file, or environment variable
 func (c *EnvConfig) GetIdleAfter() int {
+	callPtr, _, _, _ := runtime.Caller(0)
+	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
+
+	i, _ := strconv.Atoi(value)
+	return i
+}
+
+//  GetUnIdleRetry returns the maximum number of retries to un-idle the Jenkins service
+func (c *EnvConfig) GetUnIdleRetry() int {
 	callPtr, _, _, _ := runtime.Caller(0)
 	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
 

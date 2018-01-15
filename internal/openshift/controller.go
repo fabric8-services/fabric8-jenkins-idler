@@ -1,4 +1,4 @@
-package openshiftcontroller
+package openshift
 
 import (
 	"bytes"
@@ -9,137 +9,74 @@ import (
 	"sync"
 	"time"
 
-	ic "github.com/fabric8-services/fabric8-jenkins-idler/clients"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/condition"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 	pc "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
 	log "github.com/sirupsen/logrus"
 )
 
 const (
-	loadRetrySleep = 10
-	availableCond  = "Available"
+	availableCond = "Available"
 )
 
+type Controller interface {
+	HandleBuild(o model.Object) (bool, error)
+	HandleDeploymentConfig(dc model.DCObject) (bool, error)
+	GetUsers() map[string]*model.User
+	Run()
+}
+
 type OpenShiftController struct {
-	Phases           map[string]int
-	Conditions       Conditions
-	Users            map[string]*User
+	Conditions       condition.Conditions
+	Users            map[string]*model.User
 	lock             *sync.Mutex
 	checkIdleSleep   time.Duration
 	FilterNamespaces []string
-	o                *ic.OpenShift
-	MaxUnidleRetries int
+	openShiftClient  OpenShiftClient
+	MaxUnIdleRetries int
 	tenant           *pc.Tenant
 	features         toggles.Features
 }
 
-func NewOpenShiftController(o *ic.OpenShift, t *pc.Tenant, idleAfter int, filter []string, proxyURL string, maxUnidleRetries int, features toggles.Features) *OpenShiftController {
-	oc := &OpenShiftController{
-		o:                o,
-		Users:            make(map[string]*User),
+func NewOpenShiftController(openShiftClient OpenShiftClient, t *pc.Tenant, features toggles.Features, config configuration.Configuration) Controller {
+	controller := OpenShiftController{
+		openShiftClient:  openShiftClient,
+		Users:            make(map[string]*model.User),
 		lock:             &sync.Mutex{},
-		FilterNamespaces: filter,
-		MaxUnidleRetries: maxUnidleRetries,
+		MaxUnIdleRetries: config.GetUnIdleRetry(),
 		tenant:           t,
 		features:         features,
 	}
 
-	oc.Conditions.Conditions = make(map[string]Condition)
+	controller.Conditions.Conditions = make(map[string]condition.Condition)
 
 	//Add a Build condition
-	bc := NewBuildCondition(time.Duration(idleAfter) * time.Minute)
-	oc.Conditions.Conditions["build"] = bc
+	bc := condition.NewBuildCondition(time.Duration(config.GetIdleAfter()) * time.Minute)
+	controller.Conditions.Conditions["build"] = bc
 	//Add a DeploymentConfig condition
-	dcc := NewDCCondition(time.Duration(idleAfter) * time.Minute)
-	oc.Conditions.Conditions["DC"] = dcc
+	dcc := condition.NewDCCondition(time.Duration(config.GetIdleAfter()) * time.Minute)
+	controller.Conditions.Conditions["DC"] = dcc
 	//If we have access to Proxy, add User condition
-	if len(proxyURL) > 0 {
+	if len(config.GetProxyURL()) > 0 {
 		log.Info("Adding 'user' condition")
-		uc := NewUserCondition(proxyURL, time.Duration(idleAfter)*time.Minute)
-		oc.Conditions.Conditions["user"] = uc
+		uc := condition.NewUserCondition(config.GetProxyURL(), time.Duration(config.GetIdleAfter())*time.Minute)
+		controller.Conditions.Conditions["user"] = uc
 	}
 
-	return oc
-}
-
-//CheckIdle verifies the state of conditions and decides if we should idle/unidle
-//and performs the required action if needed
-func (oc *OpenShiftController) CheckIdle(user *User) error {
-	if user == nil {
-		return errors.New("Empty user")
-	}
-	ns := user.Name + "-jenkins"
-	oc.lock.Lock()
-	eval, condStates := oc.Conditions.Eval(user)
-	oc.lock.Unlock()
-	cs, _ := json.Marshal(condStates) //Ignore errors
-	log.Debugf("Conditions: %b = %s", eval, string(cs))
-	//Eval == true -> do Idle, Eval == false -> do Unidle
-	if eval {
-		//Check if Jenkins is running
-		state, err := oc.o.IsIdle(ns, "jenkins")
-		if err != nil {
-			return err
-		}
-		if state > ic.JenkinsIdled {
-			var n string
-			var t time.Time
-			if user.HasDone() {
-				n = user.DoneBuild.Metadata.Name
-				t = user.DoneBuild.Status.CompletionTimestamp.Time
-			}
-			log.Info(fmt.Sprintf("I'd like to idle jenkins for %s as last build finished at %s", user.Name, t))
-			//Reset unidle retries and idle
-			user.UnidleRetried = 0
-			err := oc.o.Idle(user.Name+"-jenkins", "jenkins") //FIXME - find better way to generate Jenkins namespace
-			if err != nil {
-				return err
-			}
-
-			user.AddJenkinsState(false, time.Now().UTC(), fmt.Sprintf("Jenkins Idled for %s, finished at %s", n, t))
-		}
-	} else { //Unidle
-		state, err := oc.o.IsIdle(ns, "jenkins")
-		if err != nil {
-			return err
-		}
-		if state == ic.JenkinsIdled {
-			log.Debug("Potential unidling event")
-
-			//Skip some retries,but check from time to time if things are fixed
-			if user.UnidleRetried > oc.MaxUnidleRetries && (user.UnidleRetried%oc.MaxUnidleRetries != 0) {
-				user.UnidleRetried++
-				log.Debug(fmt.Sprintf("Skipping unidle for %s, too many retries", user.Name))
-				return nil
-			}
-			var n string
-			var t time.Time
-			if user.HasActive() {
-				n = user.ActiveBuild.Metadata.Name
-				t = user.ActiveBuild.Status.CompletionTimestamp.Time
-			}
-			//Inc unidle retries
-			user.UnidleRetried++
-			err := oc.o.UnIdle(ns, "jenkins")
-			if err != nil {
-				return errors.New(fmt.Sprintf("Could not unidle Jenkins: %s", err))
-			}
-			user.AddJenkinsState(true, time.Now().UTC(), fmt.Sprintf("Jenkins Unidled for %s at %s", n, t))
-		}
-	}
-
-	return nil
+	return &controller
 }
 
 //HandleBuild processes new Build event collected from OpenShift and updates
 //user structure with latest build info. NOTE: In most cases the only change in
 //build object is stage timesstamp, which we don't care about, so this function
 //just does couple comparisons and returns
-func (oc *OpenShiftController) HandleBuild(o ic.Object) (watched bool, err error) {
+func (oc *OpenShiftController) HandleBuild(o model.Object) (watched bool, err error) {
 	watched = false
 
 	ns := o.Object.Metadata.Namespace
-	err = oc.CheckNewUser(o.Object.Metadata.Namespace)
+	err = oc.checkNewUser(o.Object.Metadata.Namespace)
 	if err != nil {
 		return
 	}
@@ -171,7 +108,7 @@ func (oc *OpenShiftController) HandleBuild(o ic.Object) (watched bool, err error
 	}
 
 	log.Infof("Processing %s", ns)
-	if IsActive(&o.Object) {
+	if oc.isActive(&o.Object) {
 		lastActive := oc.Users[ns].ActiveBuild
 		if lastActive.Status.Phase != o.Object.Status.Phase || lastActive.Metadata.Name != o.Object.Metadata.Name {
 			oc.lock.Lock()
@@ -192,7 +129,7 @@ func (oc *OpenShiftController) HandleBuild(o ic.Object) (watched bool, err error
 	if oc.Users[ns].ActiveBuild.Metadata.Name == oc.Users[ns].DoneBuild.Metadata.Name {
 		log.Infof("Active and Done builds for %s are the same (%s), claning active builds", ns, oc.Users[ns].ActiveBuild.Metadata.Name)
 		oc.lock.Lock()
-		oc.Users[ns].ActiveBuild = &ic.Build{Status: ic.Status{Phase: "New"}}
+		oc.Users[ns].ActiveBuild = &model.Build{Status: model.Status{Phase: "New"}}
 		oc.lock.Unlock()
 	}
 
@@ -203,10 +140,10 @@ func (oc *OpenShiftController) HandleBuild(o ic.Object) (watched bool, err error
 //user structure with info about the changes in DC. NOTE: This is important for cases
 //like reset tenant and update tenant when DC is updated and Jenkins starts because
 //of ConfigChange or manual intervention.
-func (oc *OpenShiftController) HandleDeploymentConfig(dc ic.DCObject) (watched bool, err error) {
+func (oc *OpenShiftController) HandleDeploymentConfig(dc model.DCObject) (watched bool, err error) {
 	watched = false
 	ns := dc.Object.Metadata.Namespace[:len(dc.Object.Metadata.Namespace)-len("-jenkins")]
-	err = oc.CheckNewUser(ns)
+	err = oc.checkNewUser(ns)
 	if err != nil {
 		return
 	}
@@ -260,15 +197,88 @@ func (oc *OpenShiftController) HandleDeploymentConfig(dc ic.DCObject) (watched b
 	return
 }
 
-//CheckNewUser check existance of a user in the map, initialise if it does not exist
-func (oc *OpenShiftController) CheckNewUser(ns string) (err error) {
-	if _, exist := oc.Users[ns]; !exist {
-		log.Debugf("New user %s", ns)
-		state, err := oc.o.IsIdle(ns+"-jenkins", "jenkins")
+func (oc *OpenShiftController) GetUsers() map[string]*model.User {
+	return oc.Users
+}
+
+//CheckIdle verifies the state of conditions and decides if we should idle/unidle
+//and performs the required action if needed
+func (oc *OpenShiftController) checkIdle(user *model.User) error {
+	if user == nil {
+		return errors.New("Empty user")
+	}
+	ns := user.Name + "-jenkins"
+	oc.lock.Lock()
+	eval, condStates := oc.Conditions.Eval(user)
+	oc.lock.Unlock()
+	cs, _ := json.Marshal(condStates) //Ignore errors
+	log.Debugf("Conditions: %b = %s", eval, string(cs))
+	//Eval == true -> do Idle, Eval == false -> do Unidle
+	if eval {
+		//Check if Jenkins is running
+		state, err := oc.openShiftClient.IsIdle(ns, "jenkins")
 		if err != nil {
 			return err
 		}
-		ti, err := oc.tenant.GetTenantInfoByNamespace(oc.o.GetApiURL(), ns)
+		if state > model.JenkinsIdled {
+			var n string
+			var t time.Time
+			if user.HasDone() {
+				n = user.DoneBuild.Metadata.Name
+				t = user.DoneBuild.Status.CompletionTimestamp.Time
+			}
+			log.Info(fmt.Sprintf("I'd like to idle jenkins for %s as last build finished at %s", user.Name, t))
+			//Reset unidle retries and idle
+			user.UnidleRetried = 0
+			err := oc.openShiftClient.Idle(user.Name+"-jenkins", "jenkins") //FIXME - find better way to generate Jenkins namespace
+			if err != nil {
+				return err
+			}
+
+			user.AddJenkinsState(false, time.Now().UTC(), fmt.Sprintf("Jenkins Idled for %s, finished at %s", n, t))
+		}
+	} else { // UnIdle
+		state, err := oc.openShiftClient.IsIdle(ns, "jenkins")
+		if err != nil {
+			return err
+		}
+		if state == model.JenkinsIdled {
+			log.Debug("Potential unidling event")
+
+			//Skip some retries,but check from time to time if things are fixed
+			if user.UnidleRetried > oc.MaxUnIdleRetries && (user.UnidleRetried%oc.MaxUnIdleRetries != 0) {
+				user.UnidleRetried++
+				log.Debug(fmt.Sprintf("Skipping unidle for %s, too many retries", user.Name))
+				return nil
+			}
+			var n string
+			var t time.Time
+			if user.HasActive() {
+				n = user.ActiveBuild.Metadata.Name
+				t = user.ActiveBuild.Status.CompletionTimestamp.Time
+			}
+			//Inc unidle retries
+			user.UnidleRetried++
+			err := oc.openShiftClient.UnIdle(ns, "jenkins")
+			if err != nil {
+				return errors.New(fmt.Sprintf("Could not unidle Jenkins: %s", err))
+			}
+			user.AddJenkinsState(true, time.Now().UTC(), fmt.Sprintf("Jenkins Unidled for %s at %s", n, t))
+		}
+	}
+
+	return nil
+}
+
+//CheckNewUser check existence of a user in the map, initialise if it does not exist
+func (oc *OpenShiftController) checkNewUser(ns string) error {
+	if _, exist := oc.Users[ns]; !exist {
+		log.Debugf("New user %s", ns)
+		state, err := oc.openShiftClient.IsIdle(ns+"-jenkins", "jenkins")
+		if err != nil {
+			return err
+		}
+		ti, err := oc.tenant.GetTenantInfoByNamespace(oc.openShiftClient.GetApiURL(), ns)
 		if err != nil {
 			return err
 		}
@@ -276,24 +286,24 @@ func (oc *OpenShiftController) CheckNewUser(ns string) (err error) {
 		if ti.Meta.TotalCount > 1 {
 			return fmt.Errorf("Could not add new user - Tenant service returned multiple items: %d", ti.Meta.TotalCount)
 		} else if len(ti.Data) == 0 {
-			return fmt.Errorf("Could not find tenant in cluster %s for namespace %s: %+v", oc.o.GetApiURL(), ns, ti.Errors)
+			return fmt.Errorf("Could not find tenant in cluster %s for namespace %s: %+v", oc.openShiftClient.GetApiURL(), ns, ti.Errors)
 		}
 
 		oc.lock.Lock()
-		oc.Users[ns] = NewUser(ti.Data[0].Id, ns, (state == ic.JenkinsRunning))
+		oc.Users[ns] = model.NewUser(ti.Data[0].Id, ns, (state == model.JenkinsRunning))
 		oc.lock.Unlock()
 		log.Debugf("Recorded new user %s", ns)
 	} else {
 		log.Debugf("User %s exists", ns)
 	}
 
-	return
+	return nil
 }
 
 //Run implements main loop of the application
 func (oc *OpenShiftController) Run() {
-	go oc.o.WatchDeploymentConfigs("", "-jenkins", oc.HandleDeploymentConfig)
-	go oc.o.WatchBuilds("", "JenkinsPipeline", oc.HandleBuild)
+	go oc.openShiftClient.WatchDeploymentConfigs("", "-jenkins", oc.HandleDeploymentConfig)
+	go oc.openShiftClient.WatchBuilds("", "JenkinsPipeline", oc.HandleBuild)
 
 	//FIXME - this looks ugly
 	go func() {
@@ -309,7 +319,7 @@ func (oc *OpenShiftController) Run() {
 					log.Debugf("Skipping check for %s.", u.Name)
 					continue
 				}
-				err = oc.CheckIdle(u)
+				err = oc.checkIdle(u)
 				if err != nil {
 					log.Errorf("Could not check idling for %s: %s", u.Name, err)
 				}
@@ -321,11 +331,17 @@ func (oc *OpenShiftController) Run() {
 
 func (oc *OpenShiftController) prettyPrint(data []byte) {
 	var prettyJSON bytes.Buffer
-	error := json.Indent(&prettyJSON, data, "", "\t")
-	if error != nil {
-		log.Println("JSON parse error: ", error)
+	err := json.Indent(&prettyJSON, data, "", "\t")
+	if err != nil {
+		log.Println("JSON parse error: ", err)
 		return
 	}
 
 	log.Println(string(prettyJSON.Bytes()))
+}
+
+//IsActive returns true ifa build phase suggests a build is active.
+//It returns false otherwise.
+func (oc *OpenShiftController) isActive(b *model.Build) bool {
+	return model.Phases[b.Status.Phase] == 1
 }

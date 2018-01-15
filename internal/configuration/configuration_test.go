@@ -17,6 +17,7 @@ type config struct {
 	JC_OPENSHIFT_API_TOKEN   string
 	JC_AUTH_TOKEN            string
 	JC_ILDE_AFTER            string
+	JC_UN_IDLE_RETRY         string
 	JC_FILTER_NAMESPACES     []string
 	errors                   []string
 }
@@ -24,16 +25,16 @@ type config struct {
 func Test_configuration_settings(t *testing.T) {
 
 	var testConfigs = []config{
-		{"http://localhost", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", []string{}, []string{}},
-		{"https://localhost", "https://localhost", "https://localhost", "https://localhost", "token-1", "token-2", "10", []string{}, []string{}},
-		{"", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", []string{}, []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
-		{"foo", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", []string{}, []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
-		{"/foo", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", []string{}, []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
-		{"ftp://snafu", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", []string{}, []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
-		{"", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", []string{}, []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
-		{"http://localhost", "", "http://localhost", "http://localhost", "token-1", "token-2", "10", []string{}, []string{"Value for JC_JENKINS_PROXY_API_URL needs to be a valid URL."}},
-		{"http://localhost", "http://localhost", "", "http://localhost", "token-1", "token-2", "10", []string{}, []string{"Value for JC_F8TENANT_API_URL needs to be a valid URL."}},
-		{"http://localhost", "http://localhost", "http://localhost", "", "token-1", "token-2", "10", []string{}, []string{"Value for JC_TOGGLE_API_URL needs to be a valid URL."}},
+		{"http://localhost", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", []string{}, []string{}},
+		{"https://localhost", "https://localhost", "https://localhost", "https://localhost", "token-1", "token-2", "10", "15", []string{}, []string{}},
+		{"", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", []string{}, []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
+		{"foo", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", []string{}, []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
+		{"/foo", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", []string{}, []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
+		{"ftp://snafu", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", []string{}, []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
+		{"", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", []string{}, []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
+		{"http://localhost", "", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", []string{}, []string{"Value for JC_JENKINS_PROXY_API_URL needs to be a valid URL."}},
+		{"http://localhost", "http://localhost", "", "http://localhost", "token-1", "token-2", "10", "15", []string{}, []string{"Value for JC_F8TENANT_API_URL needs to be a valid URL."}},
+		{"http://localhost", "http://localhost", "http://localhost", "", "token-1", "token-2", "10", "15", []string{}, []string{"Value for JC_TOGGLE_API_URL needs to be a valid URL."}},
 	}
 
 	for _, testConfig := range testConfigs {

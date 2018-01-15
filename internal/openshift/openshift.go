@@ -1,4 +1,4 @@
-package clients
+package openshift
 
 import (
 	"bufio"
@@ -12,10 +12,22 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	log "github.com/sirupsen/logrus"
 )
 
-//OpenShift is a client for OpenShift API
+// OpenShift is a client for OpenShift API
+type OpenShiftClient interface {
+	Idle(namespace string, service string) error
+	UnIdle(namespace string, service string) error
+	IsIdle(namespace string, service string) (int, error)
+	GetRoute(n string, s string) (r string, tls bool, err error)
+	GetApiURL() string
+	WatchBuilds(namespace string, buildType string, callback func(model.Object) (bool, error)) error
+	WatchDeploymentConfigs(namespace string, nsSuffix string, callback func(model.DCObject) (bool, error)) error
+}
+
+// OpenShift is a client for OpenShift API
 type OpenShift struct {
 	token  string
 	apiURL string
@@ -23,7 +35,7 @@ type OpenShift struct {
 }
 
 //NewOpenShift creates new OpenShift client with new http client
-func NewOpenShift(apiURL string, token string) OpenShift {
+func NewOpenShift(apiURL string, token string) OpenShiftClient {
 	c := &http.Client{
 		Transport: &http.Transport{
 			MaxIdleConnsPerHost: 20,
@@ -35,11 +47,11 @@ func NewOpenShift(apiURL string, token string) OpenShift {
 }
 
 //NewOpenShiftWithClient create new OpenShift client with given http client
-func NewOpenShiftWithClient(client *http.Client, apiURL string, token string) OpenShift {
+func NewOpenShiftWithClient(client *http.Client, apiURL string, token string) OpenShiftClient {
 	if !strings.HasPrefix(apiURL, "http") {
 		apiURL = fmt.Sprintf("https://%s", strings.TrimRight(apiURL, "/"))
 	}
-	return OpenShift{
+	return &OpenShift{
 		apiURL: apiURL,
 		token:  token,
 		client: client,
@@ -56,9 +68,9 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 	}
 
 	//Update annotations
-	e := Endpoint{
-		Metadata: Metadata{
-			Annotations: Annotations{
+	e := model.Endpoint{
+		Metadata: model.Metadata{
+			Annotations: model.Annotations{
 				IdledAt:       string(idleAt),
 				UnidleTargets: fmt.Sprintf("[{\"kind\":\"DeploymentConfig\",\"name\":\"%s\",\"replicas\":1}]", service),
 			},
@@ -79,7 +91,7 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 		return
 	}
 
-	ne := &Endpoint{}
+	ne := &model.Endpoint{}
 	err = json.Unmarshal(b, ne)
 	if err != nil {
 		return
@@ -87,18 +99,18 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 
 	//Check if returned object got updated
 	if e.Metadata.Annotations.IdledAt != string(idleAt) {
-		return fmt.Errorf("Could not update endpoint with idle time")
+		return errors.New("Could not update endpoint with idle time")
 	}
 
 	//Update DeploymentConfig - scale down
-	dc := DeploymentConfig{
-		Metadata: Metadata{
-			Annotations: Annotations{
+	dc := model.DeploymentConfig{
+		Metadata: model.Metadata{
+			Annotations: model.Annotations{
 				IdledAt:   string(idleAt),
 				PrevScale: "1",
 			},
 		},
-		Spec: Spec{
+		Spec: model.Spec{
 			Replicas: 0,
 		},
 	}
@@ -113,7 +125,7 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 		return
 	}
 	b, err = o.patch(req)
-	ndc := &DeploymentConfig{}
+	ndc := &model.DeploymentConfig{}
 	err = json.Unmarshal(b, ndc)
 	if err != nil {
 		return
@@ -121,7 +133,7 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 
 	//Check successful scale-down
 	if ndc.Spec.Replicas != 0 {
-		return fmt.Errorf("Could not update DeploymentConfig with replica count")
+		return errors.New("Could not update DeploymentConfig with replica count")
 	}
 
 	return
@@ -131,10 +143,10 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 func (o *OpenShift) UnIdle(namespace string, service string) (err error) {
 	log.Info("Unidling ", service, " in ", namespace)
 	//Scale up
-	s := Scale{
+	s := model.Scale{
 		Kind:       "Scale",
 		ApiVersion: "extensions/v1beta1",
-		Metadata: Metadata{
+		Metadata: model.Metadata{
 			Name:      service,
 			Namespace: namespace,
 		},
@@ -157,7 +169,7 @@ func (o *OpenShift) UnIdle(namespace string, service string) (err error) {
 
 	defer bodyClose(resp)
 
-	ns := &Scale{}
+	ns := &model.Scale{}
 	err = json.NewDecoder(resp.Body).Decode(ns)
 	if err != nil {
 		return
@@ -186,19 +198,19 @@ func (o *OpenShift) IsIdle(namespace string, service string) (int, error) {
 
 	defer bodyClose(resp)
 
-	dc := DeploymentConfig{}
+	dc := model.DeploymentConfig{}
 	err = json.NewDecoder(resp.Body).Decode(&dc)
 	if err != nil {
 		return -1, err
 	}
 
 	if dc.Status.Replicas == 0 {
-		return JenkinsIdled, nil
+		return model.JenkinsIdled, nil
 	}
 	if dc.Status.ReadyReplicas == 0 {
-		return JenkinsStarting, nil
+		return model.JenkinsStarting, nil
 	}
-	return JenkinsRunning, nil
+	return model.JenkinsRunning, nil
 }
 
 //GetRoute collects object for a given namespace and route name and returns
@@ -237,7 +249,7 @@ func (o *OpenShift) GetRoute(n string, s string) (r string, tls bool, err error)
 
 //GetScheme converts bool representing whether a route
 //has TLS enabled to a web protocol string
-func (o OpenShift) GetScheme(tls bool) string {
+func (o OpenShift) getScheme(tls bool) string {
 	scheme := "https"
 	if !tls {
 		scheme = "http"
@@ -247,7 +259,7 @@ func (o OpenShift) GetScheme(tls bool) string {
 }
 
 //GetProjects returns a list of projects which a user has access to
-func (o OpenShift) GetProjects() (projects []string, err error) {
+func (o OpenShift) getProjects() (projects []string, err error) {
 	req, err := o.reqOAPI("GET", "", "projects", nil)
 	if err != nil {
 		return
@@ -259,7 +271,7 @@ func (o OpenShift) GetProjects() (projects []string, err error) {
 
 	defer bodyClose(resp)
 
-	ps := Projects{}
+	ps := model.Projects{}
 	err = json.NewDecoder(resp.Body).Decode(&ps)
 	if err != nil {
 		return
@@ -275,7 +287,7 @@ func (o OpenShift) GetProjects() (projects []string, err error) {
 }
 
 //WatchBuilds consumes stream of build events from OpenShift and calls callback to process them
-func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func(Object) (bool, error)) (err error) {
+func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func(model.Object) (bool, error)) (err error) {
 	//Use a http client with disabled timeout
 	c := &http.Client{
 		Transport: &http.Transport{
@@ -306,7 +318,7 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 				}
 			}
 
-			o := Object{}
+			o := model.Object{}
 
 			err = json.Unmarshal(line, &o)
 			if err != nil {
@@ -341,7 +353,7 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 
 //WatchDeploymentConfigs consumes stream of DC events from OpenShift and calls callback to process them; FIXME - a lot of copy&paste from
 //watch builds, refactor!
-func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, callback func(DCObject) (bool, error)) (err error) {
+func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, callback func(model.DCObject) (bool, error)) (err error) {
 	//Use a http client with disabled timeout
 	c := &http.Client{
 		Transport: &http.Transport{
@@ -375,7 +387,7 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 				fmt.Printf("It's broken %+v\n", err)
 			}
 
-			o := DCObject{}
+			o := model.DCObject{}
 
 			err = json.Unmarshal(line, &o)
 			if err != nil {
@@ -416,7 +428,7 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 }
 
 //GetBuilds loads builds for a given namespace from OpenShift
-func (o OpenShift) GetBuilds(namespace string) (bl BuildList, err error) {
+func (o OpenShift) getBuilds(namespace string) (bl model.BuildList, err error) {
 	req, err := o.reqOAPI("GET", namespace, "builds", nil)
 	if err != nil {
 		return
@@ -462,22 +474,22 @@ func (o *OpenShift) req(method string, oapi bool, namespace string, command stri
 }
 
 //reqOAPI is a helper to construct a request for OpenShift API
-func (o *OpenShift) reqOAPI(method string, namespace string, command string, body io.Reader) (req *http.Request, err error) {
+func (o *OpenShift) reqOAPI(method string, namespace string, command string, body io.Reader) (*http.Request, error) {
 	return o.req(method, true, namespace, command, body, false)
 }
 
 //reqAPI is a help to construct a request for Kubernetes API
-func (o *OpenShift) reqAPI(method string, namespace string, command string, body io.Reader) (req *http.Request, err error) {
+func (o *OpenShift) reqAPI(method string, namespace string, command string, body io.Reader) (*http.Request, error) {
 	return o.req(method, false, namespace, command, body, false)
 }
 
 //reqOAPIWatch is a helper to construct a request for OpenShift API using watch
-func (o *OpenShift) reqOAPIWatch(method string, namespace string, command string, body io.Reader) (req *http.Request, err error) {
+func (o *OpenShift) reqOAPIWatch(method string, namespace string, command string, body io.Reader) (*http.Request, error) {
 	return o.req(method, true, namespace, command, body, true)
 }
 
 //reqAPIWatch is a helper to construct a request for Kubernetes API using watch
-func (o *OpenShift) reqAPIWatch(method string, namespace string, command string, body io.Reader) (req *http.Request, err error) {
+func (o *OpenShift) reqAPIWatch(method string, namespace string, command string, body io.Reader) (*http.Request, error) {
 	return o.req(method, false, namespace, command, body, true)
 }
 

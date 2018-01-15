@@ -1,17 +1,15 @@
-package openshiftcontroller
+package model
 
 import (
 	"time"
-
-	"github.com/fabric8-services/fabric8-jenkins-idler/clients"
 )
 
 //User represents a single user (user namespace) in the system. Mainly, it holds information
 //about latest builds and changes to Jenkins DC for the user, which is then used in decision
 //whether to (un)idle Jenkins
 type User struct {
-	ActiveBuild       *clients.Build
-	DoneBuild         *clients.Build
+	ActiveBuild       *Build
+	DoneBuild         *Build
 	Name              string
 	JenkinsStateList  []JenkinsState
 	FailedPulls       int
@@ -28,7 +26,7 @@ func (u *User) HasDone() bool {
 	return len(u.DoneBuild.Metadata.Name) > 0
 }
 
-func (u *User) LastBuild() clients.Build {
+func (u *User) LastBuild() Build {
 	if u.HasActive() {
 		return *u.ActiveBuild
 	} else {
@@ -54,8 +52,8 @@ func NewUser(id string, n string, isRunning bool) (u *User) {
 	u = &User{
 		ID:               id,
 		Name:             n,
-		ActiveBuild:      &clients.Build{Status: clients.Status{Phase: "New"}},
-		DoneBuild:        &clients.Build{},
+		ActiveBuild:      &Build{Status: Status{Phase: "New"}},
+		DoneBuild:        &Build{},
 		JenkinsStateList: []JenkinsState{{isRunning, time.Now().UTC(), "init"}},
 		FailedPulls:      0,
 		UnidleRetried:    0,
