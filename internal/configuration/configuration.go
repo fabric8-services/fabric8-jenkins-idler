@@ -3,6 +3,7 @@ package configuration
 import (
 	"strings"
 
+	"fmt"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
 	"os"
 	"runtime"
@@ -60,6 +61,9 @@ type Configuration interface {
 	// Verify validates the configuration and returns an error in case the configuration is missing required settings
 	// or contains invalid settings. If the configuration is correct nil is returned.
 	Verify() util.MultiError
+
+	// String returns the current configuration as string.
+	String() string
 }
 
 // EnvConfig reads the configuration from the environment
@@ -142,7 +146,7 @@ func (c *EnvConfig) GetToggleURL() string {
 	return value
 }
 
-//Verify checks whether all needed config options are set
+// Verify checks whether all needed config options are set
 func (c *EnvConfig) Verify() util.MultiError {
 	var errors util.MultiError
 	for key, setting := range settings {
@@ -154,6 +158,20 @@ func (c *EnvConfig) Verify() util.MultiError {
 	}
 
 	return errors
+}
+
+func (c *EnvConfig) String() string {
+	config := map[string]interface{}{}
+	for key, setting := range settings {
+		value := c.getConfigValueFromEnv(key)
+		// don't echo tokens
+		if strings.Contains(setting.key, "TOKEN") && len(value) > 0 {
+			value = "***"
+		}
+		config[key] = value
+
+	}
+	return fmt.Sprintf("%v", config)
 }
 
 func (c *EnvConfig) getConfigValueFromEnv(funcName string) string {

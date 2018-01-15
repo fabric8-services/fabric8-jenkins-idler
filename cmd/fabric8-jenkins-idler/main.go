@@ -5,6 +5,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/version"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -28,11 +29,14 @@ func init() {
 }
 
 func main() {
+	log.Infof("Idler version: %s", version.GetVersion())
+
 	//Init configuration
 	config, err := configuration.NewConfiguration()
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Infof("Idler configuration: %s", config.String())
 
 	multiError := config.Verify()
 	if !multiError.Empty() {
