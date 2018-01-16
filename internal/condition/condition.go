@@ -1,4 +1,4 @@
-package openshiftcontroller
+package condition
 
 import (
 	"encoding/json"
@@ -10,6 +10,7 @@ import (
 
 	proxyAPI "github.com/fabric8-services/fabric8-jenkins-proxy/api"
 
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -57,7 +58,7 @@ func NewBuildCondition(idleAfter time.Duration) *BuildCondition {
 //Active builds and last Done build happened IdleAfter (time.Duration) before
 func (c *BuildCondition) IsTrueFor(object interface{}) (result bool, err error) {
 	result = false
-	u, ok := object.(*User)
+	u, ok := object.(*model.User)
 	if !ok {
 		return false, errors.New(fmt.Sprintf("%s is not of type *User", object))
 	}
@@ -89,7 +90,7 @@ func NewUserCondition(proxyURL string, idleAfter time.Duration) *UserCondition {
 //IdleAfter (time.Duration) and the user accessed Jenkins UI at least before IdleAfter
 func (c *UserCondition) IsTrueFor(object interface{}) (result bool, err error) {
 	result = false
-	b, ok := object.(*User)
+	b, ok := object.(*model.User)
 	if !ok {
 		return false, errors.New(fmt.Sprintf("%s is not of type *User", object))
 	}
@@ -151,7 +152,7 @@ func NewDCCondition(idleAfter time.Duration) *DCCondition {
 //before IdleAfter (time.Duration)
 func (c *DCCondition) IsTrueFor(object interface{}) (result bool, err error) {
 	result = false
-	b, ok := object.(*User)
+	b, ok := object.(*model.User)
 	if !ok {
 		return false, errors.New(fmt.Sprintf("%s is not of type *User", object))
 	}

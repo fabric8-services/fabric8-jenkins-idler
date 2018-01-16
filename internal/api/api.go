@@ -3,8 +3,8 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	ic "github.com/fabric8-services/fabric8-jenkins-idler/clients"
-	oc "github.com/fabric8-services/fabric8-jenkins-idler/internal/openshiftcontroller"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -36,8 +36,8 @@ type IdlerAPI interface {
 }
 
 type idler struct {
-	OCli *ic.OpenShift
-	OC   *oc.OpenShiftController
+	openShiftClient openshift.OpenShiftClient
+	controller      openshift.Controller
 }
 
 type status struct {
@@ -45,15 +45,15 @@ type status struct {
 }
 
 // NewIdlerAPI creates a new instance of IdlerAPI.
-func NewIdlerAPI(o *ic.OpenShift, oc *oc.OpenShiftController) IdlerAPI {
+func NewIdlerAPI(openShiftClient openshift.OpenShiftClient, controller openshift.Controller) IdlerAPI {
 	return &idler{
-		OCli: o,
-		OC:   oc,
+		openShiftClient: openShiftClient,
+		controller:      controller,
 	}
 }
 
 func (api *idler) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	err := api.OCli.Idle(ps.ByName("namespace"), "jenkins")
+	err := api.openShiftClient.Idle(ps.ByName("namespace"), "jenkins")
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -64,7 +64,7 @@ func (api *idler) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 
 func (api *idler) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	w.Header().Set("Content-Type", "application/json")
-	state, err := api.OCli.IsIdle(ps.ByName("namespace"), "jenkins")
+	state, err := api.openShiftClient.IsIdle(ps.ByName("namespace"), "jenkins")
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -73,7 +73,7 @@ func (api *idler) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	}
 
 	s := status{}
-	s.IsIdle = state < ic.JenkinsRunning
+	s.IsIdle = state < model.JenkinsRunning
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(s)
 }
@@ -82,7 +82,7 @@ func (api *idler) GetRoute(w http.ResponseWriter, req *http.Request, ps httprout
 	namespace := ps.ByName("namespace")
 	w.Header().Set("Content-Type", "application/json")
 
-	r, tls, err := api.OCli.GetRoute(namespace, "jenkins")
+	r, tls, err := api.openShiftClient.GetRoute(namespace, "jenkins")
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -111,9 +111,9 @@ func (api *idler) User(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 	w.Header().Set("Content-Type", "application/json")
 	ns := ps.ByName("namespace")
 	if len(ns) > 0 {
-		err = json.NewEncoder(w).Encode(api.OC.Users[ns])
+		err = json.NewEncoder(w).Encode(api.controller.GetUsers()[ns])
 	} else {
-		err = json.NewEncoder(w).Encode(api.OC.Users)
+		err = json.NewEncoder(w).Encode(api.controller.GetUsers())
 	}
 
 	if err != nil {

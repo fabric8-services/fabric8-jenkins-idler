@@ -1,11 +1,12 @@
-package openshiftcontroller
+package openshift
 
 import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/common"
 	"testing"
 
 	"fmt"
-	idlerClient "github.com/fabric8-services/fabric8-jenkins-idler/clients"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/mock"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 	proxyClient "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
 	log "github.com/sirupsen/logrus"
@@ -17,23 +18,23 @@ import (
 
 var tenantService *httptest.Server
 var openShiftService *httptest.Server
-var openShiftController *OpenShiftController
+var controller Controller
 var origWriter io.Writer
 
 func Test_handle_build(t *testing.T) {
 	setUp(t)
 	defer tearDown()
 
-	obj := idlerClient.Object{
-		Object: idlerClient.Build{
-			Metadata: idlerClient.Metadata{
+	obj := model.Object{
+		Object: model.Build{
+			Metadata: model.Metadata{
 				Namespace: "test-namespace",
 			},
 		},
 		Type: "MODIFIED",
 	}
 
-	ok, err := openShiftController.HandleBuild(obj)
+	ok, err := controller.HandleBuild(obj)
 	assert.NoError(t, err)
 	assert.True(t, ok, fmt.Sprintf("Namespace '%s' should be watched", obj.Object.Metadata.Namespace))
 }
@@ -42,13 +43,13 @@ func Test_handle_deployment_config(t *testing.T) {
 	setUp(t)
 	defer tearDown()
 
-	obj := idlerClient.DCObject{
-		Object: idlerClient.DeploymentConfig{
-			Metadata: idlerClient.Metadata{
+	obj := model.DCObject{
+		Object: model.DeploymentConfig{
+			Metadata: model.Metadata{
 				Namespace: "test-namespace-jenkins",
 			},
-			Status: idlerClient.DCStatus{
-				Conditions: []idlerClient.Condition{
+			Status: model.DCStatus{
+				Conditions: []model.Condition{
 					{
 						Type:   "Available",
 						Status: "false",
@@ -59,7 +60,7 @@ func Test_handle_deployment_config(t *testing.T) {
 		Type: "MODIFIED",
 	}
 
-	ok, err := openShiftController.HandleDeploymentConfig(obj)
+	ok, err := controller.HandleDeploymentConfig(obj)
 	assert.NoError(t, err)
 	assert.True(t, ok, fmt.Sprintf("Namespace '%s' should be watched", obj.Object.Metadata.Namespace))
 }
@@ -81,13 +82,13 @@ func setUp(t *testing.T) {
 	}
 	openShiftService = common.MockServer(deploymentConfigData)
 
-	openShiftClient := idlerClient.NewOpenShift(openShiftService.URL, "")
+	openShiftClient := NewOpenShift(openShiftService.URL, "")
 	tenantClient := proxyClient.NewTenant(tenantService.URL, "")
 
 	features, err := toggles.NewUnleashToggle("http://unleash.herokuapp.com/api/")
 	assert.NoError(t, err)
 
-	openShiftController = NewOpenShiftController(&openShiftClient, &tenantClient, 10, []string{}, "", 0, features)
+	controller = NewOpenShiftController(openShiftClient, &tenantClient, features, &mock.MockConfig{})
 }
 
 func tearDown() {
