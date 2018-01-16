@@ -32,10 +32,6 @@
   revision = "be883ea1af714aff427d0668dbd4fc549d4f701c"
 
 [[constraint]]
-  name = "github.com/spf13/viper"
-  version = "v1.0.0"
-
-[[constraint]]
   name = "github.com/sirupsen/logrus"
   version = "=v1.0.0"
 
