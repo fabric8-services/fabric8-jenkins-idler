@@ -22,6 +22,7 @@ function setup_build_environment() {
     service docker start
 
     echo 'CICO: Build environment created.'
+    echo ${DEVSHIFT_USERNAME} ${DEVSHIFT_PASSWORD}
 }
 
 ###################################################################################
