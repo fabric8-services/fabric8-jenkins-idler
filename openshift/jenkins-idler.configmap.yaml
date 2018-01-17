@@ -7,3 +7,4 @@ data:
   filter.namespaces: "vpavlin"
   idle.after: "10"
   jenkins.proxy.url: "http://jenkins-proxy:9091"
+  toggles.api.url: "http://f8toggles"

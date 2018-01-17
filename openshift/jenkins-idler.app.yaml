@@ -59,6 +59,11 @@ objects:
               configMapKeyRef:
                 name: jenkins-proxy
                 key: f8tenant.api.url
+          - name: JC_TOGGLE_API_URL
+            valueFrom:
+              configMapKeyRef:
+                name: jenkins-idler
+                key: toggles.api.url
           - name: JC_AUTH_TOKEN
             valueFrom:
               secretKeyRef:
