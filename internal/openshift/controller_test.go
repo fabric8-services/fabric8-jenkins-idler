@@ -4,22 +4,38 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/common"
 	"testing"
 
+	"context"
 	"fmt"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/mock"
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 	proxyClient "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"io/ioutil"
 	"net/http/httptest"
+	"sync"
 )
 
-var tenantService *httptest.Server
-var openShiftService *httptest.Server
-var controller Controller
-var origWriter io.Writer
+var (
+	tenantService    *httptest.Server
+	openShiftService *httptest.Server
+	controller       Controller
+	origWriter       io.Writer
+	testUserId       = "2e15e957-0366-4802-bf1e-0d6fe3f11bb6"
+)
+
+type mockFeatureToggle struct {
+}
+
+func (m *mockFeatureToggle) IsIdlerEnabled(uid string) (bool, error) {
+	if uid == testUserId {
+		return true, nil
+	} else {
+		return false, nil
+	}
+}
 
 func Test_handle_build(t *testing.T) {
 	setUp(t)
@@ -82,13 +98,16 @@ func setUp(t *testing.T) {
 	}
 	openShiftService = common.MockServer(deploymentConfigData)
 
-	openShiftClient := NewOpenShift(openShiftService.URL, "")
+	openShiftClient := client.NewOpenShift(openShiftService.URL, "")
 	tenantClient := proxyClient.NewTenant(tenantService.URL, "")
 
-	features, err := toggles.NewUnleashToggle("http://unleash.herokuapp.com/api/")
-	assert.NoError(t, err)
+	features := &mockFeatureToggle{}
 
-	controller = NewOpenShiftController(openShiftClient, &tenantClient, features, &mock.MockConfig{})
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	controller = NewOpenShiftController(openShiftClient, &tenantClient, features, &mock.MockConfig{}, &wg, ctx, cancel)
 }
 
 func tearDown() {

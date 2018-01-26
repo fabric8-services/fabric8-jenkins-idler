@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -24,13 +25,12 @@ type Router struct {
 }
 
 // NewRouter creates a new HTTP router for the Idler on the default port.
-func NewRouter(api api.IdlerAPI) *Router {
-	return NewRouterWithPort(api, defaultHttpServerPort)
+func NewRouter(router *httprouter.Router) *Router {
+	return NewRouterWithPort(router, defaultHttpServerPort)
 }
 
 // NewRouter creates a new HTTP router for the Idler on the specified port.
-func NewRouterWithPort(api api.IdlerAPI, port int) *Router {
-	router := createRouter(api)
+func NewRouterWithPort(router *httprouter.Router, port int) *Router {
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: router,
@@ -40,38 +40,41 @@ func NewRouterWithPort(api api.IdlerAPI, port int) *Router {
 }
 
 // Start starts the HTTP router
-func (r *Router) Start(done <-chan interface{}) <-chan interface{} {
-	terminated := make(chan interface{})
+func (r *Router) Start(wg *sync.WaitGroup, ctx context.Context, cancel context.CancelFunc) {
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		go func() {
-			defer routerLogger.Infof("Idler router stopped.")
-			defer close(terminated)
-			routerLogger.Infof("Starting Idler router on port %d.", r.port)
-			err := r.srv.ListenAndServe()
-			routerLogger.Errorf("ListenAndServe() error in Idler: %s", err)
+			routerLogger.Infof("Starting API router on port %d.", r.port)
+			if err := r.srv.ListenAndServe(); err != nil {
+				cancel()
+				return
+			}
 		}()
 
-		// waiting on the done channel
-		<-done
-		r.Shutdown()
+		for {
+			select {
+			case <-ctx.Done():
+				routerLogger.Infof("Shutting down API router on port %d.", r.port)
+				ctx, cancel := context.WithTimeout(ctx, shutdownTimeout*time.Second)
+				r.srv.Shutdown(ctx)
+				cancel()
+				return
+			}
+		}
 	}()
-
-	return terminated
 }
 
 func (r *Router) Shutdown() {
 	routerLogger.Info("Idler router shutting down.")
 	ctx, _ := context.WithTimeout(context.Background(), shutdownTimeout*time.Second)
 	if err := r.srv.Shutdown(ctx); err != nil {
-		panic(err) // failure/timeout shutting down the server gracefully
+		routerLogger.Error(err) // failure/timeout shutting down the server gracefully
 	}
 }
 
-func createRouter(api api.IdlerAPI) *httprouter.Router {
+func CreateAPIRouter(api api.IdlerAPI) *httprouter.Router {
 	router := httprouter.New()
-
-	router.GET("/iapi/idler/builds", api.User)
-	router.GET("/iapi/idler/builds/", api.User)
 
 	router.GET("/iapi/idler/builds/:namespace", api.User)
 	router.GET("/iapi/idler/builds/:namespace/", api.User)
@@ -81,9 +84,6 @@ func createRouter(api api.IdlerAPI) *httprouter.Router {
 
 	router.GET("/iapi/idler/isidle/:namespace", api.IsIdle)
 	router.GET("/iapi/idler/isidle/:namespace/", api.IsIdle)
-
-	router.GET("/iapi/idler/route/:namespace", api.GetRoute)
-	router.GET("/iapi/idler/route/:namespace/", api.GetRoute)
 
 	return router
 }

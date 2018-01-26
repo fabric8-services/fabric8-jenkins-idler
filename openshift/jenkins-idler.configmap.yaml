@@ -4,7 +4,7 @@ metadata:
   name: jenkins-idler
 type: Opaque
 data:
-  filter.namespaces: "vpavlin"
-  idle.after: "10"
+# TODO Issue #92 Verify changes
+  idle.after: "45"
   jenkins.proxy.url: "http://jenkins-proxy:9091"
   toggles.api.url: "http://f8toggles"

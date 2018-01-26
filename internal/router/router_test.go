@@ -2,6 +2,7 @@ package router
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
@@ -10,6 +11,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 )
@@ -62,22 +64,18 @@ func (i *mockIdlerAPI) GetRoute(w http.ResponseWriter, req *http.Request, ps htt
 }
 
 func Test_all_routes_are_setup(t *testing.T) {
-	router := createRouter(&mockIdlerAPI{})
+	router := CreateAPIRouter(&mockIdlerAPI{})
 
 	var routes = []struct {
 		route  string
 		target string
 	}{
-		{"/iapi/idler/builds", "User"},
-		{"/iapi/idler/builds/", "User"},
 		{"/iapi/idler/builds/my-namepace", "User"},
 		{"/iapi/idler/builds/my-namepace/", "User"},
 		{"/iapi/idler/idle/my-namepace", "Idle"},
 		{"/iapi/idler/idle/my-namepace/", "Idle"},
 		{"/iapi/idler/isidle/my-namepace", "IsIdle"},
 		{"/iapi/idler/isidle/my-namepace/", "IsIdle"},
-		{"/iapi/idler/route/my-namepace", "GetRoute"},
-		{"/iapi/idler/route/my-namepace/", "GetRoute"},
 
 		{"/iapi/idler/foo", "404 page not found\n"},
 		{"/iapi/idler/builds/foo/bar", "404 page not found\n"},
@@ -94,7 +92,7 @@ func Test_all_routes_are_setup(t *testing.T) {
 }
 
 func Test_router_start(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
+	//log.SetOutput(ioutil.Discard)
 
 	testLogger, hook := test.NewNullLogger()
 	routerLogger = testLogger.WithFields(log.Fields{"component": "router"})
@@ -103,14 +101,17 @@ func Test_router_start(t *testing.T) {
 
 	assert.True(t, isTCPPortAvailable(testPort), fmt.Sprintf("Port '%d' should be free.", testPort))
 
-	done := make(chan interface{})
+	router := NewRouterWithPort(CreateAPIRouter(&mockIdlerAPI{}), testPort)
 
-	router := NewRouterWithPort(&mockIdlerAPI{}, testPort)
-	terminated := router.Start(done)
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	router.Start(&wg, ctx, cancel)
 
 	// we need to give a bit time for the server to come up
 	time.Sleep(1 * time.Second)
-	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/iapi/idler/builds", testPort))
+	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/iapi/idler/builds/foo", testPort))
 	assert.NoError(t, err, "The call to the API should have succeeded.")
 	body, err := ioutil.ReadAll(resp.Body)
 	assert.Equal(t, "User", string(body), "Unexpected result from HTTP request")
@@ -118,14 +119,12 @@ func Test_router_start(t *testing.T) {
 	go func() {
 		// Cancel the operation after 2 second.
 		time.Sleep(2 * time.Second)
-		log.Info("Signaling done channel")
-		close(done)
+		cancel()
 	}()
 
-	<-terminated
+	wg.Wait()
 
-	assert.True(t, isTCPPortAvailable(testPort), fmt.Sprintf("Port '%d' should be free.", testPort))
-	assert.Equal(t, "Idler router stopped.", hook.LastEntry().Message)
+	assert.Equal(t, "Shutting down API router on port 48080.", hook.LastEntry().Message)
 }
 
 func isTCPPortAvailable(port int) bool {
