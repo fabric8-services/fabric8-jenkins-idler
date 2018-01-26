@@ -1,4 +1,4 @@
-package openshift
+package client
 
 import (
 	"bufio"
@@ -15,6 +15,8 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	log "github.com/sirupsen/logrus"
 )
+
+var logger = log.WithFields(log.Fields{"component": "openshift-client"})
 
 // OpenShift is a client for OpenShift API
 type OpenShiftClient interface {
@@ -60,7 +62,7 @@ func NewOpenShiftWithClient(client *http.Client, apiURL string, token string) Op
 
 //Idle forces a service in OpenShift namespace to idle
 func (o OpenShift) Idle(namespace string, service string) (err error) {
-	log.Info("Idling " + service + " in " + namespace)
+	logger.Info("Idling " + service + " in " + namespace)
 
 	idleAt, err := time.Now().UTC().MarshalText()
 	if err != nil {
@@ -99,7 +101,7 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 
 	//Check if returned object got updated
 	if e.Metadata.Annotations.IdledAt != string(idleAt) {
-		return errors.New("Could not update endpoint with idle time")
+		return errors.New("could not update endpoint with idle time")
 	}
 
 	//Update DeploymentConfig - scale down
@@ -133,7 +135,7 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 
 	//Check successful scale-down
 	if ndc.Spec.Replicas != 0 {
-		return errors.New("Could not update DeploymentConfig with replica count")
+		return errors.New("could not update DeploymentConfig with replica count")
 	}
 
 	return
@@ -141,7 +143,7 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 
 //UnIdle forces a service in OpenShift namespace to start
 func (o *OpenShift) UnIdle(namespace string, service string) (err error) {
-	log.Info("Unidling ", service, " in ", namespace)
+	logger.Info("Unidling ", service, " in ", namespace)
 	//Scale up
 	s := model.Scale{
 		Kind:       "Scale",
@@ -177,7 +179,7 @@ func (o *OpenShift) UnIdle(namespace string, service string) (err error) {
 
 	//Check new replica count
 	if ns.Spec.Replicas != s.Spec.Replicas {
-		return errors.New("Could not scale the service")
+		return errors.New("could not scale the service")
 	}
 
 	return
@@ -287,7 +289,7 @@ func (o OpenShift) getProjects() (projects []string, err error) {
 }
 
 //WatchBuilds consumes stream of build events from OpenShift and calls callback to process them
-func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func(model.Object) (bool, error)) (err error) {
+func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func(model.Object) (bool, error)) error {
 	//Use a http client with disabled timeout
 	c := &http.Client{
 		Transport: &http.Transport{
@@ -298,12 +300,12 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 	for {
 		req, err := o.reqOAPIWatch("GET", namespace, "builds", nil)
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal(err)
 		}
 
 		resp, err := c.Do(req)
 		if err != nil {
-			log.Errorf("Request failed: %s", err)
+			logger.Errorf("Request failed: %s", err)
 			continue
 		}
 
@@ -313,7 +315,7 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 			if err != nil {
 				//OpenShift sometimes ends the stream, break to create new request
 				if err.Error() == "EOF" || err.Error() == "unexpected EOF" {
-					log.Info("Got error ", err, " but continuing..")
+					logger.Info("Got error ", err, " but continuing..")
 					break
 				}
 			}
@@ -324,36 +326,35 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 			if err != nil {
 				//This happens with oc CLI tool as well from time to time, take care of it and create new request
 				if strings.HasPrefix(string(line), "This request caused apisever to panic") {
-					log.WithField("error", string(line)).Warning("Communication with server failed")
+					logger.WithField("error", string(line)).Warning("Communication with server failed")
 					break
 				}
-				log.Errorf("Failed to Unmarshal: %s", err)
+				logger.Errorf("Failed to Unmarshal: %s", err)
 				break
 			}
 
 			//Verify a build has a type we care about
 			if o.Object.Spec.Strategy.Type != buildType {
-				log.Infof("Skipping build %s (type: %s)", o.Object.Metadata.Name, o.Object.Spec.Strategy.Type)
+				logger.Infof("Skipping build %s (type: %s)", o.Object.Metadata.Name, o.Object.Spec.Strategy.Type)
 				continue
 			}
-			log.Infof("Handling Build change for user %s", o.Object.Metadata.Namespace)
+			logger.Infof("Handling Build change for user %s", o.Object.Metadata.Namespace)
 			ok, err := callback(o)
 			if err != nil {
-				log.Errorf("Error from callback: %s", err)
+				logger.Errorf("Error from callback: %s", err)
 				continue
 			}
 
 			if ok {
-				log.Debugf("Event summary: Build %s -> %s, %s/%s", o.Object.Metadata.Name, o.Object.Status.Phase, o.Object.Status.StartTimestamp, o.Object.Status.CompletionTimestamp)
+				logger.Debugf("Event summary: Build %s -> %s, %s/%s", o.Object.Metadata.Name, o.Object.Status.Phase, o.Object.Status.StartTimestamp, o.Object.Status.CompletionTimestamp)
 			}
 		}
-		log.Debug("Fell out of loop for Build")
+		logger.Debug("Fell out of loop for Build")
 	}
 }
 
-//WatchDeploymentConfigs consumes stream of DC events from OpenShift and calls callback to process them; FIXME - a lot of copy&paste from
-//watch builds, refactor!
-func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, callback func(model.DCObject) (bool, error)) (err error) {
+// WatchDeploymentConfigs consumes stream of DC events from OpenShift and calls callback to process them
+func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, callback func(model.DCObject) (bool, error)) error {
 	//Use a http client with disabled timeout
 	c := &http.Client{
 		Transport: &http.Transport{
@@ -364,7 +365,7 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 	for {
 		req, err := o.reqOAPIWatch("GET", namespace, "deploymentconfigs", nil)
 		if err != nil {
-			log.Fatal(err)
+			logger.Fatal(err)
 		}
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", o.token))
 		v := req.URL.Query()
@@ -372,7 +373,7 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 		req.URL.RawQuery = v.Encode()
 		resp, err := c.Do(req)
 		if err != nil {
-			log.Errorf("Request failed: %s", err)
+			logger.Errorf("Request failed: %s", err)
 			continue
 		}
 
@@ -381,10 +382,10 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 			line, err := reader.ReadBytes('\n')
 			if err != nil {
 				if err.Error() == "EOF" || err.Error() == "unexpected EOF" {
-					log.Info("Got error ", err, " but continuing..")
+					logger.Info("Got error ", err, " but continuing..")
 					break
 				}
-				fmt.Printf("It's broken %+v\n", err)
+				fmt.Printf("It's broken %+v", err)
 			}
 
 			o := model.DCObject{}
@@ -392,38 +393,39 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 			err = json.Unmarshal(line, &o)
 			if err != nil {
 				if strings.HasPrefix(string(line), "This request caused apisever to panic") {
-					log.WithField("error", string(line)).Warning("Communication with server failed")
+					logger.WithField("error", string(line)).Warning("Communication with server failed")
 					break
 				}
-				log.Errorf("Failed to Unmarshal: %s", err)
+				logger.Errorf("Failed to Unmarshal: %s", err)
 				break
 			}
 
 			//Filter for a given suffix
 			if !strings.HasSuffix(o.Object.Metadata.Namespace, nsSuffix) {
-				log.Infof("Skipping DC %s", o.Object.Metadata.Namespace)
+				logger.Infof("Skipping DC %s", o.Object.Metadata.Namespace)
 				continue
 			}
 
-			log.Infof("Handling DC change for user %s\n", o.Object.Metadata.Namespace)
+			logger.Infof("Handling DC change for user %s", o.Object.Metadata.Namespace)
 			ok, err := callback(o)
 			if err != nil {
-				log.Errorf("Error from DC callback: %s", err)
+				logger.Errorf("Error from DC callback: %s", err)
 				continue
 			}
 
 			if ok {
-				//Get piece of status for debug info;FIXME - should this go away or at least be conditional?
+				// TODO - should this go away or at least be conditional?
+				// Get piece of status for debug info
 				c, err := o.Object.Status.GetByType("Available")
 				if err != nil {
-					log.Error(err)
+					logger.Error(err)
 					continue
 				}
 
-				log.Debugf("Event summary: DeploymentConfig %s, %s/%s\n", o.Object.Metadata.Name, c.Status, c.LastUpdateTime)
+				logger.Debugf("Event summary: DeploymentConfig %s, %s/%s", o.Object.Metadata.Name, c.Status, c.LastUpdateTime)
 			}
 		}
-		log.Debugf("Fall out od loop for watching DC")
+		logger.Debugf("Fall out od loop for watching DC")
 	}
 }
 
@@ -500,7 +502,7 @@ func (o *OpenShift) do(req *http.Request) (resp *http.Response, err error) {
 		return
 	}
 	if resp.StatusCode != 200 {
-		err = fmt.Errorf("Got status %s (%d) from %s", resp.Status, resp.StatusCode, req.URL)
+		err = fmt.Errorf("got status %s (%d) from %s", resp.Status, resp.StatusCode, req.URL)
 	}
 
 	return

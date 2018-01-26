@@ -40,8 +40,8 @@ func main() {
 
 	multiError := config.Verify()
 	if !multiError.Empty() {
-		for _, error := range multiError.Errors {
-			log.Error(error)
+		for _, err := range multiError.Errors {
+			log.Error(err)
 		}
 		os.Exit(1)
 	}

@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 )
 
-// TODO - Eventually we might want to use goa to define the API and potentially generate a REST client (HF)
 // IdlerAPI defines the REST endpoints of the Idler
 type IdlerAPI interface {
 	// Idle triggers an idling of the Jenkins service running in the namespace specified in the namespace
@@ -22,11 +22,6 @@ type IdlerAPI interface {
 	// If an error occurs a response with the HTTP status 500 is returned.
 	IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 
-	// GetRoute returns an route struct containing information about the route of the Jenkins service in the
-	// namespace specified in the namespace parameter of the request.
-	// If an error occurs a response with the HTTP status 500 is returned.
-	GetRoute(w http.ResponseWriter, req *http.Request, ps httprouter.Params)
-
 	// User writes a JSON representation of the User struct to the HTTP response.
 	// If no namespace parameter is specified all Users are included into the response. If the namespace
 	// parameter is set only the user with the specified namespace gets added to the response.
@@ -36,7 +31,7 @@ type IdlerAPI interface {
 }
 
 type idler struct {
-	openShiftClient openshift.OpenShiftClient
+	openShiftClient client.OpenShiftClient
 	controller      openshift.Controller
 }
 
@@ -45,7 +40,7 @@ type status struct {
 }
 
 // NewIdlerAPI creates a new instance of IdlerAPI.
-func NewIdlerAPI(openShiftClient openshift.OpenShiftClient, controller openshift.Controller) IdlerAPI {
+func NewIdlerAPI(openShiftClient client.OpenShiftClient, controller openshift.Controller) IdlerAPI {
 	return &idler{
 		openShiftClient: openShiftClient,
 		controller:      controller,
@@ -78,43 +73,11 @@ func (api *idler) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	json.NewEncoder(w).Encode(s)
 }
 
-func (api *idler) GetRoute(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	namespace := ps.ByName("namespace")
-	w.Header().Set("Content-Type", "application/json")
-
-	r, tls, err := api.openShiftClient.GetRoute(namespace, "jenkins")
-	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
-		return
-	}
-
-	type route struct {
-		Service string `json:"service"`
-		Route   string `json:"route"`
-		TLS     bool   `json:"tls"`
-	}
-
-	rt := route{
-		Route:   r,
-		Service: "jenkins",
-		TLS:     tls,
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(rt)
-}
-
 func (api *idler) User(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	var err error
 	w.Header().Set("Content-Type", "application/json")
 	ns := ps.ByName("namespace")
-	if len(ns) > 0 {
-		err = json.NewEncoder(w).Encode(api.controller.GetUsers()[ns])
-	} else {
-		err = json.NewEncoder(w).Encode(api.controller.GetUsers())
-	}
+
+	err := json.NewEncoder(w).Encode(api.controller.GetUser(ns))
 
 	if err != nil {
 		log.Error("Could not serialize users")

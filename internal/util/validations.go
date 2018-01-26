@@ -45,3 +45,11 @@ func IsInt(value interface{}, key string) error {
 	}
 	return nil
 }
+
+func IsBool(value interface{}, key string) error {
+	_, err := strconv.ParseBool(value.(string))
+	if err != nil {
+		return errors.New(fmt.Sprintf("Value for %s needs to be an bool.", key))
+	}
+	return nil
+}

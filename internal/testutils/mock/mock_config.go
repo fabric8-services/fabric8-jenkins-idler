@@ -37,8 +37,8 @@ func (c *MockConfig) GetUnIdleRetry() int {
 	return 10
 }
 
-func (c *MockConfig) GetFilteredNamespaces() []string {
-	return []string{}
+func (c *MockConfig) GetDebugMode() bool {
+	return false
 }
 
 func (c *MockConfig) Verify() util.MultiError {

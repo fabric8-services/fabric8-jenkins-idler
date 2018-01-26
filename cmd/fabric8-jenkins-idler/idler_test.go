@@ -6,7 +6,6 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -22,31 +21,24 @@ func (m *mockFeatureToggle) IsIdlerEnabled(uid string) (bool, error) {
 func Test_graceful_shutdown(t *testing.T) {
 	log.SetOutput(ioutil.Discard)
 
-	// register a global log hook to cpature the log output
+	// register a global log hook to capture the log output
 	hook := test.NewGlobal()
 
 	config, _ := configuration.NewConfiguration()
 	idler := NewIdler(config, &mockFeatureToggle{})
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-		idler.Run()
-	}()
-
 	go func() {
 		// Send SIGTERM after two seconds
-		time.Sleep(2 * time.Second)
+		time.Sleep(3 * time.Second)
 		syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
 	}()
 
-	wg.Wait()
+	idler.Run()
 
 	logMessages := extractLogMessages(hook.Entries)
-	assert.Contains(t, logMessages, "Received SIGTERM signal. Initiating shutdown.", "The recieval of the SIGTERM signal should have been looged")
-	assert.Contains(t, logMessages, "Idler shutdown complete.", "Idler shutdown completion should have been logged")
+	assert.Contains(t, logMessages, "Idler successfully shutdown.", "Idler shutdown completion should have been logged")
+	assert.Contains(t, logMessages, "Stopping to watch OpenShift build configuration changes.", "Idler shutdown completion should have been logged")
+	assert.Contains(t, logMessages, "Stopping to watch OpenShift deployment configuration changes.", "Idler shutdown completion should have been logged")
 }
 
 func extractLogMessages(entries []*log.Entry) []string {
