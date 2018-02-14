@@ -9,6 +9,8 @@ PACKAGES = $(shell go list ./...)
 SOURCE_DIRS = $(shell echo $(PACKAGES) | awk 'BEGIN{FS="/"; RS=" "}{print $$4}' | uniq)
 LD_FLAGS := -X github.com/fabric8-services/fabric8-jenkins-idler/internal/version.version=$(IMAGE_TAG)
 
+# Misc
+START_COMMIT_MESSAGE_VALIDATION = e380f5c9a591c7f01a937a274561e4b715f985e3
 .DEFAULT_GOAL := help
 
 # Check that given variables are set and all have non-empty values,
@@ -24,7 +26,7 @@ __check_defined = \
     $(if $(value $1),, \
       $(error Undefined $1$(if $2, ($2))))
 
-all: tools build test fmtcheck vet image ## Compiles binary and runs format and style checks
+all: tools build test fmtcheck validate_commits vet image ## Compiles binary and runs format and style checks
 
 build: vendor ## Builds the binary into $GOPATH/bin
 	go install -ldflags="$(LD_FLAGS)" ./cmd/fabric8-jenkins-idler
@@ -51,6 +53,7 @@ tools: tools.timestamp
 tools.timestamp:
 	go get -u github.com/golang/dep/cmd/dep
 	go get -u github.com/golang/lint/golint
+	go get -u github.com/vbatts/git-validation/...
 	@touch tools.timestamp
 
 vendor: tools.timestamp ## Runs dep to vendor project dependencies
@@ -79,6 +82,10 @@ lint: ## Runs golint
 		echo "$$out"; \
 		exit 1; \
 	fi
+
+.PHONY: validate_commits
+validate_commits: tools ## Validates git commit messages
+	git-validation -q -run short-subject,message_regexp='^Issue #[0-9]+ [A-Z]+.*' -range $(START_COMMIT_MESSAGE_VALIDATION)...
 
 .PHONY: clean
 clean: ## Deletes all build artifacts
