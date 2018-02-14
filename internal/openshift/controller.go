@@ -10,8 +10,8 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/idler"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
-	pc "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
 	log "github.com/sirupsen/logrus"
 	"sync"
 )
@@ -35,7 +35,7 @@ type OpenShiftController struct {
 	users           *UserMap
 	userChannels    *UserChannelMap
 	openShiftClient client.OpenShiftClient
-	tenant          *pc.Tenant
+	tenant          *tenant.Tenant
 	features        toggles.Features
 	config          configuration.Configuration
 	wg              *sync.WaitGroup
@@ -43,7 +43,7 @@ type OpenShiftController struct {
 	cancel          context.CancelFunc
 }
 
-func NewOpenShiftController(openShiftClient client.OpenShiftClient, t *pc.Tenant, features toggles.Features, config configuration.Configuration, wg *sync.WaitGroup, ctx context.Context, cancel context.CancelFunc) Controller {
+func NewOpenShiftController(openShiftClient client.OpenShiftClient, t *tenant.Tenant, features toggles.Features, config configuration.Configuration, wg *sync.WaitGroup, ctx context.Context, cancel context.CancelFunc) Controller {
 	controller := OpenShiftController{
 		openShiftClient: openShiftClient,
 		users:           NewUserMap(),

@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/mock"
-	proxyClient "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"io"
@@ -99,7 +99,7 @@ func setUp(t *testing.T) {
 	openShiftService = common.MockServer(deploymentConfigData)
 
 	openShiftClient := client.NewOpenShift(openShiftService.URL, "")
-	tenantClient := proxyClient.NewTenant(tenantService.URL, "")
+	tenantClient := tenant.NewTenant(tenantService.URL, "")
 
 	features := &mockFeatureToggle{}
 

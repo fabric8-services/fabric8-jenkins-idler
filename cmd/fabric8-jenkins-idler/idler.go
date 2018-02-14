@@ -6,12 +6,11 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 
-	proxyClient "github.com/fabric8-services/fabric8-jenkins-proxy/clients"
-
 	"context"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/api"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/router"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -46,7 +45,7 @@ func NewIdler(config configuration.Configuration, features toggles.Features) *Id
 // Run starts the various goroutines of the Idler. To cleanly shutdown the SIGTERM signal should be send to the process.
 func (idler *Idler) Run() {
 	openShift := client.NewOpenShift(idler.config.GetOpenShiftURL(), idler.config.GetOpenShiftToken())
-	tenantClient := proxyClient.NewTenant(idler.config.GetTenantURL(), idler.config.GetAuthToken())
+	tenantClient := tenant.NewTenant(idler.config.GetTenantURL(), idler.config.GetAuthToken())
 
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
@@ -67,7 +66,7 @@ func (idler *Idler) Run() {
 
 	setupSignalChannel(cancel)
 	wg.Wait()
-	mainLogger.Info("Idler successfully shutdown.")
+	mainLogger.Info("Idler successfully shut down.")
 }
 
 func startWorkers(wg *sync.WaitGroup, ctx context.Context, cancel context.CancelFunc, openShift client.OpenShiftClient, controller openshift.Controller, addProfiler bool) {
