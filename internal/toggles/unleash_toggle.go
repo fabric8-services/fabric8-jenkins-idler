@@ -7,9 +7,10 @@ import (
 	"errors"
 	"fmt"
 
-	unleash "github.com/Unleash/unleash-client-go"
+	"github.com/Unleash/unleash-client-go"
 	"github.com/Unleash/unleash-client-go/context"
 	log "github.com/sirupsen/logrus"
+	"strings"
 )
 
 const (
@@ -17,6 +18,8 @@ const (
 	toggleFeature   = "jenkins.idler"
 	maxWaitForReady = 10
 )
+
+var logger = log.WithFields(log.Fields{"component": "unleash"})
 
 type unleashToggle struct {
 	Features
@@ -32,14 +35,14 @@ func NewUnleashToggle(hostURL string) (Features, error) {
 		unleash.WithRefreshInterval(10*time.Second))
 
 	if err != nil {
-		log.Error("Unable to initialize Unleash client.", err)
+		logger.Error("Unable to initialize Unleash client.", err)
 		return nil, err
 	}
 
 	readyChan := unleashClient.Ready()
 	select {
 	case <-readyChan:
-		log.Info("Unleash client initalized and ready.")
+		logger.Info("Unleash client initialized and ready.")
 	case <-time.After(time.Second * maxWaitForReady):
 		return nil, errors.New(fmt.Sprintf("Unleash client initalization timed out after %d seconds.", maxWaitForReady))
 	}
@@ -65,41 +68,33 @@ type listener struct{}
 
 // OnError prints out errors.
 func (l listener) OnError(err error) {
-	log.Error(nil, map[string]interface{}{
-		"err": err.Error(),
-	}, "toggles error")
+	// TODO See https://github.com/fabric8-services/fabric8-jenkins-idler/issues/106
+	if strings.Contains(err.Error(), "invalid character") {
+		return
+	}
+	logger.WithField("err", err).Warn("OnError")
 }
 
 // OnWarning prints out warning.
 func (l listener) OnWarning(warning error) {
-	log.Warn(nil, map[string]interface{}{
-		"err": warning.Error(),
-	}, "toggles warning")
+	logger.WithField("err", warning).Warn("OnWarning")
 }
 
 // OnReady prints to the console when the repository is ready.
 func (l listener) OnReady() {
-	log.Info(nil, map[string]interface{}{}, "toggles ready")
+	logger.Info("Unleash client ready")
 }
 
 // OnCount prints to the console when the feature is queried.
 func (l listener) OnCount(name string, enabled bool) {
-	log.Debug(nil, map[string]interface{}{
-		"name":    name,
-		"enabled": enabled,
-	}, "toggles count")
 }
 
 // OnSent prints to the console when the server has uploaded metrics.
 func (l listener) OnSent(payload unleash.MetricsData) {
-	log.Debug(nil, map[string]interface{}{
-		"payload": payload,
-	}, "toggles sent")
+	logger.WithField("payload", payload).Warn("OnSent")
 }
 
 // OnRegistered prints to the console when the client has registered.
 func (l listener) OnRegistered(payload unleash.ClientData) {
-	log.Info(nil, map[string]interface{}{
-		"payload": payload,
-	}, "toggles registered")
+	logger.Info("Unleash client registered")
 }
