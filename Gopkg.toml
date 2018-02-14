@@ -20,10 +20,6 @@
 #  version = "2.4.0"
 
 [[constraint]]
-  name = "github.com/fabric8-services/fabric8-jenkins-proxy"
-  revision = "486ff48c1f3e2ee4dc8357db90e6c3aac796850b"
-
-[[constraint]]
   name = "github.com/julienschmidt/httprouter"
   version = "=v1.1"
 
