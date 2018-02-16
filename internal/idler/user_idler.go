@@ -8,10 +8,13 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 	log "github.com/sirupsen/logrus"
 	"sync"
 	"time"
 )
+
+var logger = log.WithFields(log.Fields{"component": "user-idler"})
 
 const (
 	bufferSize = 10
@@ -25,9 +28,10 @@ type UserIdler struct {
 	userChan         chan model.User
 	user             model.User
 	config           configuration.Configuration
+	features         toggles.Features
 }
 
-func NewUserIdler(user model.User, openShiftClient client.OpenShiftClient, config configuration.Configuration) *UserIdler {
+func NewUserIdler(user model.User, openShiftClient client.OpenShiftClient, config configuration.Configuration, features toggles.Features) *UserIdler {
 	logEntry := log.WithFields(log.Fields{
 		"component": "user-idler",
 		"username":  user.Name,
@@ -46,6 +50,7 @@ func NewUserIdler(user model.User, openShiftClient client.OpenShiftClient, confi
 		userChan:         userChan,
 		user:             user,
 		config:           config,
+		features:         features,
 	}
 	return &userIdler
 }
@@ -57,6 +62,18 @@ func (idler *UserIdler) GetChannel() chan model.User {
 // checkIdle verifies the state of conditions and decides if we should idle/unidle
 // and performs the required action if needed
 func (idler *UserIdler) checkIdle() error {
+	enabled, err := idler.features.IsIdlerEnabled(idler.user.ID)
+	if err != nil {
+		return err
+	}
+
+	if enabled {
+		logger.WithFields(log.Fields{"user": idler.user.Name, "uuid": idler.user.ID}).Debug("Idler enabled. Evaluating conditions.")
+	} else {
+		logger.WithFields(log.Fields{"user": idler.user.Name, "uuid": idler.user.ID}).Debug("Idler not enabled. Skipping idle check.")
+		return nil
+	}
+
 	eval := idler.Conditions.Eval(idler.user)
 
 	if eval {

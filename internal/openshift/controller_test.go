@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"context"
-	"fmt"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
@@ -50,9 +49,8 @@ func Test_handle_build(t *testing.T) {
 		Type: "MODIFIED",
 	}
 
-	ok, err := controller.HandleBuild(obj)
+	err := controller.HandleBuild(obj)
 	assert.NoError(t, err)
-	assert.True(t, ok, fmt.Sprintf("Namespace '%s' should be watched", obj.Object.Metadata.Namespace))
 }
 
 func Test_handle_deployment_config(t *testing.T) {
@@ -76,9 +74,8 @@ func Test_handle_deployment_config(t *testing.T) {
 		Type: "MODIFIED",
 	}
 
-	ok, err := controller.HandleDeploymentConfig(obj)
+	err := controller.HandleDeploymentConfig(obj)
 	assert.NoError(t, err)
-	assert.True(t, ok, fmt.Sprintf("Namespace '%s' should be watched", obj.Object.Metadata.Namespace))
 }
 
 func setUp(t *testing.T) {
