@@ -83,6 +83,9 @@ func CreateAPIRouter(api api.IdlerAPI) *httprouter.Router {
 	router.GET("/iapi/idler/idle/:namespace", api.Idle)
 	router.GET("/iapi/idler/idle/:namespace/", api.Idle)
 
+	router.GET("/iapi/idler/unidle/:namespace", api.UnIdle)
+	router.GET("/iapi/idler/unidle/:namespace/", api.UnIdle)
+
 	router.GET("/iapi/idler/isidle/:namespace", api.IsIdle)
 	router.GET("/iapi/idler/isidle/:namespace/", api.IsIdle)
 

@@ -17,6 +17,10 @@ type IdlerAPI interface {
 	// parameter of the request. A status code of 200 indicates success whereas 500 indicates failure.
 	Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 
+	// UnIdle triggers an un-idling of the Jenkins service running in the namespace specified in the namespace
+	// parameter of the request. A status code of 200 indicates success whereas 500 indicates failure.
+	UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
+
 	// IsIdle returns an status struct indicating whether the Jenkins service in the namespace specified in the
 	// namespace parameter of the request is currently idle or not.
 	// If an error occurs a response with the HTTP status 500 is returned.
@@ -49,6 +53,16 @@ func NewIdlerAPI(openShiftClient client.OpenShiftClient, controller openshift.Co
 
 func (api *idler) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	err := api.openShiftClient.Idle(ps.ByName("namespace"), "jenkins")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (api *idler) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	err := api.openShiftClient.UnIdle(ps.ByName("namespace"), "jenkins")
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
