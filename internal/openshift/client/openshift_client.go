@@ -25,8 +25,8 @@ type OpenShiftClient interface {
 	IsIdle(namespace string, service string) (int, error)
 	GetRoute(n string, s string) (r string, tls bool, err error)
 	GetApiURL() string
-	WatchBuilds(namespace string, buildType string, callback func(model.Object) (bool, error)) error
-	WatchDeploymentConfigs(namespace string, nsSuffix string, callback func(model.DCObject) (bool, error)) error
+	WatchBuilds(namespace string, buildType string, callback func(model.Object) error) error
+	WatchDeploymentConfigs(namespace string, nsSuffix string, callback func(model.DCObject) error) error
 }
 
 // OpenShift is a client for OpenShift API
@@ -289,7 +289,7 @@ func (o OpenShift) getProjects() (projects []string, err error) {
 }
 
 //WatchBuilds consumes stream of build events from OpenShift and calls callback to process them
-func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func(model.Object) (bool, error)) error {
+func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func(model.Object) error) error {
 	//Use a http client with disabled timeout
 	c := &http.Client{
 		Transport: &http.Transport{
@@ -339,14 +339,10 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 				continue
 			}
 			logger.Infof("Handling Build change for user %s", o.Object.Metadata.Namespace)
-			ok, err := callback(o)
+			err = callback(o)
 			if err != nil {
 				logger.Errorf("Error from callback: %s", err)
 				continue
-			}
-
-			if ok {
-				logger.Debugf("Event summary: Build %s -> %s, %s/%s", o.Object.Metadata.Name, o.Object.Status.Phase, o.Object.Status.StartTimestamp, o.Object.Status.CompletionTimestamp)
 			}
 		}
 		logger.Debug("Fell out of loop for Build")
@@ -354,7 +350,7 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 }
 
 // WatchDeploymentConfigs consumes stream of DC events from OpenShift and calls callback to process them
-func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, callback func(model.DCObject) (bool, error)) error {
+func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, callback func(model.DCObject) error) error {
 	//Use a http client with disabled timeout
 	c := &http.Client{
 		Transport: &http.Transport{
@@ -407,22 +403,10 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 			}
 
 			logger.Infof("Handling DC change for user %s", o.Object.Metadata.Namespace)
-			ok, err := callback(o)
+			err = callback(o)
 			if err != nil {
 				logger.Errorf("Error from DC callback: %s", err)
 				continue
-			}
-
-			if ok {
-				// TODO - should this go away or at least be conditional?
-				// Get piece of status for debug info
-				c, err := o.Object.Status.GetByType("Available")
-				if err != nil {
-					logger.Error(err)
-					continue
-				}
-
-				logger.Debugf("Event summary: DeploymentConfig %s, %s/%s", o.Object.Metadata.Name, c.Status, c.LastUpdateTime)
 			}
 		}
 		logger.Debugf("Fall out od loop for watching DC")

@@ -26,8 +26,8 @@ var logger = log.WithFields(log.Fields{"component": "controller"})
 
 // Controller defines the interface for watching the OpenShift cluster for changes.
 type Controller interface {
-	HandleBuild(o model.Object) (bool, error)
-	HandleDeploymentConfig(dc model.DCObject) (bool, error)
+	HandleBuild(o model.Object) error
+	HandleDeploymentConfig(dc model.DCObject) error
 	GetUser(ns string) model.User
 }
 
@@ -67,29 +67,16 @@ func (oc *OpenShiftController) GetUser(ns string) model.User {
 // user structure with latest build info. NOTE: In most cases the only change in
 // build object is stage timestamp, which we don't care about, so this function
 // just does couple comparisons and returns
-func (oc *OpenShiftController) HandleBuild(o model.Object) (bool, error) {
+func (oc *OpenShiftController) HandleBuild(o model.Object) error {
 	ns := o.Object.Metadata.Namespace
 	logger.WithField("ns", ns).Infof("Processing build event %s", o.Object.Metadata.Name)
 
 	err := oc.createIfNotExist(o.Object.Metadata.Namespace)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	user := oc.userForNamespace(ns)
-	logger.WithFields(log.Fields{"ns": ns, "uuid": user.ID}).Debug("Checking if Idler is enabled")
-
-	enabled, err := oc.features.IsIdlerEnabled(user.ID)
-	if err != nil {
-		return false, err
-	}
-
-	if enabled {
-		logger.WithFields(log.Fields{"ns": ns, "uuid": user.ID}).Debug("Idler enabled")
-	} else {
-		logger.WithFields(log.Fields{"ns": ns, "uuid": user.ID}).Debug("Idler not enabled")
-		return false, nil
-	}
 
 	if oc.isActive(&o.Object) {
 		lastActive := user.ActiveBuild
@@ -116,40 +103,27 @@ func (oc *OpenShiftController) HandleBuild(o model.Object) (bool, error) {
 		oc.sendUserToIdler(ns, user)
 	}
 
-	return true, nil
+	return nil
 }
 
 // HandleDeploymentConfig processes new DC event collected from OpenShift and updates
 // user structure with info about the changes in DC. NOTE: This is important for cases
 // like reset tenant and update tenant when DC is updated and Jenkins starts because
 // of ConfigChange or manual intervention.
-func (oc *OpenShiftController) HandleDeploymentConfig(dc model.DCObject) (bool, error) {
+func (oc *OpenShiftController) HandleDeploymentConfig(dc model.DCObject) error {
 	ns := dc.Object.Metadata.Namespace[:len(dc.Object.Metadata.Namespace)-len(jenkinsNamespaceSuffix)]
 	logger.WithField("ns", ns).Infof("Processing deployment config change event %s", dc.Object.Metadata.Name)
 
 	err := oc.createIfNotExist(ns)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	user := oc.userForNamespace(ns)
-	logger.WithFields(log.Fields{"ns": ns, "uuid": user.ID}).Debug("Checking if Idler is enabled")
-
-	enabled, err := oc.features.IsIdlerEnabled(user.ID)
-	if err != nil {
-		return false, err
-	}
-
-	if enabled {
-		logger.WithFields(log.Fields{"ns": ns, "uuid": user.ID}).Debug("Idler enabled")
-	} else {
-		logger.WithFields(log.Fields{"ns": ns, "uuid": user.ID}).Debug("Idler not enabled")
-		return false, nil
-	}
 
 	c, err := dc.Object.Status.GetByType(availableCond)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	// TODO Verify if we need Generation vs. ObservedGeneration
@@ -163,7 +137,7 @@ func (oc *OpenShiftController) HandleDeploymentConfig(dc model.DCObject) (bool, 
 	// Also check if the event means that Jenkins just started (OS AvailableCondition.Status == true) and update time
 	status, err := strconv.ParseBool(c.Status)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	if status == true {
@@ -172,7 +146,7 @@ func (oc *OpenShiftController) HandleDeploymentConfig(dc model.DCObject) (bool, 
 		oc.sendUserToIdler(ns, user)
 	}
 
-	return true, nil
+	return nil
 }
 
 // createIfNotExist check existence of a user in the map, initialise if it does not exist
@@ -200,7 +174,7 @@ func (oc *OpenShiftController) createIfNotExist(ns string) error {
 
 	newUser := model.NewUser(ti.Data[0].Id, ns, state == model.JenkinsRunning)
 	oc.users.Store(ns, newUser)
-	userIdler := idler.NewUserIdler(newUser, oc.openShiftClient, oc.config)
+	userIdler := idler.NewUserIdler(newUser, oc.openShiftClient, oc.config, oc.features)
 	oc.userChannels.Store(ns, userIdler.GetChannel())
 	userIdler.Run(oc.wg, oc.ctx, oc.cancel)
 
