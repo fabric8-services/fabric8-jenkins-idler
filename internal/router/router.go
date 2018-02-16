@@ -1,11 +1,11 @@
 package router
 
 import (
+	"context"
 	"fmt"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/api"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"net/http"
 	"sync"
 	"time"
@@ -67,10 +67,11 @@ func (r *Router) Start(wg *sync.WaitGroup, ctx context.Context, cancel context.C
 
 func (r *Router) Shutdown() {
 	routerLogger.Info("Idler router shutting down.")
-	ctx, _ := context.WithTimeout(context.Background(), shutdownTimeout*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout*time.Second)
 	if err := r.srv.Shutdown(ctx); err != nil {
 		routerLogger.Error(err) // failure/timeout shutting down the server gracefully
 	}
+	cancel()
 }
 
 func CreateAPIRouter(api api.IdlerAPI) *httprouter.Router {
