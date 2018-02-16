@@ -53,6 +53,11 @@ func (i *mockIdlerAPI) Idle(w http.ResponseWriter, r *http.Request, ps httproute
 	w.WriteHeader(http.StatusOK)
 }
 
+func (i *mockIdlerAPI) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	w.Write([]byte("UnIdle"))
+	w.WriteHeader(http.StatusOK)
+}
+
 func (i *mockIdlerAPI) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	w.Write([]byte("IsIdle"))
 	w.WriteHeader(http.StatusOK)
@@ -74,6 +79,8 @@ func Test_all_routes_are_setup(t *testing.T) {
 		{"/iapi/idler/builds/my-namepace/", "User"},
 		{"/iapi/idler/idle/my-namepace", "Idle"},
 		{"/iapi/idler/idle/my-namepace/", "Idle"},
+		{"/iapi/idler/unidle/my-namepace", "UnIdle"},
+		{"/iapi/idler/unidle/my-namepace/", "UnIdle"},
 		{"/iapi/idler/isidle/my-namepace", "IsIdle"},
 		{"/iapi/idler/isidle/my-namepace/", "IsIdle"},
 
