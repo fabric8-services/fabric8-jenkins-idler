@@ -62,23 +62,17 @@ func (idler *UserIdler) GetChannel() chan model.User {
 // checkIdle verifies the state of conditions and decides if we should idle/unidle
 // and performs the required action if needed
 func (idler *UserIdler) checkIdle() error {
-	enabled, err := idler.features.IsIdlerEnabled(idler.user.ID)
-	if err != nil {
-		return err
-	}
-
-	if enabled {
-		logger.WithFields(log.Fields{"user": idler.user.Name, "uuid": idler.user.ID}).Debug("Idler enabled. Evaluating conditions.")
-	} else {
-		logger.WithFields(log.Fields{"user": idler.user.Name, "uuid": idler.user.ID}).Debug("Idler not enabled. Skipping idle check.")
-		return nil
-	}
-
 	eval := idler.Conditions.Eval(idler.user)
 
 	if eval {
 		idler.logger.WithField("eval", eval).Debug("Check idle state")
-		idler.doIdle()
+		enabled, err := idler.isIdlerEnabled()
+		if err != nil {
+			return err
+		}
+		if enabled {
+			idler.doIdle()
+		}
 	} else {
 		idler.logger.WithField("eval", eval).Debug("Check idle state")
 		idler.doUnIdle()
@@ -133,6 +127,21 @@ func (idler *UserIdler) doIdle() error {
 		idler.user.AddJenkinsState(false, time.Now().UTC(), fmt.Sprintf("Jenkins Idled for %s, finished at %s", n, t))
 	}
 	return nil
+}
+
+func (idler *UserIdler) isIdlerEnabled() (bool, error) {
+	enabled, err := idler.features.IsIdlerEnabled(idler.user.ID)
+	if err != nil {
+		return false, err
+	}
+
+	if enabled {
+		logger.WithFields(log.Fields{"user": idler.user.Name, "uuid": idler.user.ID}).Debug("Idler enabled.")
+		return true, nil
+	} else {
+		logger.WithFields(log.Fields{"user": idler.user.Name, "uuid": idler.user.ID}).Debug("Idler not enabled.")
+		return false, nil
+	}
 }
 
 func (idler *UserIdler) doUnIdle() error {
