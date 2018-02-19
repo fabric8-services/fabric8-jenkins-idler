@@ -2,8 +2,10 @@ package condition
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"strings"
+
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
+	log "github.com/sirupsen/logrus"
 )
 
 // Condition defines a single Eval method which returns true or false.
@@ -18,14 +20,16 @@ type Conditions struct {
 
 // Eval evaluates a list of Conditions for a given object. It returns false if
 // any of the conditions evaluates to false, otherwise true.
-func (c *Conditions) Eval(o interface{}) bool {
+func (c *Conditions) Eval(o interface{}) (bool, util.MultiError) {
 	result := true
+	errors := util.MultiError{}
 
 	condStates := make(map[string]bool)
 	for name, ci := range c.Conditions {
 		r, err := ci.Eval(o)
 		if err != nil {
 			log.Error(err)
+			errors.Collect(err)
 		}
 		if !r {
 			result = false
@@ -34,7 +38,7 @@ func (c *Conditions) Eval(o interface{}) bool {
 	}
 
 	log.Debugf("Conditions: %t = %s", result, c.conditionMapToString(condStates))
-	return result
+	return result, errors
 }
 
 func (c *Conditions) conditionMapToString(conditions map[string]bool) string {

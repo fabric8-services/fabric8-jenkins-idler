@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/condition"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 	log "github.com/sirupsen/logrus"
-	"sync"
-	"time"
 )
 
 var logger = log.WithFields(log.Fields{"component": "user-idler"})
@@ -63,10 +64,13 @@ func (idler *UserIdler) GetChannel() chan model.User {
 // checkIdle verifies the state of conditions and decides if we should idle/unidle
 // and performs the required action if needed
 func (idler *UserIdler) checkIdle() error {
-	eval := idler.Conditions.Eval(idler.user)
+	eval, errors := idler.Conditions.Eval(idler.user)
+	if !errors.Empty() {
+		return errors.ToError()
+	}
 
+	idler.logger.WithField("eval", eval).Debug("Check idle state")
 	if eval {
-		idler.logger.WithField("eval", eval).Debug("Check idle state")
 		enabled, err := idler.isIdlerEnabled()
 		if err != nil {
 			return err
@@ -75,7 +79,6 @@ func (idler *UserIdler) checkIdle() error {
 			idler.doIdle()
 		}
 	} else {
-		idler.logger.WithField("eval", eval).Debug("Check idle state")
 		idler.doUnIdle()
 	}
 
