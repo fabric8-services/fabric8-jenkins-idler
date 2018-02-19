@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -53,6 +54,10 @@ func (u *User) HasBuilds() bool {
 
 func (u *User) AddJenkinsState(running bool, time time.Time, message string) {
 	u.JenkinsStateList = append(u.JenkinsStateList, JenkinsState{Running: running, Time: time, Message: message})
+}
+
+func (u *User) String() string {
+	return fmt.Sprintf("HasBuilds:%t HasActiveBuilds:%t JenkinsLastUpdate:%v", u.HasBuilds(), u.HasActiveBuilds(), u.JenkinsLastUpdate.Format(time.RFC822))
 }
 
 type JenkinsState struct {

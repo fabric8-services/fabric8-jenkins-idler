@@ -37,6 +37,7 @@ func NewUserIdler(user model.User, openShiftClient client.OpenShiftClient, confi
 		"username":  user.Name,
 		"id":        user.ID,
 	})
+	logEntry.Info("UserIdler created.")
 
 	conditions := createWatchConditions(config.GetProxyURL(), config.GetIdleAfter(), logEntry)
 
@@ -82,6 +83,7 @@ func (idler *UserIdler) checkIdle() error {
 }
 
 func (idler *UserIdler) Run(wg *sync.WaitGroup, ctx context.Context, cancel context.CancelFunc) {
+	idler.logger.Info("UserIdler started.")
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -92,11 +94,17 @@ func (idler *UserIdler) Run(wg *sync.WaitGroup, ctx context.Context, cancel cont
 				cancel()
 				return
 			case idler.user = <-idler.userChan:
-				idler.logger.Info("Receiving user data.")
-				idler.checkIdle()
+				idler.logger.WithField("data", idler.user).Info("Received user data.")
+				err := idler.checkIdle()
+				if err != nil {
+					idler.logger.WithField("error", err.Error()).Warn("Error during idle check.")
+				}
 			case <-time.After(time.Duration(idler.config.GetIdleAfter()) * time.Minute):
 				idler.logger.Info("IdleAfter timeout. Checking idle state.")
-				idler.checkIdle()
+				err := idler.checkIdle()
+				if err != nil {
+					idler.logger.WithField("error", err.Error()).Warn("Error during idle check.")
+				}
 			}
 		}
 	}()
@@ -116,7 +124,7 @@ func (idler *UserIdler) doIdle() error {
 			n = idler.user.DoneBuild.Metadata.Name
 			t = idler.user.DoneBuild.Status.CompletionTimestamp.Time
 		}
-		log.Info(fmt.Sprintf("I'd like to idle jenkins for %s as last build finished at %s", idler.user.Name, t))
+		idler.logger.Infof("About to idle Jenkins as last build finished at %v", t)
 		// Reset unidle retries and idle
 		idler.user.UnIdleRetried = 0
 		err := idler.openShiftClient.Idle(idler.user.Name+"-jenkins", "jenkins")
