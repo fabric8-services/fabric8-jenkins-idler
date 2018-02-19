@@ -89,6 +89,7 @@ func (idler *UserIdler) Run(wg *sync.WaitGroup, ctx context.Context, cancel cont
 	idler.logger.Info("UserIdler started.")
 	wg.Add(1)
 	go func() {
+		ticker := time.Tick(time.Duration(idler.config.GetIdleAfter()) * time.Minute)
 		defer wg.Done()
 		for {
 			select {
@@ -102,7 +103,7 @@ func (idler *UserIdler) Run(wg *sync.WaitGroup, ctx context.Context, cancel cont
 				if err != nil {
 					idler.logger.WithField("error", err.Error()).Warn("Error during idle check.")
 				}
-			case <-time.After(time.Duration(idler.config.GetIdleAfter()) * time.Minute):
+			case <-ticker:
 				idler.logger.Info("IdleAfter timeout. Checking idle state.")
 				err := idler.checkIdle()
 				if err != nil {
