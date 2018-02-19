@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/condition"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 	log "github.com/sirupsen/logrus"
-	"sync"
-	"time"
 )
 
 var logger = log.WithFields(log.Fields{"component": "user-idler"})
@@ -86,6 +87,7 @@ func (idler *UserIdler) Run(wg *sync.WaitGroup, ctx context.Context, cancel cont
 	idler.logger.Info("UserIdler started.")
 	wg.Add(1)
 	go func() {
+		ticker := time.Tick(time.Duration(idler.config.GetIdleAfter()) * time.Minute)
 		defer wg.Done()
 		for {
 			select {
@@ -99,7 +101,7 @@ func (idler *UserIdler) Run(wg *sync.WaitGroup, ctx context.Context, cancel cont
 				if err != nil {
 					idler.logger.WithField("error", err.Error()).Warn("Error during idle check.")
 				}
-			case <-time.After(time.Duration(idler.config.GetIdleAfter()) * time.Minute):
+			case <-ticker:
 				idler.logger.Info("IdleAfter timeout. Checking idle state.")
 				err := idler.checkIdle()
 				if err != nil {
