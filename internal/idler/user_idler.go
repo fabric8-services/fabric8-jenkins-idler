@@ -85,11 +85,11 @@ func (idler *UserIdler) checkIdle() error {
 	return nil
 }
 
-func (idler *UserIdler) Run(wg *sync.WaitGroup, ctx context.Context, cancel context.CancelFunc) {
+func (idler *UserIdler) Run(wg *sync.WaitGroup, ctx context.Context, cancel context.CancelFunc, idleAfter time.Duration) {
 	idler.logger.Info("UserIdler started.")
 	wg.Add(1)
 	go func() {
-		ticker := time.Tick(time.Duration(idler.config.GetIdleAfter()) * time.Minute)
+		ticker := time.Tick(idleAfter)
 		defer wg.Done()
 		for {
 			select {
@@ -98,13 +98,13 @@ func (idler *UserIdler) Run(wg *sync.WaitGroup, ctx context.Context, cancel cont
 				cancel()
 				return
 			case idler.user = <-idler.userChan:
-				idler.logger.WithField("data", idler.user).Info("Received user data.")
+				idler.logger.WithField("data", idler.user.String()).Info("Received user data.")
 				err := idler.checkIdle()
 				if err != nil {
 					idler.logger.WithField("error", err.Error()).Warn("Error during idle check.")
 				}
 			case <-ticker:
-				idler.logger.Info("IdleAfter timeout. Checking idle state.")
+				idler.logger.Info("IdleAfter timeout.")
 				err := idler.checkIdle()
 				if err != nil {
 					idler.logger.WithField("error", err.Error()).Warn("Error during idle check.")
