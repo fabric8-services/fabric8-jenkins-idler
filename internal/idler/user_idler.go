@@ -64,10 +64,13 @@ func (idler *UserIdler) GetChannel() chan model.User {
 // checkIdle verifies the state of conditions and decides if we should idle/unidle
 // and performs the required action if needed
 func (idler *UserIdler) checkIdle() error {
-	eval := idler.Conditions.Eval(idler.user)
+	eval, errors := idler.Conditions.Eval(idler.user)
+	if !errors.Empty() {
+		return errors.ToError()
+	}
 
+	idler.logger.WithField("eval", eval).Debug("Check idle state")
 	if eval {
-		idler.logger.WithField("eval", eval).Debug("Check idle state")
 		enabled, err := idler.isIdlerEnabled()
 		if err != nil {
 			return err
@@ -76,7 +79,6 @@ func (idler *UserIdler) checkIdle() error {
 			idler.doIdle()
 		}
 	} else {
-		idler.logger.WithField("eval", eval).Debug("Check idle state")
 		idler.doUnIdle()
 	}
 
@@ -187,22 +189,18 @@ func (idler *UserIdler) doUnIdle() error {
 }
 
 func createWatchConditions(proxyUrl string, idleAfter int, logEntry *log.Entry) *condition.Conditions {
-	conditionsMap := make(map[string]condition.Condition)
+	conditions := condition.NewConditions()
 
 	// Add a Build condition
-	conditionsMap["build"] = condition.NewBuildCondition(time.Duration(idleAfter) * time.Minute)
+	conditions.Add("build", condition.NewBuildCondition(time.Duration(idleAfter)*time.Minute))
 
 	// Add a DeploymentConfig condition
-	conditionsMap["DC"] = condition.NewDCCondition(time.Duration(idleAfter) * time.Minute)
+	conditions.Add("DC", condition.NewDCCondition(time.Duration(idleAfter)*time.Minute))
 
 	// If we have access to Proxy, add User condition
 	if len(proxyUrl) > 0 {
 		logEntry.Debug("Adding 'user' condition")
-		conditionsMap["user"] = condition.NewUserCondition(proxyUrl, time.Duration(idleAfter)*time.Minute)
-	}
-
-	conditions := condition.Conditions{
-		Conditions: conditionsMap,
+		conditions.Add("user", condition.NewUserCondition(proxyUrl, time.Duration(idleAfter)*time.Minute))
 	}
 
 	return &conditions
