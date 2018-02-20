@@ -15,7 +15,13 @@ type Condition interface {
 }
 
 type Conditions struct {
-	Conditions map[string]Condition
+	conditions map[string]Condition
+}
+
+func NewConditions() Conditions {
+	return Conditions{
+		conditions: make(map[string]Condition),
+	}
 }
 
 // Eval evaluates a list of Conditions for a given object. It returns false if
@@ -25,7 +31,7 @@ func (c *Conditions) Eval(o interface{}) (bool, util.MultiError) {
 	errors := util.MultiError{}
 
 	condStates := make(map[string]bool)
-	for name, ci := range c.Conditions {
+	for name, ci := range c.conditions {
 		r, err := ci.Eval(o)
 		if err != nil {
 			log.Error(err)
@@ -39,6 +45,10 @@ func (c *Conditions) Eval(o interface{}) (bool, util.MultiError) {
 
 	log.Debugf("Conditions: %t = %s", result, c.conditionMapToString(condStates))
 	return result, errors
+}
+
+func (c *Conditions) Add(name string, condition Condition) {
+	c.conditions[name] = condition
 }
 
 func (c *Conditions) conditionMapToString(conditions map[string]bool) string {

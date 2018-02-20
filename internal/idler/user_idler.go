@@ -188,22 +188,18 @@ func (idler *UserIdler) doUnIdle() error {
 }
 
 func createWatchConditions(proxyUrl string, idleAfter int, logEntry *log.Entry) *condition.Conditions {
-	conditionsMap := make(map[string]condition.Condition)
+	conditions := condition.NewConditions()
 
 	// Add a Build condition
-	conditionsMap["build"] = condition.NewBuildCondition(time.Duration(idleAfter) * time.Minute)
+	conditions.Add("build", condition.NewBuildCondition(time.Duration(idleAfter)*time.Minute))
 
 	// Add a DeploymentConfig condition
-	conditionsMap["DC"] = condition.NewDCCondition(time.Duration(idleAfter) * time.Minute)
+	conditions.Add("DC", condition.NewDCCondition(time.Duration(idleAfter)*time.Minute))
 
 	// If we have access to Proxy, add User condition
 	if len(proxyUrl) > 0 {
 		logEntry.Debug("Adding 'user' condition")
-		conditionsMap["user"] = condition.NewUserCondition(proxyUrl, time.Duration(idleAfter)*time.Minute)
-	}
-
-	conditions := condition.Conditions{
-		Conditions: conditionsMap,
+		conditions.Add("user", condition.NewUserCondition(proxyUrl, time.Duration(idleAfter)*time.Minute))
 	}
 
 	return &conditions
