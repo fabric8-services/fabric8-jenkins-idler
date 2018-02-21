@@ -1,54 +1,122 @@
-# Jenkins Controller
+# Jenkins Idler [![Build Status](https://ci.centos.org/buildStatus/icon?job=devtools-fabric8-jenkins-idler-build-master)](https://ci.centos.org/job/devtools-fabric8-jenkins-idler-build-master/) [![Build Status](https://travis-ci.org/fabric8-services/fabric8-jenkins-idler.svg?branch=master)](https://travis-ci.org/fabric8-services/fabric8-jenkins-idler)
 
-This service watches builds in OpenShift and idles/unidles Jenkins for given namespaces when needed
 
-It requires following secrets and configmaps living in different repos to be applied:
+<!-- MarkdownTOC -->
 
-* https://github.com/fabric8-services/fabric8-tenant/blob/master/f8tenant.secrets.yaml (uses `openshift.tenant.masterurl`)
-* ... (#FIXME)
+- [What is it?](#what-is-it)
+- [How to build](#how-to-build)
+	- [Prerequisites](#prerequisites)
+	- [Make usage](#make-usage)
+		- [Compile the code](#compile-the-code)
+		- [Build the container image](#build-the-container-image)
+		- [Run the tests](#run-the-tests)
+		- [Format the code](#format-the-code)
+		- [Check commit message format](#check-commit-message-format)
+		- [Clean up](#clean-up)
+	- [Dependency management](#dependency-management)
+	- [Continuous Integration](#continuous-integration)
+- [Misc](#misc)
+- [How to contribute?](#how-to-contribute)
 
-## Problem Statement
+<!-- /MarkdownTOC -->
 
-There is a Jenkins instance running for each tenant in OpenShift.io. Currently, these instance are up all the time which means `# of tenant * 1 GB of memory` allocated even when there is nothing happening in any of Jenkins instance.
+<a name="what-is-it"></a>
+# What is it?
 
-Goal for this (fabric8-jenkins-idler) service is to watch for activity and idle/unidle Jenkins for tenants as needed.
-
-There are couple triggeres which might need Jenkins to be unidled:
-
-* (Github) Webhooks
-* User accessing Jenkins UI/API
-* A build started in OpenShift
-
-### (Github) Webhooks
-
-**Problem:** Github sets 10s timeout for webhooks, which means that if Jenkins does not respond with `200` in 10s, webhook call will be considered failed
-**Proposed Solution:** Create a webhook proxy which will accept the request, verify user & jenkins exist and return `200` (if it does exist) or `404` (if it does not). Then it will buffer the request and un-idle Jenkins. Once Jenkins is running, it'll re-fire the request to the Jenkins to kick off the build.
-**Another Solution:** Don't use Jenkins webhooks - OpenShift provides it's own build webhooks and thus we could configure those instead of Jenkins ones. Problem with this is that Fabric8 would be locked into OpenShift and could not run on plain Kubernetes (or other orchastrations which do not support these build webhooks)
-
-### User accessing Jenkins UI/API
-
-**Problem:** There are actually 2 problems here:
-
-1. Jenkins could get idled while user is using it.
-2. User experience is not good when unidling slowly-starting service (Jenkins takes 1-1.5 minutes to start)
-
-First issue might occure when user is looking into UI while a build is finished for some time already and idling event from idler happens. As we have (currently) no way to know a user is accessing the UI/API, we'd idle based on finished builds and the UI/API would went down under user's hands.
-
-Second issue is that user gets `50x` error from OpenShift when a service is idled (or does not exist at all). That is fine for webservices which can start in up to seconds - timeout is long enough to keep the connection up and wait for response. But as Jenkins often takes over a minute to start, the connection times out and it looks like Jenkins does not exist at all to the user.
-
-**Proposed Solution:** Create a proxy (similar to webhooks) which will return a loading page stating Jenkins is starting and regularly poll the proxy API to see if Jenkins is ready. Once it's up, it can redirect (not nice UX) or proxy (needs auth from user and token swap in headers - OSIO token -> OSO token) the Jenkins content.
-
-### A build starter in OpenShift
-
-**Problem:** OpenShift has a notion of builds (with its BuildConfig and Build objects). These objects are followed by a Jenkins plugin which then, based on changes in OpenShift objects, performs actions in Jenkins. The problem for us is the nature of implementation - Jenkins is polling OpenShift for information and pushing information back. So when you start a build in OpenShift while Jenkins is idled (i.e. is not running) nothing will happen and the build will hang there indefinitely.
-
-**Proposed Soltion:** Let's create a different service which will follow builds for all users and unidle Jenkins if there is a new build coming. At the same time, it will idle Jenkins when there is not build/activity happening for a long time.
-
-# Architecture
+The Jenkins Idler is a service which idles perspectively unidles a tenant's Jenkins instance.
+In order to determine whether a Jenkins instance can be idled, the Idler monitors OpenShift Build and DeploymentConfig changes.
+It also keeps track of direct access to the UI as well as GitHub webhook deliveries.
 
 ![Idler Architecture](https://docs.google.com/drawings/d/e/2PACX-1vRht1rgNES66f729QUcN5oGSxtTSGVgUL_8r_c-K_Jr-iK0FWeHDak5I32l1yMiY-tN-nqQhIRYvo1G/pub?w=426&h=441)
 
-1. Idler watches build objects changes in OpenShift
-2. Idler controls state of Jenkins DeploymentConfig in OpenShift (Is it up? Should it be idled? Idle it! Unidle it!)
-3. Idler is checking Jenkins Proxy for number of buffered webhook requests and last access  to Jenkins from user
-4. Proxy caches webhook requests while Jenkins is unidling and proxies traffic to Jenkins
+1. Idler watches Build and DeploymentConfig changes in OpenShift
+2. Idler controls the state of Jenkins DeploymentConfig in OpenShift
+3. Idler is checking Jenkins Proxy for number of buffered webhook requests and last access to Jenkins UI
+4. Proxy caches webhook requests while Jenkins is un-idling
+
+Jenkins Idler is the sister project to [fabric8-jenkins-proxy](https://github.com/fabric8-services/fabric8-jenkins-proxy)(Jenkins Proxy).
+
+<a name="how-to-build"></a>
+# How to build
+
+The following paragraphs describe how to build and work with the source.
+
+<a name="prerequisites"></a>
+## Prerequisites
+
+The project is written in [Go](https://golang.org/), so you will need a working Go installation (Go version >= 1.8.3).
+
+The build itself is driven by GNU [Make](https://www.gnu.org/software/make/) which also needs to be installed on your systems.
+
+Last but not least, you need a running Docker daemon, since the final build artifact is a Docker container. Also of the unit tests make use of Docker.
+
+<a name="make-usage"></a>
+## Make usage
+
+<a name="compile-the-code"></a>
+### Compile the code
+
+   $ make build
+
+<a name="build-the-container-image"></a>
+### Build the container image
+
+   $ make image
+
+<a name="run-the-tests"></a>
+### Run the tests
+
+   $ make test
+
+<a name="format-the-code"></a>
+### Format the code
+
+   $ make fmt
+
+<a name="check-commit-message-format"></a>
+### Check commit message format
+
+   $ make validate_commits
+
+<a name="clean-up"></a>
+### Clean up
+
+   $ make clean
+
+More help is provided by `make help`.
+
+<a name="dependency-management"></a>
+## Dependency management
+
+The dependencies of the project are managed by [Dep](https://github.com/golang/dep).
+To add or change the current dependencies you need to delete the Dep lock file (_Gopkg.lock_), update the dependency list (_Gopkg.toml_) and then regenerate the lock file.
+The process looks like this:
+
+    $ make clean
+    $ rm Gopkg.lock
+    # Update Gopkg.toml with the changes to the dependencies
+    $ make build
+    $ git add Gopkg.toml Gopkg.lock
+    $ git commit
+
+<a name="continuous-integration"></a>
+## Continuous Integration
+
+At the moment Travis CI and CentOS CI are configured.
+Both CI systems build all merges to master as well as pull requests.
+
+| CI System |   |
+|-----------|---|
+| CentOS CI | [master](https://ci.centos.org/job/devtools-fabric8-jenkins-idler-build-master/), [pr](https://ci.centos.org/job/devtools-fabric8-jenkins-idler/)|
+| Travis CI | [master](https://travis-ci.org/fabric8-services/fabric8-jenkins-idler/), [pr](https://travis-ci.org/fabric8-services/fabric8-jenkins-idler/pull_requests)|
+
+<a name="misc"></a>
+# Misc
+
+* The original [problem statement](./docs/problem-statement.md).
+* [Service operations](https://docs.google.com/document/d/14rKA_Uxve5f_mFNK4vhKhXrMcquiy25AQ5tpHJQwtbc/edit#heading=h.x2mo7jq5mjcz) within OpenShift.io.
+
+<a name="how-to-contribute"></a>
+# How to contribute?
+
+If you want to contribute, make sure to follow the [contribution guidelines](./CONTRIBUTING.md) when you open issues or submit pull requests.
