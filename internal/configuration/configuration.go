@@ -36,6 +36,7 @@ func init() {
 
 	// debug
 	settings["GetDebugMode"] = Setting{"JC_DEBUG_MODE", "false", []func(interface{}, string) error{util.IsBool}}
+	settings["GetFixedUuids"] = Setting{"JC_FIXED_UUIDS", "", []func(interface{}, string) error{}}
 }
 
 type Setting struct {
@@ -71,6 +72,10 @@ type Configuration interface {
 
 	// GetDebugMode returns if debug mode should be enabled.
 	GetDebugMode() bool
+
+	// GetFixedUuids returns a slice of fixed user uuids. If set, a custom Features implementation is instantiated
+	// which only enabled the idler feature for the specified list of users. This is mainly used for local dev only.
+	GetFixedUuids() []string
 
 	// Verify validates the configuration and returns an error in case the configuration is missing required settings
 	// or contains invalid settings. If the configuration is correct nil is returned.
@@ -164,6 +169,19 @@ func (c *EnvConfig) GetDebugMode() bool {
 	b, _ := strconv.ParseBool(value)
 
 	return b
+}
+
+// GetFixedUuids returns a slice of fixed user uuids. The uuids are specified comma separated in the environment variable
+// JC_FIXED_UUIDS.
+func (c *EnvConfig) GetFixedUuids() []string {
+	callPtr, _, _, _ := runtime.Caller(0)
+	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
+
+	if len(value) == 0 {
+		return []string{}
+	}
+
+	return strings.Split(value, ",")
 }
 
 // Verify checks whether all needed config options are set
