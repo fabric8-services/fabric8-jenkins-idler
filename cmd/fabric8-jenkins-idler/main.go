@@ -31,7 +31,7 @@ func init() {
 func main() {
 	log.Infof("Idler version: %s", version.GetVersion())
 
-	//Init configuration
+	// Init configuration
 	config, err := configuration.NewConfiguration()
 	if err != nil {
 		log.Fatal(err)
@@ -46,8 +46,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	//Create Toggle (Unleash) Service client
-	features, err := toggles.NewUnleashToggle(config.GetToggleURL())
+	// Create Toggle (Unleash) Service client
+	var features toggles.Features
+	if len(config.GetFixedUuids()) > 0 {
+		log.Infof("Using fixed UUID list for toggle feature: %s", config.GetFixedUuids())
+		features, err = toggles.NewFixedUuidToggle(config.GetFixedUuids())
+	} else {
+		features, err = toggles.NewUnleashToggle(config.GetToggleURL())
+	}
 	if err != nil {
 		log.Fatal(err)
 	}

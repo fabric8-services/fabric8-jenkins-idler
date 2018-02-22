@@ -23,6 +23,7 @@ type config struct {
 
 func Test_configuration_settings(t *testing.T) {
 	defer os.Clearenv()
+
 	var testConfigs = []config{
 		{"http://localhost", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", []string{}},
 		{"https://localhost", "https://localhost", "https://localhost", "https://localhost", "token-1", "token-2", "10", "15", []string{}},
@@ -37,6 +38,7 @@ func Test_configuration_settings(t *testing.T) {
 	}
 
 	for _, testConfig := range testConfigs {
+		os.Clearenv()
 		for _, setting := range settings {
 			configValue, ok := getConfigValueForEnvKey(&testConfig, setting.key)
 			if ok {
@@ -57,15 +59,41 @@ func Test_configuration_settings(t *testing.T) {
 
 		assert.Equal(t, testConfig.errors, errorMessages, fmt.Sprintf("Errors don't match for config %v", testConfig))
 	}
-
 }
 
 func Test_default_values(t *testing.T) {
+	os.Clearenv()
+	defer os.Clearenv()
+
 	config, err := NewConfiguration()
 	assert.NoError(t, err, "Creating the configuration failed unexpectedly.")
-	assert.False(t, config.GetDebugMode(), "The default value for profileing should be false.")
+	assert.False(t, config.GetDebugMode(), "The default value for profiling should be false.")
 	assert.Equal(t, config.GetIdleAfter(), defaultIdleAfter, "Unexpected default value for idle after.")
 	assert.Equal(t, config.GetUnIdleRetry(), defaultIUnIdleRetry, "Unexpected default value for number of unidle retries.")
+}
+
+func Test_fixed_uuid(t *testing.T) {
+	defer os.Clearenv()
+
+	var tests = []struct {
+		value  string
+		result []string
+	}{
+		{value: "42", result: []string{"42"}},
+		{value: "42,1001", result: []string{"42", "1001"}},
+		{value: "", result: []string{}},
+	}
+
+	for _, test := range tests {
+		os.Clearenv()
+		os.Setenv("JC_FIXED_UUIDS", test.value)
+
+		config, err := NewConfiguration()
+		assert.NoError(t, err, "Creating the configuration failed unexpectedly.")
+
+		uuids := config.GetFixedUuids()
+		assert.Equal(t, test.result, uuids, "Unexpected uuids.")
+	}
 }
 
 func getConfigValueForEnvKey(v *config, key string) (string, bool) {

@@ -41,6 +41,10 @@ func (c *MockConfig) GetDebugMode() bool {
 	return false
 }
 
+func (c *MockConfig) GetFixedUuids() []string {
+	return []string{}
+}
+
 func (c *MockConfig) Verify() util.MultiError {
 	return util.MultiError{}
 }

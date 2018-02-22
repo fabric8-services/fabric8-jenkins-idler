@@ -34,6 +34,7 @@ Sample usage (in your shell from the root of fabric8-jenkins-idler):
 > export DSAAS_PREVIEW_TOKEN=<dsaas-preview token>
 > export JC_OPENSHIFT_API_TOKEN=<OpenShift API token>
 > export JC_AUTH_TOKEN=<auth token>
+> export JC_FIXED_UUIDS=<list of uuids to enable for idling>
 > ./scripts/${0##*/} start
 > eval \$(./scripts/${0##*/} env)
 > fabric8-jenkins-idler
@@ -180,6 +181,7 @@ start() {
 env() {
     [ -z "${JC_OPENSHIFT_API_TOKEN}" ] && printHelp && exit 1
     [ -z "${JC_AUTH_TOKEN}" ] && printHelp && exit 1
+    [ -z "${JC_FIXED_UUIDS}" ] && printHelp && exit 1
 
     echo export JC_OPENSHIFT_API_URL=https://api.free-stg.openshift.com
     echo export JC_OPENSHIFT_API_TOKEN=${JC_OPENSHIFT_API_TOKEN}
@@ -188,6 +190,7 @@ env() {
     echo export JC_JENKINS_PROXY_API_URL=http://localhost:${LOCAL_PROXY_PORT}
     echo export JC_F8TENANT_API_URL=http://localhost:${LOCAL_TENANT_PORT}
     echo export JC_TOGGLE_API_URL=http://localhost:${LOCAL_TOGGLE_PORT}/api
+    echo export JC_FIXED_UUIDS=${JC_FIXED_UUIDS}
 }
 
 ###############################################################################
