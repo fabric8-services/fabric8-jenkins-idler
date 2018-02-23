@@ -3,6 +3,9 @@
 # Used to run Idler locally.
 #
 
+set -o errexit
+set -o pipefail
+
 LOCAL_PROXY_PORT=${LOCAL_PROXY_PORT:-9101}
 LOCAL_TENANT_PORT=${LOCAL_TENANT_PORT:-9102}
 LOCAL_TOGGLE_PORT=${LOCAL_TOGGLE_PORT:-9103}
@@ -19,21 +22,23 @@ LOCAL_DEFAULT_IDLE_TIME=${LOCAL_DEFAULT_IDLE_TIME:-30}
 ###############################################################################
 printHelp() {
     cat << EOF
-Usage: ${0##*/} [start|stop]
+Usage: ${0##*/} [start|stop|env]
 
 This script is used to run the Jenkins Idler on localhost.
-As a prerequisite DSAAS_PREVIEW_TOKEN, JC_OPENSHIFT_API_TOKEN and  JC_AUTH_TOKEN need to be exported
-in the shell you run this script.
 
-DSAAS_PREVIEW_TOKEN is the OpenShift token for console.rh-idev.openshift.com, JC_OPENSHIFT_API_TOKEN is
-the service account token used by the Idler and  JC_AUTH_TOKEN is the authentication token for the auth service
-used by the Idler.
+As a prerequisite your OpenShift access token for dsaas-preview must be exported as DSAAS_PREVIEW_TOKEN.
+You can get this token by logging in to https://console.rh-idev.openshift.com/ and select the
+"Command Line Tools" option. You do need edit permissions for dsaas-preview in order to port-forward.
+
+You also need to export JC_FIXED_UUIDS to limit the users which get affected by this running instance.
+This is to avoid creating side-effects with the running Idler in dsaas-preview.
+
+You can determine a users UUID by running:
+> curl -sgSL https://api.prod-preview.openshift.io/api/users?filter[email]=john.doe@example.com | jq .data[0].id
 
 Sample usage (in your shell from the root of fabric8-jenkins-idler):
 
 > export DSAAS_PREVIEW_TOKEN=<dsaas-preview token>
-> export JC_OPENSHIFT_API_TOKEN=<OpenShift API token>
-> export JC_AUTH_TOKEN=<auth token>
 > export JC_FIXED_UUIDS=<list of uuids to enable for idling>
 > ./scripts/${0##*/} start
 > eval \$(./scripts/${0##*/} env)
@@ -41,7 +46,7 @@ Sample usage (in your shell from the root of fabric8-jenkins-idler):
 
 To stop:
 
-> ./scripts/$(${0##*/}) start
+> ./scripts/${0##*/} stop
 EOF
 }
 
@@ -55,7 +60,7 @@ EOF
 #   None
 ###############################################################################
 loc() {
-    oc -n dsaas-preview --token ${DSAAS_PREVIEW_TOKEN} $@
+    oc --config $(dirname $0)/config $@
 }
 
 ###############################################################################
@@ -151,6 +156,43 @@ forwardToggleService() {
 }
 
 ###############################################################################
+# Retrieves the required OpenShift and Auth token from
+# Globals:
+#   JC_OPENSHIFT_API_TOKEN - OpenShift service account token used to monitor
+#                            OpenShift events
+#   JC_AUTH_TOKEN          - Auth token for the auth service
+# Arguments:
+#   None
+# Returns:
+#   None
+###############################################################################
+setTokens() {
+    pod=$(loc get pods -l deploymentconfig=jenkins-idler -o json | jq -r '.items[0].metadata.name')
+    if [ "${pod}" == "null" ] ; then
+        echo "WARN: Unable to determine Idler pod name"
+        return
+    fi
+
+    export JC_AUTH_TOKEN=$(loc exec ${pod} env | grep JC_AUTH_TOKEN | sed -e 's/JC_AUTH_TOKEN=//')
+    export JC_OPENSHIFT_API_TOKEN=$(loc exec ${pod} env | grep JC_OPENSHIFT_API_TOKEN | sed -e 's/JC_OPENSHIFT_API_TOKEN=//')
+}
+
+###############################################################################
+# Ensures login to OpenShift
+# Globals:
+#   None
+# Arguments:
+#   None
+# Returns:
+#   None
+###############################################################################
+login() {
+    [ -z "${DSAAS_PREVIEW_TOKEN}" ] && echo "DSAAS_PREVIEW_TOKEN needs to be exported." && printHelp && exit 1
+
+    loc login https://api.rh-idev.openshift.com -n dsaas-preview --token=${DSAAS_PREVIEW_TOKEN} >/dev/null
+}
+
+###############################################################################
 # Starts the port forwarding.
 # Globals:
 #   None
@@ -160,10 +202,9 @@ forwardToggleService() {
 #   None
 ###############################################################################
 start() {
-    [ -z "${DSAAS_PREVIEW_TOKEN}" ] && printHelp && exit 1
-    [ -z "${JC_OPENSHIFT_API_TOKEN}" ] && printHelp && exit 1
-    [ -z "${JC_AUTH_TOKEN}" ] && printHelp && exit 1
+    [ -z "${DSAAS_PREVIEW_TOKEN}" ] && echo "DSAAS_PREVIEW_TOKEN needs to be exported." && printHelp && exit 1
 
+    login
     forwardProxyService &
     forwardTenantService &
     forwardToggleService &
@@ -179,9 +220,11 @@ start() {
 #   None
 ###############################################################################
 env() {
-    [ -z "${JC_OPENSHIFT_API_TOKEN}" ] && printHelp && exit 1
-    [ -z "${JC_AUTH_TOKEN}" ] && printHelp && exit 1
-    [ -z "${JC_FIXED_UUIDS}" ] && printHelp && exit 1
+    [ -z "${DSAAS_PREVIEW_TOKEN}" ] && echo "DSAAS_PREVIEW_TOKEN needs to be exported." && printHelp && exit 1
+    [ -z "${JC_FIXED_UUIDS}" ] && echo "JC_FIXED_UUID needs to be exported." && printHelp && exit 1
+
+    login
+    setTokens
 
     echo export JC_OPENSHIFT_API_URL=https://api.free-stg.openshift.com
     echo export JC_OPENSHIFT_API_TOKEN=${JC_OPENSHIFT_API_TOKEN}
@@ -204,7 +247,7 @@ env() {
 ###############################################################################
 stop() {
     pids=$(pgrep -a -f -d " " "setupLocalIdler.sh start")
-    pids+=$(pgrep -a -f -d " " "oc -n dsaas-preview --token")
+    pids+=$(pgrep -a -f -d " " "oc --config $(dirname $0)/config")
     kill -9 ${pids}
 }
 

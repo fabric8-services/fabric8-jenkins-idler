@@ -5,16 +5,17 @@
 
 - [What is it?](#what-is-it)
 - [How to build](#how-to-build)
-	- [Prerequisites](#prerequisites)
-	- [Make usage](#make-usage)
-		- [Compile the code](#compile-the-code)
-		- [Build the container image](#build-the-container-image)
-		- [Run the tests](#run-the-tests)
-		- [Format the code](#format-the-code)
-		- [Check commit message format](#check-commit-message-format)
-		- [Clean up](#clean-up)
-	- [Dependency management](#dependency-management)
-	- [Continuous Integration](#continuous-integration)
+  - [Prerequisites](#prerequisites)
+  - [Make usage](#make-usage)
+    - [Compile the code](#compile-the-code)
+    - [Build the container image](#build-the-container-image)
+    - [Run the tests](#run-the-tests)
+    - [Format the code](#format-the-code)
+    - [Check commit message format](#check-commit-message-format)
+    - [Clean up](#clean-up)
+  - [Dependency management](#dependency-management)
+  - [Continuous Integration](#continuous-integration)
+  - [Running locally](#running-locally)
 - [Misc](#misc)
 - [How to contribute?](#how-to-contribute)
 
@@ -109,6 +110,16 @@ Both CI systems build all merges to master as well as pull requests.
 |-----------|---|
 | CentOS CI | [master](https://ci.centos.org/job/devtools-fabric8-jenkins-idler-build-master/), [pr](https://ci.centos.org/job/devtools-fabric8-jenkins-idler/)|
 | Travis CI | [master](https://travis-ci.org/fabric8-services/fabric8-jenkins-idler/), [pr](https://travis-ci.org/fabric8-services/fabric8-jenkins-idler/pull_requests)|
+
+<a name="running-locally"></a>
+## Running locally
+
+The repository contains a script [`setupLocalIdler.sh`](./scripts/setupLocalIdler.sh) which can be used to run the Idler locally.
+A prerequisite for this is access to https://console.rh-idev.openshift.com/.
+To run the script you need to export your OpenShift access token for console.rh-idev.openshift.com as DSAAS_PREVIEW_TOKEN.
+Note, you need edit permissions on the dsaas-preview namespace in order to port forward.
+You also need to make sure to limit the Idler feature to a specific set of users by setting JC_FIXED_UUIDS to a comma separated list of dedicated user UUIDs.
+For more information refer to help of `setupLocalIdler.sh` itself.
 
 <a name="misc"></a>
 # Misc

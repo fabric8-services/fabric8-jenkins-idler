@@ -2,6 +2,7 @@
 vendor
 tools.timestamp
 out
+scripts/config
 
 # Idea
 .idea
