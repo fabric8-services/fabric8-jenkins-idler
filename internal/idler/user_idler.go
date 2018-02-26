@@ -2,8 +2,6 @@ package idler
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -18,18 +16,22 @@ import (
 var logger = log.WithFields(log.Fields{"component": "user-idler"})
 
 const (
-	bufferSize = 10
+	bufferSize             = 10
+	jenkinsServiceName     = "jenkins"
+	jenkinsNamespaceSuffix = "-jenkins"
 )
 
 type UserIdler struct {
-	openShiftClient  client.OpenShiftClient
-	maxUnIdleRetries int
-	Conditions       *condition.Conditions
-	logger           *log.Entry
-	userChan         chan model.User
-	user             model.User
-	config           configuration.Configuration
-	features         toggles.Features
+	openShiftClient client.OpenShiftClient
+	maxRetries      int
+	idleAttempts    int
+	unIdleAttempts  int
+	Conditions      *condition.Conditions
+	logger          *log.Entry
+	userChan        chan model.User
+	user            model.User
+	config          configuration.Configuration
+	features        toggles.Features
 }
 
 func NewUserIdler(user model.User, openShiftClient client.OpenShiftClient, config configuration.Configuration, features toggles.Features) *UserIdler {
@@ -45,14 +47,16 @@ func NewUserIdler(user model.User, openShiftClient client.OpenShiftClient, confi
 	userChan := make(chan model.User, bufferSize)
 
 	userIdler := UserIdler{
-		openShiftClient:  openShiftClient,
-		maxUnIdleRetries: config.GetUnIdleRetry(),
-		Conditions:       conditions,
-		logger:           logEntry,
-		userChan:         userChan,
-		user:             user,
-		config:           config,
-		features:         features,
+		openShiftClient: openShiftClient,
+		maxRetries:      config.GetMaxRetries(),
+		idleAttempts:    0,
+		unIdleAttempts:  0,
+		Conditions:      conditions,
+		logger:          logEntry,
+		userChan:        userChan,
+		user:            user,
+		config:          config,
+		features:        features,
 	}
 	return &userIdler
 }
@@ -85,11 +89,11 @@ func (idler *UserIdler) checkIdle() error {
 	return nil
 }
 
-func (idler *UserIdler) Run(wg *sync.WaitGroup, ctx context.Context, cancel context.CancelFunc, idleAfter time.Duration) {
+func (idler *UserIdler) Run(wg *sync.WaitGroup, ctx context.Context, cancel context.CancelFunc, checkIdle time.Duration) {
 	idler.logger.Info("UserIdler started.")
 	wg.Add(1)
 	go func() {
-		ticker := time.Tick(idleAfter)
+		ticker := time.Tick(checkIdle)
 		defer wg.Done()
 		for {
 			select {
@@ -99,12 +103,14 @@ func (idler *UserIdler) Run(wg *sync.WaitGroup, ctx context.Context, cancel cont
 				return
 			case idler.user = <-idler.userChan:
 				idler.logger.WithField("data", idler.user.String()).Info("Received user data.")
+
 				err := idler.checkIdle()
 				if err != nil {
 					idler.logger.WithField("error", err.Error()).Warn("Error during idle check.")
 				}
 			case <-ticker:
-				idler.logger.Info("IdleAfter timeout.")
+				idler.logger.Info("Time based idle check.")
+				idler.resetCounters()
 				err := idler.checkIdle()
 				if err != nil {
 					idler.logger.WithField("error", err.Error()).Warn("Error during idle check.")
@@ -115,28 +121,45 @@ func (idler *UserIdler) Run(wg *sync.WaitGroup, ctx context.Context, cancel cont
 }
 
 func (idler *UserIdler) doIdle() error {
-	//Check if Jenkins is running
-	ns := idler.user.Name + "-jenkins"
-	state, err := idler.openShiftClient.IsIdle(ns, "jenkins")
+	if idler.idleAttempts >= idler.maxRetries {
+		idler.logger.Warn("Skipping idle request since max retry count has been reached.")
+		return nil
+	}
+
+	state, err := idler.getJenkinsState()
 	if err != nil {
 		return err
 	}
+
 	if state > model.JenkinsIdled {
-		var n string
-		var t time.Time
-		if idler.user.HasCompletedBuilds() {
-			n = idler.user.DoneBuild.Metadata.Name
-			t = idler.user.DoneBuild.Status.CompletionTimestamp.Time
-		}
-		idler.logger.Infof("About to idle Jenkins as last build finished at %v", t)
-		// Reset unidle retries and idle
-		idler.user.UnIdleRetried = 0
-		err := idler.openShiftClient.Idle(idler.user.Name+"-jenkins", "jenkins")
+		idler.logger.Info("About to idle Jenkins")
+		idler.incrementIdleAttempts()
+		err := idler.openShiftClient.Idle(idler.user.Name+jenkinsNamespaceSuffix, jenkinsServiceName)
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
 
-		idler.user.AddJenkinsState(false, time.Now().UTC(), fmt.Sprintf("Jenkins Idled for %s, finished at %s", n, t))
+func (idler *UserIdler) doUnIdle() error {
+	if idler.unIdleAttempts >= idler.maxRetries {
+		idler.logger.Warn("Skipping un-idle request since max retry count has been reached.")
+		return nil
+	}
+
+	state, err := idler.getJenkinsState()
+	if err != nil {
+		return err
+	}
+
+	if state == model.JenkinsIdled {
+		idler.logger.Info("About to un-idle Jenkins")
+		idler.incrementUnIdleAttempts()
+		err := idler.openShiftClient.UnIdle(idler.user.Name+jenkinsNamespaceSuffix, jenkinsServiceName)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -156,36 +179,26 @@ func (idler *UserIdler) isIdlerEnabled() (bool, error) {
 	}
 }
 
-func (idler *UserIdler) doUnIdle() error {
-	ns := idler.user.Name + "-jenkins"
-	state, err := idler.openShiftClient.IsIdle(ns, "jenkins")
+func (idler *UserIdler) getJenkinsState() (int, error) {
+	ns := idler.user.Name + jenkinsNamespaceSuffix
+	state, err := idler.openShiftClient.IsIdle(ns, jenkinsServiceName)
 	if err != nil {
-		return err
+		return -1, err
 	}
-	if state == model.JenkinsIdled {
-		log.Debug("Potential un-idling event")
+	return state, nil
+}
 
-		//Skip some retries,but check from time to time if things are fixed
-		if idler.user.UnIdleRetried > idler.maxUnIdleRetries && (idler.user.UnIdleRetried%idler.maxUnIdleRetries != 0) {
-			idler.user.UnIdleRetried++
-			log.Debug(fmt.Sprintf("Skipping unidle for %s, too many retries", idler.user.Name))
-			return nil
-		}
-		var n string
-		var t time.Time
-		if idler.user.HasActiveBuilds() {
-			n = idler.user.ActiveBuild.Metadata.Name
-			t = idler.user.ActiveBuild.Status.CompletionTimestamp.Time
-		}
-		//Inc unidle retries
-		idler.user.UnIdleRetried++
-		err := idler.openShiftClient.UnIdle(ns, "jenkins")
-		if err != nil {
-			return errors.New(fmt.Sprintf("Could not unidle Jenkins: %s", err))
-		}
-		idler.user.AddJenkinsState(true, time.Now().UTC(), fmt.Sprintf("Jenkins Unidled for %s at %s", n, t))
-	}
-	return nil
+func (idler *UserIdler) incrementIdleAttempts() {
+	idler.idleAttempts++
+}
+
+func (idler *UserIdler) incrementUnIdleAttempts() {
+	idler.unIdleAttempts++
+}
+
+func (idler *UserIdler) resetCounters() {
+	idler.idleAttempts = 0
+	idler.unIdleAttempts = 0
 }
 
 func createWatchConditions(proxyUrl string, idleAfter int, logEntry *log.Entry) *condition.Conditions {

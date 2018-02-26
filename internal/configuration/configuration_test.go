@@ -17,7 +17,8 @@ type config struct {
 	JC_OPENSHIFT_API_TOKEN   string
 	JC_AUTH_TOKEN            string
 	JC_IDLE_AFTER            string
-	JC_UN_IDLE_RETRY         string
+	JC_MAX_RETRIES           string
+	JC_CHECK_INTERVAL        string
 	errors                   []string
 }
 
@@ -25,16 +26,16 @@ func Test_configuration_settings(t *testing.T) {
 	defer os.Clearenv()
 
 	var testConfigs = []config{
-		{"http://localhost", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", []string{}},
-		{"https://localhost", "https://localhost", "https://localhost", "https://localhost", "token-1", "token-2", "10", "15", []string{}},
-		{"", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
-		{"foo", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
-		{"/foo", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
-		{"ftp://snafu", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
-		{"", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
-		{"http://localhost", "", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", []string{"Value for JC_JENKINS_PROXY_API_URL needs to be a valid URL."}},
-		{"http://localhost", "http://localhost", "", "http://localhost", "token-1", "token-2", "10", "15", []string{"Value for JC_F8TENANT_API_URL needs to be a valid URL."}},
-		{"http://localhost", "http://localhost", "http://localhost", "", "token-1", "token-2", "10", "15", []string{"Value for JC_TOGGLE_API_URL needs to be a valid URL."}},
+		{"http://localhost", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{}},
+		{"https://localhost", "https://localhost", "https://localhost", "https://localhost", "token-1", "token-2", "10", "15", "15", []string{}},
+		{"", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
+		{"foo", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
+		{"/foo", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
+		{"ftp://snafu", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
+		{"", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
+		{"http://localhost", "", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"Value for JC_JENKINS_PROXY_API_URL needs to be a valid URL."}},
+		{"http://localhost", "http://localhost", "", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"Value for JC_F8TENANT_API_URL needs to be a valid URL."}},
+		{"http://localhost", "http://localhost", "http://localhost", "", "token-1", "token-2", "10", "15", "15", []string{"Value for JC_TOGGLE_API_URL needs to be a valid URL."}},
 	}
 
 	for _, testConfig := range testConfigs {
@@ -69,7 +70,8 @@ func Test_default_values(t *testing.T) {
 	assert.NoError(t, err, "Creating the configuration failed unexpectedly.")
 	assert.False(t, config.GetDebugMode(), "The default value for profiling should be false.")
 	assert.Equal(t, config.GetIdleAfter(), defaultIdleAfter, "Unexpected default value for idle after.")
-	assert.Equal(t, config.GetUnIdleRetry(), defaultIUnIdleRetry, "Unexpected default value for number of unidle retries.")
+	assert.Equal(t, config.GetMaxRetries(), defaultMaxRetries, "Unexpected default value for number of unidle retries.")
+	assert.Equal(t, config.GetCheckInterval(), defaultCheckInterval, "Unexpected default value for number of unidle retries.")
 }
 
 func Test_fixed_uuid(t *testing.T) {

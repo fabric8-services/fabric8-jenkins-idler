@@ -4,7 +4,8 @@ metadata:
   name: jenkins-idler
 type: Opaque
 data:
-# TODO Issue #92 Verify changes
   idle.after: "45"
+  check.interval: "15"
+  max.retries: "5"
   jenkins.proxy.url: "http://jenkins-proxy:9091"
   toggles.api.url: "http://f8toggles"

@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	defaultIdleAfter    = 45
-	defaultIUnIdleRetry = 10
+	defaultIdleAfter     = 45
+	defaultMaxRetries    = 5
+	defaultCheckInterval = 15
 )
 
 var (
@@ -32,7 +33,8 @@ func init() {
 
 	// timeouts and retry counts
 	settings["GetIdleAfter"] = Setting{"JC_IDLE_AFTER", strconv.Itoa(defaultIdleAfter), []func(interface{}, string) error{util.IsInt}}
-	settings["GetUnIdleRetry"] = Setting{"JC_UN_IDLE_RETRY", strconv.Itoa(defaultIUnIdleRetry), []func(interface{}, string) error{util.IsInt}}
+	settings["GetMaxRetries"] = Setting{"JC_MAX_RETRIES", strconv.Itoa(defaultMaxRetries), []func(interface{}, string) error{util.IsInt}}
+	settings["GetCheckInterval"] = Setting{"JC_CHECK_INTERVAL", strconv.Itoa(defaultCheckInterval), []func(interface{}, string) error{util.IsInt}}
 
 	// debug
 	settings["GetDebugMode"] = Setting{"JC_DEBUG_MODE", "false", []func(interface{}, string) error{util.IsBool}}
@@ -67,8 +69,11 @@ type Configuration interface {
 	// GetIdleAfter returns the number of minutes before Jenkins is idled.
 	GetIdleAfter() int
 
-	// GetUnIdleRetry returns the maximum number of retries to un-idle the Jenkins service.
-	GetUnIdleRetry() int
+	// GetMaxRetries returns the maximum number of retries to idle resp. un-idle the Jenkins service.
+	GetMaxRetries() int
+
+	// GetCheckInterval returns the number of minutes after which a regular idle check occurs.
+	GetCheckInterval() int
 
 	// GetDebugMode returns if debug mode should be enabled.
 	GetDebugMode() bool
@@ -128,8 +133,17 @@ func (c *EnvConfig) GetIdleAfter() int {
 	return i
 }
 
-//  GetUnIdleRetry returns the maximum number of retries to un-idle the Jenkins service
-func (c *EnvConfig) GetUnIdleRetry() int {
+// GetMaxRetries returns the maximum number of retries to idle resp. un-idle the Jenkins service.
+func (c *EnvConfig) GetMaxRetries() int {
+	callPtr, _, _, _ := runtime.Caller(0)
+	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
+
+	i, _ := strconv.Atoi(value)
+	return i
+}
+
+// GetCheckInterval returns the number of minutes after which a regular idle check occurs.
+func (c *EnvConfig) GetCheckInterval() int {
 	callPtr, _, _, _ := runtime.Caller(0)
 	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
 

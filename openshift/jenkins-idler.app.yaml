@@ -44,6 +44,16 @@ objects:
               configMapKeyRef:
                 name: jenkins-idler
                 key: idle.after
+          - name: JC_MAX_RETRIES
+            valueFrom:
+              configMapKeyRef:
+                name: jenkins-idler
+                key: max.retries
+          - name: JC_CHECK_INTERVAL
+            valueFrom:
+              configMapKeyRef:
+                name: jenkins-idler
+                key: check.interval
           - name: JC_JENKINS_PROXY_API_URL
             valueFrom:
               configMapKeyRef:

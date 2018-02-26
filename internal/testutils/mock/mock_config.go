@@ -2,53 +2,68 @@ package mock
 
 import "github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
 
-type MockConfig struct {
+type Config struct {
+	OpenShiftToken string
+	OpenShiftURL   string
+	ProxyURL       string
+	TenantURL      string
+	AuthToken      string
+	ToggleURL      string
+	IdleAfter      int
+	MaxRetries     int
+	CheckInterval  int
+	Debug          bool
+	FixedUuids     []string
 }
 
-func (c *MockConfig) GetOpenShiftToken() string {
-	return ""
+func (c *Config) GetOpenShiftToken() string {
+	return c.OpenShiftToken
 }
 
-func (c *MockConfig) GetOpenShiftURL() string {
-	return ""
+func (c *Config) GetOpenShiftURL() string {
+	return c.OpenShiftURL
 }
 
-func (c *MockConfig) GetProxyURL() string {
-	return ""
+func (c *Config) GetProxyURL() string {
+	return c.ProxyURL
 }
 
-func (c *MockConfig) GetTenantURL() string {
-	return ""
+func (c *Config) GetTenantURL() string {
+	return c.TenantURL
 }
 
-func (c *MockConfig) GetAuthToken() string {
-	return ""
+func (c *Config) GetAuthToken() string {
+	return c.AuthToken
 }
 
-func (c *MockConfig) GetToggleURL() string {
-	return ""
+func (c *Config) GetToggleURL() string {
+	return c.ToggleURL
 }
 
-func (c *MockConfig) GetIdleAfter() int {
-	return 10
+func (c *Config) GetIdleAfter() int {
+	return c.IdleAfter
 }
 
-func (c *MockConfig) GetUnIdleRetry() int {
-	return 10
+func (c *Config) GetMaxRetries() int {
+	return c.MaxRetries
 }
 
-func (c *MockConfig) GetDebugMode() bool {
-	return false
+func (c *Config) GetCheckInterval() int {
+	return c.CheckInterval
 }
 
-func (c *MockConfig) GetFixedUuids() []string {
-	return []string{}
+func (c *Config) GetDebugMode() bool {
+	return c.Debug
 }
 
-func (c *MockConfig) Verify() util.MultiError {
+func (c *Config) GetFixedUuids() []string {
+	return c.FixedUuids
+}
+
+func (c *Config) Verify() util.MultiError {
 	return util.MultiError{}
 }
 
-func (c *MockConfig) String() string {
+func (c *Config) String() string {
 	return "mockConfig"
 }

@@ -176,7 +176,7 @@ func (oc *OpenShiftController) createIfNotExist(ns string) error {
 	oc.users.Store(ns, newUser)
 	userIdler := idler.NewUserIdler(newUser, oc.openShiftClient, oc.config, oc.features)
 	oc.userChannels.Store(ns, userIdler.GetChannel())
-	userIdler.Run(oc.wg, oc.ctx, oc.cancel, time.Duration(oc.config.GetIdleAfter())*time.Minute)
+	userIdler.Run(oc.wg, oc.ctx, oc.cancel, time.Duration(oc.config.GetCheckInterval())*time.Minute)
 
 	logger.WithField("ns", ns).Debug("New user recorded")
 	return nil

@@ -13,3 +13,13 @@ func EnsureSuffix(s string, suffix string) string {
 	}
 	return s + suffix
 }
+
+// Contains returns true if the specified slice contains the string s. False otherwise.
+func Contains(list []string, s string) bool {
+	for _, elem := range list {
+		if elem == s {
+			return true
+		}
+	}
+	return false
+}
