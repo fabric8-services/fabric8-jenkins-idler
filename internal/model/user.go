@@ -23,7 +23,7 @@ type JenkinsState struct {
 	Message string
 }
 
-func NewUser(id string, name string, isRunning bool) User {
+func NewUser(id string, name string) User {
 	return User{
 		ID:          id,
 		Name:        name,

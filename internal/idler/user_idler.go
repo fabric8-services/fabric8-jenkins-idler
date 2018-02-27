@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"fmt"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/condition"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
@@ -102,7 +103,7 @@ func (idler *UserIdler) Run(wg *sync.WaitGroup, ctx context.Context, cancel cont
 				cancel()
 				return
 			case idler.user = <-idler.userChan:
-				idler.logger.WithField("data", idler.user.String()).Info("Received user data.")
+				idler.logger.WithField("data", idler.user.String()).Debug("Received user data.")
 
 				err := idler.checkIdle()
 				if err != nil {
@@ -132,8 +133,8 @@ func (idler *UserIdler) doIdle() error {
 	}
 
 	if state > model.JenkinsIdled {
-		idler.logger.Info("About to idle Jenkins")
 		idler.incrementIdleAttempts()
+		idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.idleAttempts, idler.maxRetries)).Info("About to idle Jenkins")
 		err := idler.openShiftClient.Idle(idler.user.Name+jenkinsNamespaceSuffix, jenkinsServiceName)
 		if err != nil {
 			return err
@@ -154,8 +155,8 @@ func (idler *UserIdler) doUnIdle() error {
 	}
 
 	if state == model.JenkinsIdled {
-		idler.logger.Info("About to un-idle Jenkins")
 		idler.incrementUnIdleAttempts()
+		idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.unIdleAttempts, idler.maxRetries)).Info("About to un-idle Jenkins")
 		err := idler.openShiftClient.UnIdle(idler.user.Name+jenkinsNamespaceSuffix, jenkinsServiceName)
 		if err != nil {
 			return err

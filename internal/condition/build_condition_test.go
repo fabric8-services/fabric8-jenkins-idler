@@ -15,7 +15,7 @@ func Test_non_user_creates_error(t *testing.T) {
 }
 
 func Test_eval_returns_true_if_there_are_no_builds(t *testing.T) {
-	user := model.NewUser("123", "foo", true)
+	user := model.NewUser("123", "foo")
 	condition := NewBuildCondition(time.Duration(5) * time.Minute)
 	condValue, err := condition.Eval(user)
 	assert.NoError(t, err)
@@ -23,7 +23,7 @@ func Test_eval_returns_true_if_there_are_no_builds(t *testing.T) {
 }
 
 func Test_eval_return_false_when_active_build_exists(t *testing.T) {
-	user := model.NewUser("123", "foo", true)
+	user := model.NewUser("123", "foo")
 	user.ActiveBuild = model.Build{
 		Metadata: model.Metadata{
 			Name: "test build",

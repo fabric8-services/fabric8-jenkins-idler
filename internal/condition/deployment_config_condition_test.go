@@ -15,7 +15,7 @@ func Test_non_user_creates_error_in_build_condition(t *testing.T) {
 }
 
 func Test_eval_returns_true_for_deployment_config_condition_if_last_change_is_older_than_idle_time(t *testing.T) {
-	user := model.NewUser("123", "foo", true)
+	user := model.NewUser("123", "foo")
 	user.JenkinsLastUpdate = time.Now().Add(-6 * time.Minute)
 	condition := NewDCCondition(time.Duration(5) * time.Minute)
 	condValue, err := condition.Eval(user)
@@ -24,7 +24,7 @@ func Test_eval_returns_true_for_deployment_config_condition_if_last_change_is_ol
 }
 
 func Test_eval_returns_false_for_deployment_config_condition_if_last_change_is_younger_than_idle_time(t *testing.T) {
-	user := model.NewUser("123", "foo", true)
+	user := model.NewUser("123", "foo")
 	user.JenkinsLastUpdate = time.Now().Add(-4 * time.Minute)
 	condition := NewDCCondition(time.Duration(5) * time.Minute)
 	condValue, err := condition.Eval(user)

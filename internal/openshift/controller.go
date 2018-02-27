@@ -69,7 +69,7 @@ func (oc *OpenShiftController) GetUser(ns string) model.User {
 // just does couple comparisons and returns
 func (oc *OpenShiftController) HandleBuild(o model.Object) error {
 	ns := o.Object.Metadata.Namespace
-	logger.WithField("ns", ns).Infof("Processing build event %s", o.Object.Metadata.Name)
+	logger.WithField("ns", ns).Infof("Processing build event '%s'", o.Object.Metadata.Name)
 
 	err := oc.createIfNotExist(o.Object.Metadata.Namespace)
 	if err != nil {
@@ -112,7 +112,7 @@ func (oc *OpenShiftController) HandleBuild(o model.Object) error {
 // of ConfigChange or manual intervention.
 func (oc *OpenShiftController) HandleDeploymentConfig(dc model.DCObject) error {
 	ns := dc.Object.Metadata.Namespace[:len(dc.Object.Metadata.Namespace)-len(jenkinsNamespaceSuffix)]
-	logger.WithField("ns", ns).Infof("Processing deployment config change event %s", dc.Object.Metadata.Name)
+	logger.WithField("ns", ns).Infof("Processing deployment config change event '%s'", dc.Object.Metadata.Name)
 
 	err := oc.createIfNotExist(ns)
 	if err != nil {
@@ -157,10 +157,6 @@ func (oc *OpenShiftController) createIfNotExist(ns string) error {
 	}
 
 	logger.WithField("ns", ns).Debug("Creating user")
-	state, err := oc.openShiftClient.IsIdle(ns+jenkinsNamespaceSuffix, "jenkins")
-	if err != nil {
-		return err
-	}
 	ti, err := oc.tenant.GetTenantInfoByNamespace(oc.openShiftClient.GetApiURL(), ns)
 	if err != nil {
 		return err
@@ -172,7 +168,7 @@ func (oc *OpenShiftController) createIfNotExist(ns string) error {
 		return fmt.Errorf("could not find tenant in cluster %s for namespace %s: %+v", oc.openShiftClient.GetApiURL(), ns, ti.Errors)
 	}
 
-	newUser := model.NewUser(ti.Data[0].Id, ns, state == model.JenkinsRunning)
+	newUser := model.NewUser(ti.Data[0].Id, ns)
 	oc.users.Store(ns, newUser)
 	userIdler := idler.NewUserIdler(newUser, oc.openShiftClient, oc.config, oc.features)
 	oc.userChannels.Store(ns, userIdler.GetChannel())

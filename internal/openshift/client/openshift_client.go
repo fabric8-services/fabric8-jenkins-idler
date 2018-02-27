@@ -159,7 +159,7 @@ func (o *OpenShift) UnIdle(namespace string, service string) (err error) {
 		return
 	}
 	br := ioutil.NopCloser(bytes.NewReader(body))
-	req, err := o.reqOAPI("PUT", namespace, fmt.Sprintf("deploymentconfigs/%s/scale", service), br) //FIXME
+	req, err := o.reqOAPI("PUT", namespace, fmt.Sprintf("deploymentconfigs/%s/scale", service), br)
 	if err != nil {
 		return
 	}
@@ -335,10 +335,10 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 
 			//Verify a build has a type we care about
 			if o.Object.Spec.Strategy.Type != buildType {
-				logger.Infof("Skipping build %s (type: %s)", o.Object.Metadata.Name, o.Object.Spec.Strategy.Type)
+				logger.WithField("namespace", o.Object.Metadata.Namespace).Debugf("Skipping build %s (type: %s)", o.Object.Metadata.Name, o.Object.Spec.Strategy.Type)
 				continue
 			}
-			logger.Infof("Handling Build change for user %s", o.Object.Metadata.Namespace)
+			logger.WithField("namespace", o.Object.Metadata.Namespace).Debug("Handling Build change event")
 			err = callback(o)
 			if err != nil {
 				logger.Errorf("Error from callback: %s", err)
@@ -396,20 +396,20 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 				break
 			}
 
-			//Filter for a given suffix
+			// Filter for a given suffix
 			if !strings.HasSuffix(o.Object.Metadata.Namespace, nsSuffix) {
-				logger.Infof("Skipping DC %s", o.Object.Metadata.Namespace)
+				logger.WithField("namespace", o.Object.Metadata.Namespace).Debug("Skipping DC change event")
 				continue
 			}
 
-			logger.Infof("Handling DC change for user %s", o.Object.Metadata.Namespace)
+			logger.WithField("namespace", o.Object.Metadata.Namespace).Debug("Handling DC change event")
 			err = callback(o)
 			if err != nil {
 				logger.Errorf("Error from DC callback: %s", err)
 				continue
 			}
 		}
-		logger.Debugf("Fall out od loop for watching DC")
+		logger.Debug("Fell out of loop for watching DC")
 	}
 }
 
