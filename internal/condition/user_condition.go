@@ -4,15 +4,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
-	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
+	log "github.com/sirupsen/logrus"
 )
 
 var logger = log.WithFields(log.Fields{"component": "user-condition"})
 
+// ProxyResponse represents response provided by the Jenkins Proxy for a particular user.
 type ProxyResponse struct {
 	Namespace   string `json:"namespace"`
 	Requests    int    `json:"requests"`
@@ -26,6 +28,7 @@ type UserCondition struct {
 	proxyURL  string
 }
 
+// NewUserCondition creates a new instance of Condition given a proxyURL and idleAfter.
 func NewUserCondition(proxyURL string, idleAfter time.Duration) Condition {
 	b := &UserCondition{
 		proxyURL:  proxyURL,
@@ -39,7 +42,7 @@ func NewUserCondition(proxyURL string, idleAfter time.Duration) Condition {
 func (c *UserCondition) Eval(object interface{}) (bool, error) {
 	b, ok := object.(model.User)
 	if !ok {
-		return false, errors.New(fmt.Sprintf("%s is not of type User", object))
+		return false, fmt.Errorf("%s is not of type User", object)
 	}
 
 	proxyResponse, err := c.getProxyResponse(b.Name)

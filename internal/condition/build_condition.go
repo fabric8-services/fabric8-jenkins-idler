@@ -1,17 +1,19 @@
 package condition
 
 import (
-	"errors"
 	"fmt"
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"time"
+
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 )
 
-// BuildCondition covers builds a user has/had running
+// BuildCondition covers builds a user has/had running.
 type BuildCondition struct {
 	idleAfter time.Duration
 }
 
+// NewBuildCondition creates a new instance of BuildCondition given
+// idleAfter(time after which jenkins should be idled).
 func NewBuildCondition(idleAfter time.Duration) Condition {
 	b := &BuildCondition{idleAfter: idleAfter}
 	return b
@@ -22,7 +24,7 @@ func NewBuildCondition(idleAfter time.Duration) Condition {
 func (c *BuildCondition) Eval(object interface{}) (bool, error) {
 	u, ok := object.(model.User)
 	if !ok {
-		return false, errors.New(fmt.Sprintf("%T is not of type User", object))
+		return false, fmt.Errorf("%T is not of type User", object)
 	}
 
 	if u.HasActiveBuilds() {

@@ -10,14 +10,16 @@ import (
 
 // Condition defines a single Eval method which returns true or false.
 type Condition interface {
-	// Return true if the condition is true for a given object
+	// Return true if the condition is true for a given object.
 	Eval(object interface{}) (bool, error)
 }
 
+// Conditions defines map of Condition instances by their names
 type Conditions struct {
 	conditions map[string]Condition
 }
 
+// NewConditions create a new instance of Conditions.
 func NewConditions() Conditions {
 	return Conditions{
 		conditions: make(map[string]Condition),
@@ -47,6 +49,7 @@ func (c *Conditions) Eval(o interface{}) (bool, util.MultiError) {
 	return result, errors
 }
 
+// Add adds a condition with its name to the this Conditions instance.
 func (c *Conditions) Add(name string, condition Condition) {
 	c.conditions[name] = condition
 }

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"context"
+	"sync"
+
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/idler"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
@@ -13,7 +15,6 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 	log "github.com/sirupsen/logrus"
-	"sync"
 )
 
 const (
@@ -31,7 +32,8 @@ type Controller interface {
 	GetUser(ns string) model.User
 }
 
-type OpenShiftController struct {
+// controllerImpl watches OpenShift cluser for changes and implements Controller.
+type controllerImpl struct {
 	users           *UserMap
 	userChannels    *UserChannelMap
 	openShiftClient client.OpenShiftClient
@@ -43,8 +45,9 @@ type OpenShiftController struct {
 	cancel          context.CancelFunc
 }
 
-func NewOpenShiftController(openShiftClient client.OpenShiftClient, t *tenant.Tenant, features toggles.Features, config configuration.Configuration, wg *sync.WaitGroup, ctx context.Context, cancel context.CancelFunc) Controller {
-	controller := OpenShiftController{
+// NewcontrollerImpl creates an instance of ControllerImpl.
+func NewcontrollerImpl(ctx context.Context, openShiftClient client.OpenShiftClient, t *tenant.Tenant, features toggles.Features, config configuration.Configuration, wg *sync.WaitGroup, cancel context.CancelFunc) Controller {
+	controller := controllerImpl{
 		openShiftClient: openShiftClient,
 		users:           NewUserMap(),
 		userChannels:    NewUserChannelMap(),
@@ -59,15 +62,16 @@ func NewOpenShiftController(openShiftClient client.OpenShiftClient, t *tenant.Te
 	return &controller
 }
 
-func (oc *OpenShiftController) GetUser(ns string) model.User {
+// GetUser gets the User for the current namespace.
+func (oc *controllerImpl) GetUser(ns string) model.User {
 	return oc.userForNamespace(ns)
 }
 
 // HandleBuild processes new Build event collected from OpenShift and updates
 // user structure with latest build info. NOTE: In most cases the only change in
 // build object is stage timestamp, which we don't care about, so this function
-// just does couple comparisons and returns
-func (oc *OpenShiftController) HandleBuild(o model.Object) error {
+// just does couple comparisons and returns.
+func (oc *controllerImpl) HandleBuild(o model.Object) error {
 	ns := o.Object.Metadata.Namespace
 	logger.WithField("ns", ns).Infof("Processing build event '%s'", o.Object.Metadata.Name)
 
@@ -95,7 +99,7 @@ func (oc *OpenShiftController) HandleBuild(o model.Object) error {
 	}
 
 	// If we have same build name (space name + build number) in Active and Done build reference, it means last event was transition of an Active build into
-	// Done build, we need to clean up the Active build ref
+	// Done build, we need to clean up the Active build ref.
 	if user.ActiveBuild.Metadata.Name == user.DoneBuild.Metadata.Name {
 		logger.WithFields(log.Fields{"ns": ns}).Infof("Active and Done builds are the same (%s), cleaning active builds", user.ActiveBuild.Metadata.Name)
 		user.ActiveBuild = model.Build{Status: model.Status{Phase: "New"}}
@@ -110,7 +114,7 @@ func (oc *OpenShiftController) HandleBuild(o model.Object) error {
 // user structure with info about the changes in DC. NOTE: This is important for cases
 // like reset tenant and update tenant when DC is updated and Jenkins starts because
 // of ConfigChange or manual intervention.
-func (oc *OpenShiftController) HandleDeploymentConfig(dc model.DCObject) error {
+func (oc *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 	ns := dc.Object.Metadata.Namespace[:len(dc.Object.Metadata.Namespace)-len(jenkinsNamespaceSuffix)]
 	logger.WithField("ns", ns).Infof("Processing deployment config change event '%s'", dc.Object.Metadata.Name)
 
@@ -127,14 +131,14 @@ func (oc *OpenShiftController) HandleDeploymentConfig(dc model.DCObject) error {
 	}
 
 	// TODO Verify if we need Generation vs. ObservedGeneration
-	// This is either a new version of DC or we existing version waiting to come up
+	// This is either a new version of DC or we existing version waiting to come up.
 	if (dc.Object.Metadata.Generation != dc.Object.Status.ObservedGeneration && dc.Object.Spec.Replicas > 0) || dc.Object.Status.UnavailableReplicas > 0 {
 		user.JenkinsLastUpdate = time.Now().UTC()
 		oc.users.Store(ns, user)
 		oc.sendUserToIdler(ns, user)
 	}
 
-	// Also check if the event means that Jenkins just started (OS AvailableCondition.Status == true) and update time
+	// Also check if the event means that Jenkins just started (OS AvailableCondition.Status == true) and update time.
 	status, err := strconv.ParseBool(c.Status)
 	if err != nil {
 		return err
@@ -149,15 +153,15 @@ func (oc *OpenShiftController) HandleDeploymentConfig(dc model.DCObject) error {
 	return nil
 }
 
-// createIfNotExist check existence of a user in the map, initialise if it does not exist
-func (oc *OpenShiftController) createIfNotExist(ns string) error {
+// createIfNotExist checks existence of a user in the map, initialise if it does not exist.
+func (oc *controllerImpl) createIfNotExist(ns string) error {
 	if _, exist := oc.users.Load(ns); exist {
 		logger.WithField("ns", ns).Debug("User exists")
 		return nil
 	}
 
 	logger.WithField("ns", ns).Debug("Creating user")
-	ti, err := oc.tenant.GetTenantInfoByNamespace(oc.openShiftClient.GetApiURL(), ns)
+	ti, err := oc.tenant.GetTenantInfoByNamespace(oc.openShiftClient.GetAPIURL(), ns)
 	if err != nil {
 		return err
 	}
@@ -165,30 +169,30 @@ func (oc *OpenShiftController) createIfNotExist(ns string) error {
 	if ti.Meta.TotalCount > 1 {
 		return fmt.Errorf("could not add new user - Tenant service returned multiple items: %d", ti.Meta.TotalCount)
 	} else if len(ti.Data) == 0 {
-		return fmt.Errorf("could not find tenant in cluster %s for namespace %s: %+v", oc.openShiftClient.GetApiURL(), ns, ti.Errors)
+		return fmt.Errorf("could not find tenant in cluster %s for namespace %s: %+v", oc.openShiftClient.GetAPIURL(), ns, ti.Errors)
 	}
 
-	newUser := model.NewUser(ti.Data[0].Id, ns)
+	newUser := model.NewUser(ti.Data[0].ID, ns)
 	oc.users.Store(ns, newUser)
 	userIdler := idler.NewUserIdler(newUser, oc.openShiftClient, oc.config, oc.features)
 	oc.userChannels.Store(ns, userIdler.GetChannel())
-	userIdler.Run(oc.wg, oc.ctx, oc.cancel, time.Duration(oc.config.GetCheckInterval())*time.Minute)
+	userIdler.Run(oc.ctx, oc.wg, oc.cancel, time.Duration(oc.config.GetCheckInterval())*time.Minute)
 
 	logger.WithField("ns", ns).Debug("New user recorded")
 	return nil
 }
 
-func (oc *OpenShiftController) userForNamespace(ns string) model.User {
+func (oc *controllerImpl) userForNamespace(ns string) model.User {
 	user, _ := oc.users.Load(ns)
 	return user
 }
 
-// IsActive returns true ifa build phase suggests a build is active, false otherwise.
-func (oc *OpenShiftController) isActive(b *model.Build) bool {
+// isActive returns true if build phase suggests a build is active, false otherwise.
+func (oc *controllerImpl) isActive(b *model.Build) bool {
 	return model.Phases[b.Status.Phase] == 1
 }
 
-func (oc *OpenShiftController) sendUserToIdler(ns string, user model.User) {
+func (oc *controllerImpl) sendUserToIdler(ns string, user model.User) {
 	ch, ok := oc.userChannels.Load(ns)
 	if !ok {
 		logger.WithField("ns", ns).Error("No channel found for sending user instance")

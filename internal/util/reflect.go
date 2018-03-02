@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// NameOfFunction returns the function name on providing program counter address.
 func NameOfFunction(pc uintptr) string {
 	name := ""
 	if rf := runtime.FuncForPC(pc); rf != nil {

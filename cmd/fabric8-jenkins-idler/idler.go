@@ -7,16 +7,17 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 
 	"context"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/api"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/router"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
-	"os"
-	"os/signal"
-	"sync"
-	"syscall"
 )
 
 const (
@@ -52,33 +53,33 @@ func (idler *Idler) Run() {
 	defer cancel()
 
 	// Create Idler controller
-	controller := openshift.NewOpenShiftController(
+	controller := openshift.NewcontrollerImpl(
+		ctx,
 		openShift,
 		&tenantClient,
 		idler.features,
 		idler.config,
 		&wg,
-		ctx,
 		cancel,
 	)
 
-	startWorkers(&wg, ctx, cancel, openShift, controller, idler.config.GetDebugMode())
+	startWorkers(ctx, &wg, cancel, openShift, controller, idler.config.GetDebugMode())
 
 	setupSignalChannel(cancel)
 	wg.Wait()
 	mainLogger.Info("Idler successfully shut down.")
 }
 
-func startWorkers(wg *sync.WaitGroup, ctx context.Context, cancel context.CancelFunc, openShift client.OpenShiftClient, controller openshift.Controller, addProfiler bool) {
+func startWorkers(ctx context.Context, wg *sync.WaitGroup, cancel context.CancelFunc, openShift client.OpenShiftClient, controller openshift.Controller, addProfiler bool) {
 	mainLogger.Info("Starting  all workers")
 
 	// Start API router
 	go func() {
 		// Create and start a Router instance to serve the REST API
-		idlerApi := api.NewIdlerAPI(openShift, controller)
-		router := router.NewRouter(router.CreateAPIRouter(idlerApi))
+		idlerAPI := api.NewIdlerAPI(openShift, controller)
+		router := router.NewRouter(router.CreateAPIRouter(idlerAPI))
 
-		router.Start(wg, ctx, cancel)
+		router.Start(ctx, wg, cancel)
 	}()
 
 	wg.Add(1)
@@ -127,7 +128,7 @@ func startWorkers(wg *sync.WaitGroup, ctx context.Context, cancel context.Cancel
 		go func() {
 			mainLogger.Infof("Starting profiler on port %d", profilerPort)
 			router := router.NewRouterWithPort(httprouter.New(), profilerPort)
-			router.Start(wg, ctx, cancel)
+			router.Start(ctx, wg, cancel)
 		}()
 	}
 }

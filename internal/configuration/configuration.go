@@ -4,10 +4,11 @@ import (
 	"strings"
 
 	"fmt"
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
 	"os"
 	"runtime"
 	"strconv"
+
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
 )
 
 const (
@@ -41,12 +42,14 @@ func init() {
 	settings["GetFixedUuids"] = Setting{"JC_FIXED_UUIDS", "", []func(interface{}, string) error{}}
 }
 
+// Setting defines an element in the configuration of Jenkins Idler.
 type Setting struct {
 	key          string
 	defaultValue string
 	validations  []func(interface{}, string) error
 }
 
+// Configuration defines the configuration options of the Idler.
 type Configuration interface {
 	// GetOpenShiftToken returns the OpenShift token.
 	GetOpenShiftToken() string
@@ -90,17 +93,17 @@ type Configuration interface {
 	String() string
 }
 
-// EnvConfig reads the configuration from the environment
+// EnvConfig reads the configuration from the environment.
 type EnvConfig struct {
 }
 
-// NewConfiguration creates a configuration instance
+// NewConfiguration creates a configuration instance.
 func NewConfiguration() (Configuration, error) {
 	c := EnvConfig{}
 	return &c, nil
 }
 
-// GetOpenShiftToken returns the OpenShift token as set via default, config file, or environment variable
+// GetOpenShiftToken returns the OpenShift token as set via default, config file, or environment variable.
 func (c *EnvConfig) GetOpenShiftToken() string {
 	callPtr, _, _, _ := runtime.Caller(0)
 	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
@@ -108,7 +111,7 @@ func (c *EnvConfig) GetOpenShiftToken() string {
 	return value
 }
 
-// GetOpenShiftURL returns the OpenShift API url as set via default, config file, or environment variable
+// GetOpenShiftURL returns the OpenShift API url as set via default, config file, or environment variable.
 func (c *EnvConfig) GetOpenShiftURL() string {
 	callPtr, _, _, _ := runtime.Caller(0)
 	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
@@ -116,7 +119,7 @@ func (c *EnvConfig) GetOpenShiftURL() string {
 	return value
 }
 
-// GetProxyURL returns the Jenkins Proxy API URL as set via default, config file, or environment variable
+// GetProxyURL returns the Jenkins Proxy API URL as set via default, config file, or environment variable.
 func (c *EnvConfig) GetProxyURL() string {
 	callPtr, _, _, _ := runtime.Caller(0)
 	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
@@ -124,7 +127,7 @@ func (c *EnvConfig) GetProxyURL() string {
 	return value
 }
 
-// GetIdleAfter returns the number of minutes before Jenkins is idled as set via default, config file, or environment variable
+// GetIdleAfter returns the number of minutes before Jenkins is idled as set via default, config file, or environment variable.
 func (c *EnvConfig) GetIdleAfter() int {
 	callPtr, _, _, _ := runtime.Caller(0)
 	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
@@ -151,7 +154,7 @@ func (c *EnvConfig) GetCheckInterval() int {
 	return i
 }
 
-// GetTenantURL returns the F8 Tenant API URL as set via default, config file, or environment variable
+// GetTenantURL returns the F8 Tenant API URL as set via default, config file, or environment variable.
 func (c *EnvConfig) GetTenantURL() string {
 	callPtr, _, _, _ := runtime.Caller(0)
 	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
@@ -159,7 +162,7 @@ func (c *EnvConfig) GetTenantURL() string {
 	return value
 }
 
-// GetAuthToken returns the Auth token as set via default, config file, or environment variable
+// GetAuthToken returns the Auth token as set via default, config file, or environment variable.
 func (c *EnvConfig) GetAuthToken() string {
 	callPtr, _, _, _ := runtime.Caller(0)
 	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
@@ -167,7 +170,7 @@ func (c *EnvConfig) GetAuthToken() string {
 	return value
 }
 
-// GetToggleURL returns the Toggle Service URL as set via default, config file, or environment variable
+// GetToggleURL returns the Toggle Service URL as set via default, config file, or environment variable.
 func (c *EnvConfig) GetToggleURL() string {
 	callPtr, _, _, _ := runtime.Caller(0)
 	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
@@ -185,7 +188,7 @@ func (c *EnvConfig) GetDebugMode() bool {
 	return b
 }
 
-// GetFixedUuids returns a slice of fixed user uuids. The uuids are specified comma separated in the environment variable
+// GetFixedUuids returns a slice of fixed user uuids. The uuids are specified comma separated in the environment variable.
 // JC_FIXED_UUIDS.
 func (c *EnvConfig) GetFixedUuids() []string {
 	callPtr, _, _, _ := runtime.Caller(0)
@@ -198,7 +201,7 @@ func (c *EnvConfig) GetFixedUuids() []string {
 	return strings.Split(value, ",")
 }
 
-// Verify checks whether all needed config options are set
+// Verify checks whether all needed config options are set.
 func (c *EnvConfig) Verify() util.MultiError {
 	var errors util.MultiError
 	for key, setting := range settings {
