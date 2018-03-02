@@ -3,16 +3,17 @@ package idler
 import (
 	"context"
 	"errors"
+	"io/ioutil"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/condition"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/mock"
 	log "github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"sync"
-	"testing"
-	"time"
 )
 
 type ErrorCondition struct {
@@ -76,7 +77,7 @@ func Test_timeout_occurs_regardless_of_other_events(t *testing.T) {
 		cancel()
 	}()
 
-	userIdler.Run(&wg, ctx, cancel, time.Duration(1*time.Second))
+	userIdler.Run(ctx, &wg, cancel, time.Duration(1*time.Second))
 
 	userIdler.GetChannel() <- user
 	time.Sleep(1 * time.Second)
@@ -124,7 +125,7 @@ func Test_number_of_idle_calls_are_capped(t *testing.T) {
 		cancel()
 	}()
 
-	userIdler.Run(&wg, ctx, cancel, time.Duration(2000*time.Millisecond))
+	userIdler.Run(ctx, &wg, cancel, time.Duration(2000*time.Millisecond))
 
 	sendDataCount := 5
 	for i := 0; i < sendDataCount; i++ {
@@ -174,7 +175,7 @@ func Test_number_of_unidle_calls_are_capped(t *testing.T) {
 		cancel()
 	}()
 
-	userIdler.Run(&wg, ctx, cancel, time.Duration(2000*time.Millisecond))
+	userIdler.Run(ctx, &wg, cancel, time.Duration(2000*time.Millisecond))
 
 	sendDataCount := 5
 	for i := 0; i < sendDataCount; i++ {

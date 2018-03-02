@@ -22,7 +22,7 @@ import (
 var (
 	tenantService    *httptest.Server
 	openShiftService *httptest.Server
-	controller       Controller
+	controller       ControllerI
 	origWriter       io.Writer
 	testUserID       = "2e15e957-0366-4802-bf1e-0d6fe3f11bb6"
 )
@@ -31,7 +31,7 @@ type mockFeatureToggle struct {
 }
 
 func (m *mockFeatureToggle) IsIdlerEnabled(uid string) (bool, error) {
-	if uid == testUserId {
+	if uid == testUserID {
 		return true, nil
 	}
 
@@ -106,7 +106,7 @@ func setUp(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	controller = NewOpenShiftController(openShiftClient, &tenantClient, features, &mock.Config{}, &wg, ctx, cancel)
+	controller = NewController(ctx, openShiftClient, &tenantClient, features, &mock.Config{}, &wg, cancel)
 }
 
 func tearDown() {

@@ -1,13 +1,14 @@
 package toggles
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_default_values(t *testing.T) {
 	testUuids := []string{"42", "1001"}
-	toggle, err := NewFixedUuidToggle(testUuids)
+	toggle, err := NewFixedUUIDToggle(testUuids)
 	assert.NoError(t, err, "Creating toggle failed unexpectedly.")
 	assert.NotNil(t, toggle, "No nil object expected")
 
