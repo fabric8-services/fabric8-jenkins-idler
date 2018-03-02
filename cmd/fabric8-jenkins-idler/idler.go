@@ -53,7 +53,7 @@ func (idler *Idler) Run() {
 	defer cancel()
 
 	// Create Idler controller
-	controller := openshift.NewOpenShiftController(
+	controller := openshift.NewController(
 		ctx,
 		openShift,
 		&tenantClient,
@@ -70,7 +70,7 @@ func (idler *Idler) Run() {
 	mainLogger.Info("Idler successfully shut down.")
 }
 
-func startWorkers(ctx context.Context, wg *sync.WaitGroup, cancel context.CancelFunc, openShift client.OpenShiftClient, controller openshift.Controller, addProfiler bool) {
+func startWorkers(ctx context.Context, wg *sync.WaitGroup, cancel context.CancelFunc, openShift client.OpenShiftClient, controller openshift.ControllerI, addProfiler bool) {
 	mainLogger.Info("Starting  all workers")
 
 	// Start API router

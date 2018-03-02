@@ -40,6 +40,7 @@ type Build struct {
 	Spec     Spec     `json:"spec"`
 }
 
+// Metadata used in Build
 type Metadata struct {
 	Name        string      `json:"name,omitempty"`
 	Namespace   string      `json:"namespace,omitempty"`
@@ -47,6 +48,8 @@ type Metadata struct {
 	Generation  int
 }
 
+// Annotations contains imformation regarding Jenkins build.
+// It is used in Metadata as Annotations
 type Annotations struct {
 	BuildNumber      string `json:"openshift.io/build.number,omitempty"`
 	JenkinsNamespace string `json:"openshift.io/jenkins-namespace,omitempty"`
@@ -59,6 +62,7 @@ type Endpoint struct {
 	Metadata Metadata `json:"metadata"`
 }
 
+// Status of Build
 type Status struct {
 	Phase               string    `json:"phase"`
 	StartTimestamp      BuildTime `json:"startTimestamp"`
@@ -115,6 +119,7 @@ type BuildTime struct {
 	time.Time
 }
 
+// UnmarshalJSON gets time from raw (in the form of []byte) JSON object
 func (bt *BuildTime) UnmarshalJSON(b []byte) (err error) {
 	s := strings.Trim(string(b), "\"")
 	if len(s) == 0 {
@@ -126,6 +131,7 @@ func (bt *BuildTime) UnmarshalJSON(b []byte) (err error) {
 	return
 }
 
+// UnmarshalJSON gets a Status Object from raw bytes
 func (s *Status) UnmarshalJSON(b []byte) (err error) {
 	type LStatus Status
 	ns := &LStatus{
@@ -143,6 +149,7 @@ func (s *Status) UnmarshalJSON(b []byte) (err error) {
 	return
 }
 
+// GetByType gets condition by its type from Conditions of DCStatus
 func (s DCStatus) GetByType(t string) (Condition, error) {
 	for _, c := range s.Conditions {
 		if c.Type == t {

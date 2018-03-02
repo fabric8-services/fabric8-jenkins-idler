@@ -11,16 +11,16 @@ import (
 )
 
 type config struct {
-	JC_OPENSHIFT_API_URL     string
-	JC_JENKINS_PROXY_API_URL string
-	JC_F8TENANT_API_URL      string
-	JC_TOGGLE_API_URL        string
-	JC_OPENSHIFT_API_TOKEN   string
-	JC_AUTH_TOKEN            string
-	JC_IDLE_AFTER            string
-	JC_MAX_RETRIES           string
-	JC_CHECK_INTERVAL        string
-	errors                   []string
+	JCOpenShiftAPIURL    string
+	JCJenkinsProxyAPIURL string
+	JCF8TenantAPIURL     string
+	JCToggleAPIURL       string
+	JCOpenShitAPIToken   string
+	JCAuthToken          string
+	JCIdleAfter          string
+	JCMaxRetries         string
+	JCCheckInterval      string
+	errors               []string
 }
 
 func Test_configuration_settings(t *testing.T) {

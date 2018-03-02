@@ -25,14 +25,15 @@ const (
 
 var logger = log.WithFields(log.Fields{"component": "controller"})
 
-// Controller defines the interface for watching the OpenShift cluster for changes.
-type Controller interface {
+// ControllerI defines the interface for watching the OpenShift cluster for changes.
+type ControllerI interface {
 	HandleBuild(o model.Object) error
 	HandleDeploymentConfig(dc model.DCObject) error
 	GetUser(ns string) model.User
 }
 
-type OpenShiftController struct {
+// Controller watches OpenShift cluser for changes and implements ControllerI
+type Controller struct {
 	users           *UserMap
 	userChannels    *UserChannelMap
 	openShiftClient client.OpenShiftClient
@@ -44,9 +45,9 @@ type OpenShiftController struct {
 	cancel          context.CancelFunc
 }
 
-// NewOpenShiftController creates an instance of Controller
-func NewOpenShiftController(ctx context.Context, openShiftClient client.OpenShiftClient, t *tenant.Tenant, features toggles.Features, config configuration.Configuration, wg *sync.WaitGroup, cancel context.CancelFunc) Controller {
-	controller := OpenShiftController{
+// NewController creates an instance of Controller
+func NewController(ctx context.Context, openShiftClient client.OpenShiftClient, t *tenant.Tenant, features toggles.Features, config configuration.Configuration, wg *sync.WaitGroup, cancel context.CancelFunc) ControllerI {
+	controller := Controller{
 		openShiftClient: openShiftClient,
 		users:           NewUserMap(),
 		userChannels:    NewUserChannelMap(),
@@ -62,7 +63,7 @@ func NewOpenShiftController(ctx context.Context, openShiftClient client.OpenShif
 }
 
 // GetUser gets the User for the current namespace
-func (oc *OpenShiftController) GetUser(ns string) model.User {
+func (oc *Controller) GetUser(ns string) model.User {
 	return oc.userForNamespace(ns)
 }
 
@@ -70,7 +71,7 @@ func (oc *OpenShiftController) GetUser(ns string) model.User {
 // user structure with latest build info. NOTE: In most cases the only change in
 // build object is stage timestamp, which we don't care about, so this function
 // just does couple comparisons and returns
-func (oc *OpenShiftController) HandleBuild(o model.Object) error {
+func (oc *Controller) HandleBuild(o model.Object) error {
 	ns := o.Object.Metadata.Namespace
 	logger.WithField("ns", ns).Infof("Processing build event '%s'", o.Object.Metadata.Name)
 
@@ -113,7 +114,7 @@ func (oc *OpenShiftController) HandleBuild(o model.Object) error {
 // user structure with info about the changes in DC. NOTE: This is important for cases
 // like reset tenant and update tenant when DC is updated and Jenkins starts because
 // of ConfigChange or manual intervention.
-func (oc *OpenShiftController) HandleDeploymentConfig(dc model.DCObject) error {
+func (oc *Controller) HandleDeploymentConfig(dc model.DCObject) error {
 	ns := dc.Object.Metadata.Namespace[:len(dc.Object.Metadata.Namespace)-len(jenkinsNamespaceSuffix)]
 	logger.WithField("ns", ns).Infof("Processing deployment config change event '%s'", dc.Object.Metadata.Name)
 
@@ -153,7 +154,7 @@ func (oc *OpenShiftController) HandleDeploymentConfig(dc model.DCObject) error {
 }
 
 // createIfNotExist checks existence of a user in the map, initialise if it does not exist
-func (oc *OpenShiftController) createIfNotExist(ns string) error {
+func (oc *Controller) createIfNotExist(ns string) error {
 	if _, exist := oc.users.Load(ns); exist {
 		logger.WithField("ns", ns).Debug("User exists")
 		return nil
@@ -181,17 +182,17 @@ func (oc *OpenShiftController) createIfNotExist(ns string) error {
 	return nil
 }
 
-func (oc *OpenShiftController) userForNamespace(ns string) model.User {
+func (oc *Controller) userForNamespace(ns string) model.User {
 	user, _ := oc.users.Load(ns)
 	return user
 }
 
 // isActive returns true if build phase suggests a build is active, false otherwise.
-func (oc *OpenShiftController) isActive(b *model.Build) bool {
+func (oc *Controller) isActive(b *model.Build) bool {
 	return model.Phases[b.Status.Phase] == 1
 }
 
-func (oc *OpenShiftController) sendUserToIdler(ns string, user model.User) {
+func (oc *Controller) sendUserToIdler(ns string, user model.User) {
 	ch, ok := oc.userChannels.Load(ns)
 	if !ok {
 		logger.WithField("ns", ns).Error("No channel found for sending user instance")

@@ -3,12 +3,13 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
-	"net/http"
 )
 
 // IdlerAPI defines the REST endpoints of the Idler
@@ -36,7 +37,7 @@ type IdlerAPI interface {
 
 type idler struct {
 	openShiftClient client.OpenShiftClient
-	controller      openshift.Controller
+	controller      openshift.ControllerI
 }
 
 type status struct {
@@ -44,7 +45,7 @@ type status struct {
 }
 
 // NewIdlerAPI creates a new instance of IdlerAPI.
-func NewIdlerAPI(openShiftClient client.OpenShiftClient, controller openshift.Controller) IdlerAPI {
+func NewIdlerAPI(openShiftClient client.OpenShiftClient, controller openshift.ControllerI) IdlerAPI {
 	return &idler{
 		openShiftClient: openShiftClient,
 		controller:      controller,

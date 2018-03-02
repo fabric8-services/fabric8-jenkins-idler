@@ -27,7 +27,7 @@ func (rm *UserChannelMap) Load(key string) (chan model.User, bool) {
 	return result, ok
 }
 
-// Delete deletes the channe, of model.User from UserChannelMap given its key
+// Delete deletes the channel of model.User from UserChannelMap given its key
 func (rm *UserChannelMap) Delete(key string) {
 	rm.Lock()
 	delete(rm.internal, key)
