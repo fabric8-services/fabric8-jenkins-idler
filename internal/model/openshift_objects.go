@@ -10,9 +10,12 @@ import (
 //OpenShift related structs
 
 const (
-	JenkinsIdled    = 0
+	// JenkinsIdled : Jenkins is not running (idle)
+	JenkinsIdled = 0
+	// JenkinsStarting : Jenkins is about to start
 	JenkinsStarting = 1
-	JenkinsRunning  = 2
+	// JenkinsRunning : Jenkins is running
+	JenkinsRunning = 2
 )
 
 type Object struct {
@@ -30,6 +33,7 @@ type BuildList struct {
 	Items []Build `json:"items"`
 }
 
+// Build is for a Jenkins Build
 type Build struct {
 	Metadata Metadata `json:"metadata"`
 	Status   Status   `json:"status"`
@@ -92,7 +96,7 @@ type Strategy struct {
 
 type Scale struct {
 	Kind       string   `json:"kind"`
-	ApiVersion string   `json:"apiVersion"`
+	APIVersion string   `json:"apiVersion"`
 	Metadata   Metadata `json:"metadata"`
 	Spec       struct {
 		Replicas int `json:"replicas"`

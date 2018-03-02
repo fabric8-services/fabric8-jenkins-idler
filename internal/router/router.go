@@ -3,18 +3,19 @@ package router
 import (
 	"context"
 	"fmt"
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/api"
-	"github.com/julienschmidt/httprouter"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/api"
+	"github.com/julienschmidt/httprouter"
+	log "github.com/sirupsen/logrus"
 )
 
 var routerLogger = log.WithFields(log.Fields{"component": "router"})
 
 const (
-	defaultHttpServerPort = 8080
+	defaultHTTPServerPort = 8080
 	shutdownTimeout       = 5
 )
 
@@ -26,10 +27,10 @@ type Router struct {
 
 // NewRouter creates a new HTTP router for the Idler on the default port.
 func NewRouter(router *httprouter.Router) *Router {
-	return NewRouterWithPort(router, defaultHttpServerPort)
+	return NewRouterWithPort(router, defaultHTTPServerPort)
 }
 
-// NewRouter creates a new HTTP router for the Idler on the specified port.
+// NewRouterWithPort creates a new HTTP router for the Idler on the specified port.
 func NewRouterWithPort(router *httprouter.Router, port int) *Router {
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
@@ -40,7 +41,7 @@ func NewRouterWithPort(router *httprouter.Router, port int) *Router {
 }
 
 // Start starts the HTTP router
-func (r *Router) Start(wg *sync.WaitGroup, ctx context.Context, cancel context.CancelFunc) {
+func (r *Router) Start(ctx context.Context, wg *sync.WaitGroup, cancel context.CancelFunc) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -65,6 +66,7 @@ func (r *Router) Start(wg *sync.WaitGroup, ctx context.Context, cancel context.C
 	}()
 }
 
+// Shutdown shuts down the idler router
 func (r *Router) Shutdown() {
 	routerLogger.Info("Idler router shutting down.")
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout*time.Second)
@@ -74,6 +76,7 @@ func (r *Router) Shutdown() {
 	cancel()
 }
 
+// CreateAPIRouter creates idler api router
 func CreateAPIRouter(api api.IdlerAPI) *httprouter.Router {
 	router := httprouter.New()
 

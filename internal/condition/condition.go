@@ -14,10 +14,12 @@ type Condition interface {
 	Eval(object interface{}) (bool, error)
 }
 
+// Conditions defines list of Condition instances by their names
 type Conditions struct {
 	conditions map[string]Condition
 }
 
+// NewConditions create a new instance of Conditions
 func NewConditions() Conditions {
 	return Conditions{
 		conditions: make(map[string]Condition),
@@ -47,6 +49,7 @@ func (c *Conditions) Eval(o interface{}) (bool, util.MultiError) {
 	return result, errors
 }
 
+// Add adds a condition with its name to the this Conditions instance
 func (c *Conditions) Add(name string, condition Condition) {
 	c.conditions[name] = condition
 }

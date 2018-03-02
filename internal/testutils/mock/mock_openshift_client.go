@@ -27,7 +27,7 @@ func (c *OpenShiftClient) GetRoute(n string, s string) (r string, tls bool, err 
 	return "", true, nil
 }
 
-func (c *OpenShiftClient) GetApiURL() string {
+func (c *OpenShiftClient) GetAPIURL() string {
 	return ""
 }
 

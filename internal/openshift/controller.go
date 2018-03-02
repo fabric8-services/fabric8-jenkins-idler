@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"context"
+	"sync"
+
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/idler"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
@@ -13,7 +15,6 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 	log "github.com/sirupsen/logrus"
-	"sync"
 )
 
 const (
@@ -43,7 +44,8 @@ type OpenShiftController struct {
 	cancel          context.CancelFunc
 }
 
-func NewOpenShiftController(openShiftClient client.OpenShiftClient, t *tenant.Tenant, features toggles.Features, config configuration.Configuration, wg *sync.WaitGroup, ctx context.Context, cancel context.CancelFunc) Controller {
+// NewOpenShiftController creates an instance of Controller
+func NewOpenShiftController(ctx context.Context, openShiftClient client.OpenShiftClient, t *tenant.Tenant, features toggles.Features, config configuration.Configuration, wg *sync.WaitGroup, cancel context.CancelFunc) Controller {
 	controller := OpenShiftController{
 		openShiftClient: openShiftClient,
 		users:           NewUserMap(),
@@ -59,6 +61,7 @@ func NewOpenShiftController(openShiftClient client.OpenShiftClient, t *tenant.Te
 	return &controller
 }
 
+// GetUser gets the User for the current namespace
 func (oc *OpenShiftController) GetUser(ns string) model.User {
 	return oc.userForNamespace(ns)
 }
@@ -149,7 +152,7 @@ func (oc *OpenShiftController) HandleDeploymentConfig(dc model.DCObject) error {
 	return nil
 }
 
-// createIfNotExist check existence of a user in the map, initialise if it does not exist
+// createIfNotExist checks existence of a user in the map, initialise if it does not exist
 func (oc *OpenShiftController) createIfNotExist(ns string) error {
 	if _, exist := oc.users.Load(ns); exist {
 		logger.WithField("ns", ns).Debug("User exists")
@@ -157,7 +160,7 @@ func (oc *OpenShiftController) createIfNotExist(ns string) error {
 	}
 
 	logger.WithField("ns", ns).Debug("Creating user")
-	ti, err := oc.tenant.GetTenantInfoByNamespace(oc.openShiftClient.GetApiURL(), ns)
+	ti, err := oc.tenant.GetTenantInfoByNamespace(oc.openShiftClient.GetAPIURL(), ns)
 	if err != nil {
 		return err
 	}
@@ -165,14 +168,14 @@ func (oc *OpenShiftController) createIfNotExist(ns string) error {
 	if ti.Meta.TotalCount > 1 {
 		return fmt.Errorf("could not add new user - Tenant service returned multiple items: %d", ti.Meta.TotalCount)
 	} else if len(ti.Data) == 0 {
-		return fmt.Errorf("could not find tenant in cluster %s for namespace %s: %+v", oc.openShiftClient.GetApiURL(), ns, ti.Errors)
+		return fmt.Errorf("could not find tenant in cluster %s for namespace %s: %+v", oc.openShiftClient.GetAPIURL(), ns, ti.Errors)
 	}
 
-	newUser := model.NewUser(ti.Data[0].Id, ns)
+	newUser := model.NewUser(ti.Data[0].ID, ns)
 	oc.users.Store(ns, newUser)
 	userIdler := idler.NewUserIdler(newUser, oc.openShiftClient, oc.config, oc.features)
 	oc.userChannels.Store(ns, userIdler.GetChannel())
-	userIdler.Run(oc.wg, oc.ctx, oc.cancel, time.Duration(oc.config.GetCheckInterval())*time.Minute)
+	userIdler.Run(oc.ctx, oc.wg, oc.cancel, time.Duration(oc.config.GetCheckInterval())*time.Minute)
 
 	logger.WithField("ns", ns).Debug("New user recorded")
 	return nil
@@ -183,7 +186,7 @@ func (oc *OpenShiftController) userForNamespace(ns string) model.User {
 	return user
 }
 
-// IsActive returns true ifa build phase suggests a build is active, false otherwise.
+// isActive returns true if build phase suggests a build is active, false otherwise.
 func (oc *OpenShiftController) isActive(b *model.Build) bool {
 	return model.Phases[b.Status.Phase] == 1
 }

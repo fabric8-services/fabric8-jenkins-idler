@@ -2,11 +2,12 @@ package configuration
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type config struct {
@@ -103,7 +104,8 @@ func getConfigValueForEnvKey(v *config, key string) (string, bool) {
 	value := reflect.Indirect(r).FieldByName(key)
 	if value.IsValid() {
 		return value.String(), true
-	} else {
-		return "", false
 	}
+
+	return "", false
+
 }

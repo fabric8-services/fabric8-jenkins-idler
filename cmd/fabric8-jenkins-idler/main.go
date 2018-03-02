@@ -50,7 +50,7 @@ func main() {
 	var features toggles.Features
 	if len(config.GetFixedUuids()) > 0 {
 		log.Infof("Using fixed UUID list for toggle feature: %s", config.GetFixedUuids())
-		features, err = toggles.NewFixedUuidToggle(config.GetFixedUuids())
+		features, err = toggles.NewFixedUUIDToggle(config.GetFixedUuids())
 	} else {
 		features, err = toggles.NewUnleashToggle(config.GetToggleURL())
 	}

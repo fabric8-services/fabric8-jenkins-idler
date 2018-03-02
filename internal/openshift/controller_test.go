@@ -1,20 +1,22 @@
 package openshift
 
 import (
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/common"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/common"
+
 	"context"
+	"io"
+	"io/ioutil"
+	"net/http/httptest"
+	"sync"
+
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/mock"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"io"
-	"io/ioutil"
-	"net/http/httptest"
-	"sync"
 )
 
 var (
@@ -22,7 +24,7 @@ var (
 	openShiftService *httptest.Server
 	controller       Controller
 	origWriter       io.Writer
-	testUserId       = "2e15e957-0366-4802-bf1e-0d6fe3f11bb6"
+	testUserID       = "2e15e957-0366-4802-bf1e-0d6fe3f11bb6"
 )
 
 type mockFeatureToggle struct {
@@ -31,9 +33,9 @@ type mockFeatureToggle struct {
 func (m *mockFeatureToggle) IsIdlerEnabled(uid string) (bool, error) {
 	if uid == testUserId {
 		return true, nil
-	} else {
-		return false, nil
 	}
+
+	return false, nil
 }
 
 func Test_handle_build(t *testing.T) {

@@ -4,13 +4,13 @@ import (
 	"os"
 	"time"
 
-	"errors"
 	"fmt"
+
+	"strings"
 
 	"github.com/Unleash/unleash-client-go"
 	"github.com/Unleash/unleash-client-go/context"
 	log "github.com/sirupsen/logrus"
-	"strings"
 )
 
 const (
@@ -44,7 +44,7 @@ func NewUnleashToggle(hostURL string) (Features, error) {
 	case <-readyChan:
 		logger.Info("Unleash client initialized and ready.")
 	case <-time.After(time.Second * maxWaitForReady):
-		return nil, errors.New(fmt.Sprintf("Unleash client initalization timed out after %d seconds.", maxWaitForReady))
+		return nil, fmt.Errorf("unleash client initalization timed out after %d seconds", maxWaitForReady)
 	}
 
 	return &unleashToggle{unleashClient: unleashClient}, nil

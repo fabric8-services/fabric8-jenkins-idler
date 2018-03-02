@@ -18,13 +18,13 @@ import (
 
 var logger = log.WithFields(log.Fields{"component": "openshift-client"})
 
-// OpenShift is a client for OpenShift API
+// OpenShiftClient is a client for OpenShift API
 type OpenShiftClient interface {
 	Idle(namespace string, service string) error
 	UnIdle(namespace string, service string) error
 	IsIdle(namespace string, service string) (int, error)
 	GetRoute(n string, s string) (r string, tls bool, err error)
-	GetApiURL() string
+	GetAPIURL() string
 	WatchBuilds(namespace string, buildType string, callback func(model.Object) error) error
 	WatchDeploymentConfigs(namespace string, nsSuffix string, callback func(model.DCObject) error) error
 }
@@ -147,7 +147,7 @@ func (o *OpenShift) UnIdle(namespace string, service string) (err error) {
 	//Scale up
 	s := model.Scale{
 		Kind:       "Scale",
-		ApiVersion: "extensions/v1beta1",
+		APIVersion: "extensions/v1beta1",
 		Metadata: model.Metadata{
 			Name:      service,
 			Namespace: namespace,
@@ -507,8 +507,8 @@ func (o *OpenShift) patch(req *http.Request) (b []byte, err error) {
 	return
 }
 
-//GetApiURL returns API Url for OpenShift cluster
-func (o *OpenShift) GetApiURL() string {
+//GetAPIURL returns API Url for OpenShift cluster
+func (o *OpenShift) GetAPIURL() string {
 	return o.apiURL
 }
 

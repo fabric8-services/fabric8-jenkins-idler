@@ -4,10 +4,11 @@ import (
 	"strings"
 
 	"fmt"
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
 	"os"
 	"runtime"
 	"strconv"
+
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
 )
 
 const (
@@ -41,12 +42,14 @@ func init() {
 	settings["GetFixedUuids"] = Setting{"JC_FIXED_UUIDS", "", []func(interface{}, string) error{}}
 }
 
+// Setting defines an element in the configuration of Jenkins Idler
 type Setting struct {
 	key          string
 	defaultValue string
 	validations  []func(interface{}, string) error
 }
 
+// Configuration has methods to get all configuration details of the current instance of the Jenkins Idler
 type Configuration interface {
 	// GetOpenShiftToken returns the OpenShift token.
 	GetOpenShiftToken() string
