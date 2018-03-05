@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/julienschmidt/httprouter"
-	log "github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/julienschmidt/httprouter"
+	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
 )
 
 type mockResponseWriter struct {
@@ -114,7 +115,7 @@ func Test_router_start(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	router.Start(&wg, ctx, cancel)
+	router.Start(ctx, &wg, cancel)
 
 	// we need to give a bit time for the server to come up
 	time.Sleep(1 * time.Second)

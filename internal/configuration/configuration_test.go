@@ -2,11 +2,12 @@ package configuration
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type config struct {
@@ -28,14 +29,14 @@ func Test_configuration_settings(t *testing.T) {
 	var testConfigs = []config{
 		{"http://localhost", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{}},
 		{"https://localhost", "https://localhost", "https://localhost", "https://localhost", "token-1", "token-2", "10", "15", "15", []string{}},
-		{"", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
-		{"foo", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
-		{"/foo", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
-		{"ftp://snafu", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
-		{"", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"Value for JC_OPENSHIFT_API_URL needs to be a valid URL."}},
-		{"http://localhost", "", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"Value for JC_JENKINS_PROXY_API_URL needs to be a valid URL."}},
-		{"http://localhost", "http://localhost", "", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"Value for JC_F8TENANT_API_URL needs to be a valid URL."}},
-		{"http://localhost", "http://localhost", "http://localhost", "", "token-1", "token-2", "10", "15", "15", []string{"Value for JC_TOGGLE_API_URL needs to be a valid URL."}},
+		{"", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"value for JC_OPENSHIFT_API_URL needs to be a valid URL"}},
+		{"foo", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"value for JC_OPENSHIFT_API_URL needs to be a valid URL"}},
+		{"/foo", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"value for JC_OPENSHIFT_API_URL needs to be a valid URL"}},
+		{"ftp://snafu", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"value for JC_OPENSHIFT_API_URL needs to be a valid URL"}},
+		{"", "http://localhost", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"value for JC_OPENSHIFT_API_URL needs to be a valid URL"}},
+		{"http://localhost", "", "http://localhost", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"value for JC_JENKINS_PROXY_API_URL needs to be a valid URL"}},
+		{"http://localhost", "http://localhost", "", "http://localhost", "token-1", "token-2", "10", "15", "15", []string{"value for JC_F8TENANT_API_URL needs to be a valid URL"}},
+		{"http://localhost", "http://localhost", "http://localhost", "", "token-1", "token-2", "10", "15", "15", []string{"value for JC_TOGGLE_API_URL needs to be a valid URL"}},
 	}
 
 	for _, testConfig := range testConfigs {
@@ -103,7 +104,8 @@ func getConfigValueForEnvKey(v *config, key string) (string, bool) {
 	value := reflect.Indirect(r).FieldByName(key)
 	if value.IsValid() {
 		return value.String(), true
-	} else {
-		return "", false
 	}
+
+	return "", false
+
 }

@@ -1,17 +1,18 @@
 package condition
 
 import (
-	"errors"
 	"fmt"
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"time"
+
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 )
 
-// DCCondition covers changes to Jenkins DeploymentConfigs
+// DeploymentConfigCondition covers changes to DeploymentConfigs
 type DeploymentConfigCondition struct {
 	idleAfter time.Duration
 }
 
+// NewDCCondition creates a new instance of DeploymentConfigCondition
 func NewDCCondition(idleAfter time.Duration) Condition {
 	b := &DeploymentConfigCondition{
 		idleAfter: idleAfter,
@@ -23,7 +24,7 @@ func NewDCCondition(idleAfter time.Duration) Condition {
 func (c *DeploymentConfigCondition) Eval(object interface{}) (bool, error) {
 	b, ok := object.(model.User)
 	if !ok {
-		return false, errors.New(fmt.Sprintf("%T is not of type User", object))
+		return false, fmt.Errorf("%T is not of type User", object)
 	}
 
 	if b.JenkinsLastUpdate.Add(c.idleAfter).Before(time.Now()) {

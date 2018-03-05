@@ -2,9 +2,10 @@ package util
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_IsURL(t *testing.T) {
@@ -14,10 +15,10 @@ func Test_IsURL(t *testing.T) {
 	}{
 		{"http://localhist:9999/api", []string{}},
 		{"http://localhist:9999/api/", []string{}},
-		{"foo", []string{"Value for FOO needs to be a valid URL."}},
-		{"/foo", []string{"Value for FOO needs to be a valid URL."}},
-		{"ftp://localhost", []string{"Value for FOO needs to be a valid URL."}},
-		{"", []string{"Value for FOO needs to be a valid URL."}},
+		{"foo", []string{"value for FOO needs to be a valid URL"}},
+		{"/foo", []string{"value for FOO needs to be a valid URL"}},
+		{"ftp://localhost", []string{"value for FOO needs to be a valid URL"}},
+		{"", []string{"value for FOO needs to be a valid URL"}},
 	}
 
 	for _, testURL := range testURLs {
@@ -43,8 +44,8 @@ func Test_IsBool(t *testing.T) {
 		{"false", false, []string{}},
 		{"0", false, []string{}},
 		{"1", true, []string{}},
-		{"snafu", false, []string{"Value for FOO needs to be an bool."}},
-		{"", false, []string{"Value for FOO needs to be an bool."}},
+		{"snafu", false, []string{"value for FOO needs to be an bool"}},
+		{"", false, []string{"value for FOO needs to be an bool"}},
 	}
 
 	for _, testBool := range testBools {

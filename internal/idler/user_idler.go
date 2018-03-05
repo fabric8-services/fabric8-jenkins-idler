@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"fmt"
+
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/condition"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
@@ -22,6 +23,7 @@ const (
 	jenkinsNamespaceSuffix = "-jenkins"
 )
 
+// UserIdler defines the state of Jenkins Idler for a particular User
 type UserIdler struct {
 	openShiftClient client.OpenShiftClient
 	maxRetries      int
@@ -35,6 +37,8 @@ type UserIdler struct {
 	features        toggles.Features
 }
 
+// NewUserIdler creates an instance of UserIdler
+// Returns a pointer to UserIdler
 func NewUserIdler(user model.User, openShiftClient client.OpenShiftClient, config configuration.Configuration, features toggles.Features) *UserIdler {
 	logEntry := log.WithFields(log.Fields{
 		"component": "user-idler",
@@ -62,6 +66,7 @@ func NewUserIdler(user model.User, openShiftClient client.OpenShiftClient, confi
 	return &userIdler
 }
 
+// GetChannel gets channel of model.User type of this UserIdler
 func (idler *UserIdler) GetChannel() chan model.User {
 	return idler.userChan
 }
@@ -90,7 +95,9 @@ func (idler *UserIdler) checkIdle() error {
 	return nil
 }
 
-func (idler *UserIdler) Run(wg *sync.WaitGroup, ctx context.Context, cancel context.CancelFunc, checkIdle time.Duration) {
+// Run runs/starts the Idler
+// It checks if jenkins is idle at every checkIdle duration
+func (idler *UserIdler) Run(ctx context.Context, wg *sync.WaitGroup, cancel context.CancelFunc, checkIdle time.Duration) {
 	idler.logger.Info("UserIdler started.")
 	wg.Add(1)
 	go func() {
@@ -174,10 +181,10 @@ func (idler *UserIdler) isIdlerEnabled() (bool, error) {
 	if enabled {
 		logger.WithFields(log.Fields{"user": idler.user.Name, "uuid": idler.user.ID}).Debug("Idler enabled.")
 		return true, nil
-	} else {
-		logger.WithFields(log.Fields{"user": idler.user.Name, "uuid": idler.user.ID}).Debug("Idler not enabled.")
-		return false, nil
 	}
+
+	logger.WithFields(log.Fields{"user": idler.user.Name, "uuid": idler.user.ID}).Debug("Idler not enabled.")
+	return false, nil
 }
 
 func (idler *UserIdler) getJenkinsState() (int, error) {
@@ -202,7 +209,7 @@ func (idler *UserIdler) resetCounters() {
 	idler.unIdleAttempts = 0
 }
 
-func createWatchConditions(proxyUrl string, idleAfter int, logEntry *log.Entry) *condition.Conditions {
+func createWatchConditions(proxyURL string, idleAfter int, logEntry *log.Entry) *condition.Conditions {
 	conditions := condition.NewConditions()
 
 	// Add a Build condition
@@ -212,9 +219,9 @@ func createWatchConditions(proxyUrl string, idleAfter int, logEntry *log.Entry) 
 	conditions.Add("DC", condition.NewDCCondition(time.Duration(idleAfter)*time.Minute))
 
 	// If we have access to Proxy, add User condition
-	if len(proxyUrl) > 0 {
+	if len(proxyURL) > 0 {
 		logEntry.Debug("Adding 'user' condition")
-		conditions.Add("user", condition.NewUserCondition(proxyUrl, time.Duration(idleAfter)*time.Minute))
+		conditions.Add("user", condition.NewUserCondition(proxyURL, time.Duration(idleAfter)*time.Minute))
 	}
 
 	return &conditions

@@ -18,18 +18,19 @@ import (
 
 var logger = log.WithFields(log.Fields{"component": "openshift-client"})
 
-// OpenShift is a client for OpenShift API
+// OpenShiftClient is a client that talks to OpenShift API
 type OpenShiftClient interface {
 	Idle(namespace string, service string) error
 	UnIdle(namespace string, service string) error
 	IsIdle(namespace string, service string) (int, error)
 	GetRoute(n string, s string) (r string, tls bool, err error)
-	GetApiURL() string
+	GetAPIURL() string
 	WatchBuilds(namespace string, buildType string, callback func(model.Object) error) error
 	WatchDeploymentConfigs(namespace string, nsSuffix string, callback func(model.DCObject) error) error
 }
 
-// OpenShift is a client for OpenShift API
+// OpenShift is a client that talks to OpenShift API
+// Implementation of OpenShiftClient
 type OpenShift struct {
 	token  string
 	apiURL string
@@ -60,7 +61,7 @@ func NewOpenShiftWithClient(client *http.Client, apiURL string, token string) Op
 	}
 }
 
-//Idle forces a service in OpenShift namespace to idle
+// Idle scales down the jenkins pod in the given OpenShift namespace
 func (o OpenShift) Idle(namespace string, service string) (err error) {
 	logger.Info("Idling " + service + " in " + namespace)
 
@@ -141,13 +142,13 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 	return
 }
 
-//UnIdle forces a service in OpenShift namespace to start
+// UnIdle scales up the jenkins pod in the given OpenShift namespace
 func (o *OpenShift) UnIdle(namespace string, service string) (err error) {
 	logger.Info("Unidling ", service, " in ", namespace)
 	//Scale up
 	s := model.Scale{
 		Kind:       "Scale",
-		ApiVersion: "extensions/v1beta1",
+		APIVersion: "extensions/v1beta1",
 		Metadata: model.Metadata{
 			Name:      service,
 			Namespace: namespace,
@@ -507,8 +508,8 @@ func (o *OpenShift) patch(req *http.Request) (b []byte, err error) {
 	return
 }
 
-//GetApiURL returns API Url for OpenShift cluster
-func (o *OpenShift) GetApiURL() string {
+//GetAPIURL returns API Url for OpenShift cluster
+func (o *OpenShift) GetAPIURL() string {
 	return o.apiURL
 }
 

@@ -6,6 +6,7 @@ IMAGE_TAG ?= $(shell git rev-parse --short HEAD)
 
 BUILD_DIR = out
 PACKAGES = $(shell go list ./...)
+LINT_PACKAGES = $(shell echo $(PACKAGES) | sed -e 's@github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration@@')
 SOURCE_DIRS = $(shell echo $(PACKAGES) | awk 'BEGIN{FS="/"; RS=" "}{print $$4}' | uniq)
 LD_FLAGS := -X github.com/fabric8-services/fabric8-jenkins-idler/internal/version.version=$(IMAGE_TAG)
 
@@ -26,7 +27,8 @@ __check_defined = \
     $(if $(value $1),, \
       $(error Undefined $1$(if $2, ($2))))
 
-all: tools build test fmtcheck validate_commits vet image ## Compiles binary and runs format and style checks
+.PHONY: all
+all: tools build test fmtcheck validate_commits vet image lint ## Compiles binary and runs format and style checks
 
 build: vendor ## Builds the binary into $GOPATH/bin
 	go install -ldflags="$(LD_FLAGS)" ./cmd/fabric8-jenkins-idler
@@ -77,7 +79,7 @@ vet: ## Runs 'go vet' for common coding mistakes
 
 .PHONY: lint
 lint: ## Runs golint
-	@out="$$(golint $(PACKAGES))"; \
+	@out="$$(golint $(LINT_PACKAGES))"; \
 	if [ -n "$$out" ]; then \
 		echo "$$out"; \
 		exit 1; \
