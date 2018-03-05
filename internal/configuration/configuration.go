@@ -49,7 +49,7 @@ type Setting struct {
 	validations  []func(interface{}, string) error
 }
 
-// Configuration has methods to get all configuration details of the current instance of the Jenkins Idler
+// Configuration defines the configuration options of the Idler
 type Configuration interface {
 	// GetOpenShiftToken returns the OpenShift token.
 	GetOpenShiftToken() string

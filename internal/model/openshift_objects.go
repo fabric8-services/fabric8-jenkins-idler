@@ -52,7 +52,8 @@ type Metadata struct {
 	Generation  int
 }
 
-// Annotations contains imformation regarding Jenkins build.
+// Annotations is a set of key, value pairs added to custom deployer and lifecycle pre/post hook pods.
+// It contains imformation regarding build.
 // It is used in Metadata as Annotations
 type Annotations struct {
 	BuildNumber      string `json:"openshift.io/build.number,omitempty"`
@@ -62,11 +63,13 @@ type Annotations struct {
 	PrevScale        string `json:"idling.alpha.openshift.io/previous-scale,omitempty"`
 }
 
+// Endpoint is the how a service is getting accessed,
+// https://docs.openshift.com/online/rest_api/api/v1.Endpoints.html
 type Endpoint struct {
 	Metadata Metadata `json:"metadata"`
 }
 
-// Status of Build
+// Status is the current status of the build
 type Status struct {
 	Phase               string    `json:"phase"`
 	StartTimestamp      BuildTime `json:"startTimestamp"`
@@ -81,7 +84,7 @@ type DeploymentConfig struct {
 	Spec     Spec     `json:"spec,omitempty"`
 }
 
-// DCStatus : DeploymentConfig Status
+// DCStatus represents the current deployment state.
 type DCStatus struct {
 	Replicas            int
 	ReadyReplicas       int
@@ -97,18 +100,19 @@ type Condition struct {
 	Status         string
 }
 
-// Spec : Build Specifications
+// Spec holds all the input necessary to produce a new build, and the conditions when to trigger them
 type Spec struct {
 	Replicas int `json:"replicas"`
 	Strategy Strategy
 }
 
-// Strategy describes the build strategy used to execute the build
+// Strategy defines how to perform a build.
 // https://docs.openshift.com/online/dev_guide/builds/build_strategies.html
 type Strategy struct {
 	Type string
 }
 
+// Scale represents a scaling request for a resource.
 type Scale struct {
 	Kind       string   `json:"kind"`
 	APIVersion string   `json:"apiVersion"`
@@ -129,6 +133,7 @@ type Project struct {
 	Metadata Metadata `json:"metadata"`
 }
 
+// BuildTime is duration of the Build
 type BuildTime struct {
 	time.Time
 }
@@ -174,7 +179,7 @@ func (s DCStatus) GetByType(t string) (Condition, error) {
 	return Condition{}, fmt.Errorf("Could not find condition '%s'", t)
 }
 
-// Phases of Build
+// Phases : phase is the point in the build lifecycle
 var Phases = map[string]int{
 	"Finished":  0,
 	"Complete":  0,

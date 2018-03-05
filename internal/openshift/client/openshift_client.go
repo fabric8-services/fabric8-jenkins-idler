@@ -18,7 +18,7 @@ import (
 
 var logger = log.WithFields(log.Fields{"component": "openshift-client"})
 
-// OpenShiftClient is a client for OpenShift API
+// OpenShiftClient is a client that talks to OpenShift API
 type OpenShiftClient interface {
 	Idle(namespace string, service string) error
 	UnIdle(namespace string, service string) error
@@ -29,7 +29,8 @@ type OpenShiftClient interface {
 	WatchDeploymentConfigs(namespace string, nsSuffix string, callback func(model.DCObject) error) error
 }
 
-// OpenShift is a client for OpenShift API
+// OpenShift is a client that talks to OpenShift API
+// Implementation of OpenShiftClient
 type OpenShift struct {
 	token  string
 	apiURL string
@@ -60,7 +61,7 @@ func NewOpenShiftWithClient(client *http.Client, apiURL string, token string) Op
 	}
 }
 
-//Idle forces a service in OpenShift namespace to idle
+// Idle scales down the jenkins pod in the given OpenShift namespace
 func (o OpenShift) Idle(namespace string, service string) (err error) {
 	logger.Info("Idling " + service + " in " + namespace)
 
@@ -141,7 +142,7 @@ func (o OpenShift) Idle(namespace string, service string) (err error) {
 	return
 }
 
-//UnIdle forces a service in OpenShift namespace to start
+// UnIdle scales up the jenkins pod in the given OpenShift namespace
 func (o *OpenShift) UnIdle(namespace string, service string) (err error) {
 	logger.Info("Unidling ", service, " in ", namespace)
 	//Scale up

@@ -12,7 +12,8 @@ type BuildCondition struct {
 	idleAfter time.Duration
 }
 
-// NewBuildCondition creates a new instance of BuildCondition given idleAfter
+// NewBuildCondition creates a new instance of BuildCondition given
+// idleAfter(time after which jenkins should be idled)
 func NewBuildCondition(idleAfter time.Duration) Condition {
 	b := &BuildCondition{idleAfter: idleAfter}
 	return b

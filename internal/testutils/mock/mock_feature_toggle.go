@@ -9,7 +9,7 @@ type featureToggle struct {
 	uuids []string
 }
 
-// NewMockFeatureToggle returns a new instance of featureToggle
+// NewMockFeatureToggle returns a new instance of featureToggle(toggles.Features)
 func NewMockFeatureToggle(validIds []string) toggles.Features {
 	return &featureToggle{uuids: validIds}
 }

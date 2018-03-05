@@ -12,13 +12,13 @@ type OpenShiftClient struct {
 	UnIdleCallCount int
 }
 
-// Idle forces a service in OpenShift namespace to idle
+//Idle scales down the jenkins pod in the given OpenShift namespace
 func (c *OpenShiftClient) Idle(namespace string, service string) error {
 	c.IdleCallCount++
 	return nil
 }
 
-// UnIdle forces a service in OpenShift namespace to start
+// UnIdle scales up the jenkins pod in the given OpenShift namespace
 func (c *OpenShiftClient) UnIdle(namespace string, service string) error {
 	c.UnIdleCallCount++
 	return nil

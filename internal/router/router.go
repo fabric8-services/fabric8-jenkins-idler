@@ -76,7 +76,7 @@ func (r *Router) Shutdown() {
 	cancel()
 }
 
-// CreateAPIRouter creates idler api router
+// CreateAPIRouter a pointer to the http router for the idler APIs
 func CreateAPIRouter(api api.IdlerAPI) *httprouter.Router {
 	router := httprouter.New()
 

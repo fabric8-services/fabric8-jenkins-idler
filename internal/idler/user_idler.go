@@ -38,6 +38,7 @@ type UserIdler struct {
 }
 
 // NewUserIdler creates an instance of UserIdler
+// Returns a pointer to UserIdler
 func NewUserIdler(user model.User, openShiftClient client.OpenShiftClient, config configuration.Configuration, features toggles.Features) *UserIdler {
 	logEntry := log.WithFields(log.Fields{
 		"component": "user-idler",
@@ -65,7 +66,7 @@ func NewUserIdler(user model.User, openShiftClient client.OpenShiftClient, confi
 	return &userIdler
 }
 
-// GetChannel gets channel of model.User type from current UserIdler
+// GetChannel gets channel of model.User type of this UserIdler
 func (idler *UserIdler) GetChannel() chan model.User {
 	return idler.userChan
 }
@@ -95,6 +96,7 @@ func (idler *UserIdler) checkIdle() error {
 }
 
 // Run runs/starts the Idler
+// It checks if jenkins is idle at every checkIdle duration
 func (idler *UserIdler) Run(ctx context.Context, wg *sync.WaitGroup, cancel context.CancelFunc, checkIdle time.Duration) {
 	idler.logger.Info("UserIdler started.")
 	wg.Add(1)

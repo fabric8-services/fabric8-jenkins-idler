@@ -17,20 +17,20 @@ type Info struct {
 	Errors []Error `json:"errors"`
 }
 
-// Error defines and http error
+// Error defines an http error
 type Error struct {
 	Code   string `json:"code"`
 	Detail string `json:"detail"`
 }
 
-// InfoData is Data used in TenantInfo and InfoList
+// InfoData is Data used in Info and InfoList
 type InfoData struct {
 	Attributes Attributes
 	ID         string
 	Type       string
 }
 
-// Attributes is Attributes used in TenantInfoData
+// Attributes is Attributes used in InfoData
 type Attributes struct {
 	CreatedAt  time.Time `json:"created-at"`
 	Email      string

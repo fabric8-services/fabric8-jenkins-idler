@@ -24,7 +24,7 @@ func NewTenant(tenantServiceURL string, authToken string) Tenant {
 	}
 }
 
-// GetTenantInfoByNamespace get you InfoList of a tanent given a namespace and api url
+// GetTenantInfoByNamespace gets you InfoList of a tanent given a namespace and api url
 func (t Tenant) GetTenantInfoByNamespace(apiURL string, ns string) (InfoList, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/tenants", t.tenantServiceURL), nil)
 	if err != nil {

@@ -26,6 +26,7 @@ type unleashToggle struct {
 	unleashClient *unleash.Client
 }
 
+// NewUnleashToggle creates a new instance of unleashToggle
 func NewUnleashToggle(hostURL string) (Features, error) {
 	unleashClient, err := unleash.NewClient(unleash.WithAppName(appName),
 		unleash.WithListener(&listener{}),
