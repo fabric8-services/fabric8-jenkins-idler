@@ -7,7 +7,7 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 )
 
-// DeploymentConfigCondition covers changes to Jenkins DeploymentConfigs
+// DeploymentConfigCondition covers changes to DeploymentConfigs
 type DeploymentConfigCondition struct {
 	idleAfter time.Duration
 }

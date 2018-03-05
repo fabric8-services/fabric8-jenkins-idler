@@ -22,7 +22,7 @@ import (
 var (
 	tenantService    *httptest.Server
 	openShiftService *httptest.Server
-	controller       ControllerI
+	controller       Controller
 	origWriter       io.Writer
 	testUserID       = "2e15e957-0366-4802-bf1e-0d6fe3f11bb6"
 )
@@ -106,7 +106,7 @@ func setUp(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	controller = NewController(ctx, openShiftClient, &tenantClient, features, &mock.Config{}, &wg, cancel)
+	controller = NewControllerImpl(ctx, openShiftClient, &tenantClient, features, &mock.Config{}, &wg, cancel)
 }
 
 func tearDown() {

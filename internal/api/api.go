@@ -37,7 +37,7 @@ type IdlerAPI interface {
 
 type idler struct {
 	openShiftClient client.OpenShiftClient
-	controller      openshift.ControllerI
+	controller      openshift.Controller
 }
 
 type status struct {
@@ -45,7 +45,7 @@ type status struct {
 }
 
 // NewIdlerAPI creates a new instance of IdlerAPI.
-func NewIdlerAPI(openShiftClient client.OpenShiftClient, controller openshift.ControllerI) IdlerAPI {
+func NewIdlerAPI(openShiftClient client.OpenShiftClient, controller openshift.Controller) IdlerAPI {
 	return &idler{
 		openShiftClient: openShiftClient,
 		controller:      controller,

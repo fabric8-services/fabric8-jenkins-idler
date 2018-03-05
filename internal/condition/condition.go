@@ -14,7 +14,7 @@ type Condition interface {
 	Eval(object interface{}) (bool, error)
 }
 
-// Conditions defines list of Condition instances by their names
+// Conditions defines map of Condition instances by their names
 type Conditions struct {
 	conditions map[string]Condition
 }

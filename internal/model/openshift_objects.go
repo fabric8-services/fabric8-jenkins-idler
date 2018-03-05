@@ -90,6 +90,7 @@ type DCStatus struct {
 	UnavailableReplicas int `json:"unavailableReplicas, omitempty"`
 }
 
+// Condition covers changes to Build
 type Condition struct {
 	Type           string
 	LastUpdateTime time.Time
@@ -173,6 +174,7 @@ func (s DCStatus) GetByType(t string) (Condition, error) {
 	return Condition{}, fmt.Errorf("Could not find condition '%s'", t)
 }
 
+// Phases of Build
 var Phases = map[string]int{
 	"Finished":  0,
 	"Complete":  0,
