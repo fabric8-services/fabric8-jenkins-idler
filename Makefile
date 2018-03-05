@@ -27,6 +27,7 @@ __check_defined = \
     $(if $(value $1),, \
       $(error Undefined $1$(if $2, ($2))))
 
+.PHONY: all
 all: tools build test fmtcheck validate_commits vet image lint ## Compiles binary and runs format and style checks
 
 build: vendor ## Builds the binary into $GOPATH/bin
