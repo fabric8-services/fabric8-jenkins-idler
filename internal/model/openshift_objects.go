@@ -18,22 +18,26 @@ const (
 	JenkinsRunning = 2
 )
 
+// Object : Build Object
 type Object struct {
 	Type   string `json:"type"`
 	Object Build  `json:"object"`
 }
 
+// DCObject is DeploymentConfig Object
 type DCObject struct {
 	Type   string           `json:"type"`
 	Object DeploymentConfig `json:"object"`
 }
 
+// BuildList : list of all Build
 type BuildList struct {
 	Kind  string
 	Items []Build `json:"items"`
 }
 
-// Build is for a Jenkins Build
+// Build encapsulates the inputs needed to produce a new deployable image,
+// as well as the status of the execution and a reference to the Pod which executed the build
 type Build struct {
 	Metadata Metadata `json:"metadata"`
 	Status   Status   `json:"status"`
@@ -69,12 +73,15 @@ type Status struct {
 	CompletionTimestamp BuildTime `json:"completionTimestamp"`
 }
 
+// DeploymentConfig define the template for a pod and manages deploying new images or configuration changes.
+// A single deployment configuration is usually analogous to a single micro-service.
 type DeploymentConfig struct {
 	Metadata Metadata `json:"metadata"`
 	Status   DCStatus `json:"status,omitempty"`
 	Spec     Spec     `json:"spec,omitempty"`
 }
 
+// DCStatus : DeploymentConfig Status
 type DCStatus struct {
 	Replicas            int
 	ReadyReplicas       int
@@ -89,11 +96,14 @@ type Condition struct {
 	Status         string
 }
 
+// Spec : Build Specifications
 type Spec struct {
 	Replicas int `json:"replicas"`
 	Strategy Strategy
 }
 
+// Strategy describes the build strategy used to execute the build
+// https://docs.openshift.com/online/dev_guide/builds/build_strategies.html
 type Strategy struct {
 	Type string
 }
@@ -107,10 +117,13 @@ type Scale struct {
 	} `json:"spec"`
 }
 
+// Projects : List of all Project
 type Projects struct {
 	Items []*Project `json:"items"`
 }
 
+// Project is a unit of isolation and collaboration in OpenShift
+// https://docs.openshift.com/online/rest_api/oapi/v1.Project.html
 type Project struct {
 	Metadata Metadata `json:"metadata"`
 }

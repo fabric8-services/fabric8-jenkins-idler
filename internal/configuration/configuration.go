@@ -23,19 +23,19 @@ var (
 
 func init() {
 	// service URLs for required services
-	settings["GetOpenShiftURL"] = Setting{"JCOpenShiftAPIURL", "", []func(interface{}, string) error{util.IsURL}}
-	settings["GetProxyURL"] = Setting{"JCJenkinsProxyAPIURL", "", []func(interface{}, string) error{util.IsURL}}
-	settings["GetTenantURL"] = Setting{"JCF8TenantAPIURL", "", []func(interface{}, string) error{util.IsURL}}
-	settings["GetToggleURL"] = Setting{"JCToggleAPIURL", "", []func(interface{}, string) error{util.IsURL}}
+	settings["GetOpenShiftURL"] = Setting{"JC_OPENSHIFT_API_URL", "", []func(interface{}, string) error{util.IsURL}}
+	settings["GetProxyURL"] = Setting{"JC_JENKINS_PROXY_API_URL", "", []func(interface{}, string) error{util.IsURL}}
+	settings["GetTenantURL"] = Setting{"JC_F8TENANT_API_URL", "", []func(interface{}, string) error{util.IsURL}}
+	settings["GetToggleURL"] = Setting{"JC_TOGGLE_API_URL", "", []func(interface{}, string) error{util.IsURL}}
 
 	// required secrets
-	settings["GetOpenShiftToken"] = Setting{"JCOpenShitAPIToken", "", []func(interface{}, string) error{util.IsNotEmpty}}
-	settings["GetAuthToken"] = Setting{"JCAuthToken", "", []func(interface{}, string) error{util.IsNotEmpty}}
+	settings["GetOpenShiftToken"] = Setting{"JC_OPENSHIFT_API_TOKEN", "", []func(interface{}, string) error{util.IsNotEmpty}}
+	settings["GetAuthToken"] = Setting{"JC_AUTH_TOKEN", "", []func(interface{}, string) error{util.IsNotEmpty}}
 
 	// timeouts and retry counts
-	settings["GetIdleAfter"] = Setting{"JCIdleAfter", strconv.Itoa(defaultIdleAfter), []func(interface{}, string) error{util.IsInt}}
-	settings["GetMaxRetries"] = Setting{"JCMaxRetries", strconv.Itoa(defaultMaxRetries), []func(interface{}, string) error{util.IsInt}}
-	settings["GetCheckInterval"] = Setting{"JCCheckInterval", strconv.Itoa(defaultCheckInterval), []func(interface{}, string) error{util.IsInt}}
+	settings["GetIdleAfter"] = Setting{"JC_IDLE_AFTER", strconv.Itoa(defaultIdleAfter), []func(interface{}, string) error{util.IsInt}}
+	settings["GetMaxRetries"] = Setting{"JC_MAX_RETRIES", strconv.Itoa(defaultMaxRetries), []func(interface{}, string) error{util.IsInt}}
+	settings["GetCheckInterval"] = Setting{"JC_CHECK_INTERVAL", strconv.Itoa(defaultCheckInterval), []func(interface{}, string) error{util.IsInt}}
 
 	// debug
 	settings["GetDebugMode"] = Setting{"JC_DEBUG_MODE", "false", []func(interface{}, string) error{util.IsBool}}
