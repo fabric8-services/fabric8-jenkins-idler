@@ -113,14 +113,14 @@ func (idler *UserIdler) Run(ctx context.Context, wg *sync.WaitGroup, cancel cont
 				cancel()
 				return
 			case idler.user = <-idler.userChan:
-				idler.logger.WithField("data", idler.user.String()).Debug("Received user data.")
+				idler.logger.WithField("state", idler.user.String()).Debug("Received user data.")
 
 				err := idler.checkIdle()
 				if err != nil {
 					idler.logger.WithField("error", err.Error()).Warn("Error during idle check.")
 				}
 			case <-ticker:
-				idler.logger.Info("Time based idle check.")
+				idler.logger.WithField("state", idler.user.String()).Info("Time based idle check.")
 				idler.resetCounters()
 				err := idler.checkIdle()
 				if err != nil {

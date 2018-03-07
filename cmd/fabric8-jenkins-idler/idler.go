@@ -53,7 +53,7 @@ func (idler *Idler) Run() {
 	defer cancel()
 
 	// Create Idler controller
-	controller := openshift.NewcontrollerImpl(
+	controller := openshift.NewController(
 		ctx,
 		openShift,
 		&tenantClient,

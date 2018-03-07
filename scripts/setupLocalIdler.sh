@@ -187,7 +187,7 @@ setTokens() {
 #   None
 ###############################################################################
 login() {
-    [ -z "${DSAAS_PREVIEW_TOKEN}" ] && echo "DSAAS_PREVIEW_TOKEN needs to be exported." && printHelp && exit 1
+    [ -z "${DSAAS_PREVIEW_TOKEN}" ] && echo "DSAAS_PREVIEW_TOKEN needs to be exported." && exit 1
 
     loc login https://api.rh-idev.openshift.com -n dsaas-preview --token=${DSAAS_PREVIEW_TOKEN} >/dev/null
 }
@@ -202,7 +202,7 @@ login() {
 #   None
 ###############################################################################
 start() {
-    [ -z "${DSAAS_PREVIEW_TOKEN}" ] && echo "DSAAS_PREVIEW_TOKEN needs to be exported." && printHelp && exit 1
+    [ -z "${DSAAS_PREVIEW_TOKEN}" ] && echo "DSAAS_PREVIEW_TOKEN needs to be exported." && exit 1
 
     login
     forwardProxyService &
@@ -220,8 +220,8 @@ start() {
 #   None
 ###############################################################################
 env() {
-    [ -z "${DSAAS_PREVIEW_TOKEN}" ] && echo "DSAAS_PREVIEW_TOKEN needs to be exported." && printHelp && exit 1
-    [ -z "${JC_FIXED_UUIDS}" ] && echo "JC_FIXED_UUID needs to be exported." && printHelp && exit 1
+    [ -z "${DSAAS_PREVIEW_TOKEN}" ] && echo "DSAAS_PREVIEW_TOKEN needs to be exported." && exit 1
+    [ -z "${JC_FIXED_UUIDS}" ] && echo "JC_FIXED_UUIDS needs to be exported." && exit 1
 
     login
     setTokens

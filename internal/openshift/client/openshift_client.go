@@ -339,7 +339,7 @@ func (o OpenShift) WatchBuilds(namespace string, buildType string, callback func
 				logger.WithField("namespace", o.Object.Metadata.Namespace).Debugf("Skipping build %s (type: %s)", o.Object.Metadata.Name, o.Object.Spec.Strategy.Type)
 				continue
 			}
-			logger.WithField("namespace", o.Object.Metadata.Namespace).Debug("Handling Build change event")
+			logger.WithFields(log.Fields{"namespace": o.Object.Metadata.Namespace, "data": o}).Debug("Handling Build change event")
 			err = callback(o)
 			if err != nil {
 				logger.Errorf("Error from callback: %s", err)
@@ -403,7 +403,7 @@ func (o OpenShift) WatchDeploymentConfigs(namespace string, nsSuffix string, cal
 				continue
 			}
 
-			logger.WithField("namespace", o.Object.Metadata.Namespace).Debug("Handling DC change event")
+			logger.WithFields(log.Fields{"namespace": o.Object.Metadata.Namespace, "data": o}).Debug("Handling DC change event")
 			err = callback(o)
 			if err != nil {
 				logger.Errorf("Error from DC callback: %s", err)

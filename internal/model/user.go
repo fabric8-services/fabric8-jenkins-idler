@@ -13,16 +13,7 @@ type User struct {
 	ID                string
 	ActiveBuild       Build
 	DoneBuild         Build
-	JenkinsStateList  []JenkinsState
 	JenkinsLastUpdate time.Time
-}
-
-// JenkinsState defines the state information of current Jenkins
-// such as whether running or not, since how long has it been running, etc.
-type JenkinsState struct {
-	Running bool
-	Time    time.Time
-	Message string
 }
 
 // NewUser creates a new instance of a User given an id and name.

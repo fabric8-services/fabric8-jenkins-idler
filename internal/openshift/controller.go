@@ -45,8 +45,8 @@ type controllerImpl struct {
 	cancel          context.CancelFunc
 }
 
-// NewcontrollerImpl creates an instance of ControllerImpl.
-func NewcontrollerImpl(ctx context.Context, openShiftClient client.OpenShiftClient, t *tenant.Tenant, features toggles.Features, config configuration.Configuration, wg *sync.WaitGroup, cancel context.CancelFunc) Controller {
+// NewController creates an instance of ControllerImpl.
+func NewController(ctx context.Context, openShiftClient client.OpenShiftClient, t *tenant.Tenant, features toggles.Features, config configuration.Configuration, wg *sync.WaitGroup, cancel context.CancelFunc) Controller {
 	controller := controllerImpl{
 		openShiftClient: openShiftClient,
 		users:           NewUserMap(),
@@ -73,9 +73,7 @@ func (oc *controllerImpl) GetUser(ns string) model.User {
 // just does couple comparisons and returns.
 func (oc *controllerImpl) HandleBuild(o model.Object) error {
 	ns := o.Object.Metadata.Namespace
-	logger.WithField("ns", ns).Infof("Processing build event '%s'", o.Object.Metadata.Name)
-
-	err := oc.createIfNotExist(o.Object.Metadata.Namespace)
+	err := oc.createIfNotExist(ns)
 	if err != nil {
 		return err
 	}
@@ -116,8 +114,6 @@ func (oc *controllerImpl) HandleBuild(o model.Object) error {
 // of ConfigChange or manual intervention.
 func (oc *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 	ns := dc.Object.Metadata.Namespace[:len(dc.Object.Metadata.Namespace)-len(jenkinsNamespaceSuffix)]
-	logger.WithField("ns", ns).Infof("Processing deployment config change event '%s'", dc.Object.Metadata.Name)
-
 	err := oc.createIfNotExist(ns)
 	if err != nil {
 		return err

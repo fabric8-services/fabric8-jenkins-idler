@@ -106,7 +106,7 @@ func setUp(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	controller = NewcontrollerImpl(ctx, openShiftClient, &tenantClient, features, &mock.Config{}, &wg, cancel)
+	controller = NewController(ctx, openShiftClient, &tenantClient, features, &mock.Config{}, &wg, cancel)
 }
 
 func tearDown() {

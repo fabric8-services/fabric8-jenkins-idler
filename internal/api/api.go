@@ -27,12 +27,8 @@ type IdlerAPI interface {
 	// If an error occurs a response with the HTTP status 500 is returned.
 	IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 
-	// User writes a JSON representation of the User struct to the HTTP response.
-	// If no namespace parameter is specified all Users are included into the response. If the namespace
-	// parameter is set only the user with the specified namespace gets added to the response.
-	//
-	// NOTE: This endpoint is for debugging purposes and will be removed at some stage.
-	User(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
+	// Info writes a JSON representation of internal state of the specified namespace to the response writer.
+	Info(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 }
 
 type idler struct {
@@ -88,7 +84,7 @@ func (api *idler) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	json.NewEncoder(w).Encode(s)
 }
 
-func (api *idler) User(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func (api *idler) Info(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	w.Header().Set("Content-Type", "application/json")
 	ns := ps.ByName("namespace")
 

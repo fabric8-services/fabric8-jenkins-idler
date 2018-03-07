@@ -44,8 +44,8 @@ func (m *mockResponseWriter) GetBody() string {
 type mockIdlerAPI struct {
 }
 
-func (i *mockIdlerAPI) User(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	w.Write([]byte("User"))
+func (i *mockIdlerAPI) Info(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	w.Write([]byte("Info"))
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -76,8 +76,8 @@ func Test_all_routes_are_setup(t *testing.T) {
 		route  string
 		target string
 	}{
-		{"/iapi/idler/builds/my-namepace", "User"},
-		{"/iapi/idler/builds/my-namepace/", "User"},
+		{"/iapi/idler/info/my-namepace", "Info"},
+		{"/iapi/idler/info/my-namepace/", "Info"},
 		{"/iapi/idler/idle/my-namepace", "Idle"},
 		{"/iapi/idler/idle/my-namepace/", "Idle"},
 		{"/iapi/idler/unidle/my-namepace", "UnIdle"},
@@ -119,10 +119,10 @@ func Test_router_start(t *testing.T) {
 
 	// we need to give a bit time for the server to come up
 	time.Sleep(1 * time.Second)
-	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/iapi/idler/builds/foo", testPort))
+	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/iapi/idler/info/foo", testPort))
 	assert.NoError(t, err, "The call to the API should have succeeded.")
 	body, err := ioutil.ReadAll(resp.Body)
-	assert.Equal(t, "User", string(body), "Unexpected result from HTTP request")
+	assert.Equal(t, "Info", string(body), "Unexpected result from HTTP request")
 
 	go func() {
 		// Cancel the operation after 2 second.

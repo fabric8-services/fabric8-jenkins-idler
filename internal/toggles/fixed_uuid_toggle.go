@@ -1,6 +1,8 @@
 package toggles
 
-import "github.com/minishift/minishift/pkg/util/strings"
+import (
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
+)
 
 type fixedUUIDToggle struct {
 	uuids []string
@@ -13,5 +15,5 @@ func NewFixedUUIDToggle(uuids []string) (Features, error) {
 
 // IsIdlerEnabled checks if idler is enabled for current fixedUUIDToggle.
 func (t *fixedUUIDToggle) IsIdlerEnabled(uuid string) (bool, error) {
-	return strings.Contains(t.uuids, uuid), nil
+	return util.Contains(t.uuids, uuid), nil
 }

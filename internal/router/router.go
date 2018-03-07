@@ -80,8 +80,8 @@ func (r *Router) Shutdown() {
 func CreateAPIRouter(api api.IdlerAPI) *httprouter.Router {
 	router := httprouter.New()
 
-	router.GET("/iapi/idler/builds/:namespace", api.User)
-	router.GET("/iapi/idler/builds/:namespace/", api.User)
+	router.GET("/iapi/idler/info/:namespace", api.Info)
+	router.GET("/iapi/idler/info/:namespace/", api.Info)
 
 	router.GET("/iapi/idler/idle/:namespace", api.Idle)
 	router.GET("/iapi/idler/idle/:namespace/", api.Idle)
