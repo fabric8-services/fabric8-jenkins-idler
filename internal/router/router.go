@@ -80,17 +80,17 @@ func (r *Router) Shutdown() {
 func CreateAPIRouter(api api.IdlerAPI) *httprouter.Router {
 	router := httprouter.New()
 
-	router.GET("/iapi/idler/info/:namespace", api.Info)
-	router.GET("/iapi/idler/info/:namespace/", api.Info)
+	router.GET("/api/idler/info/:namespace", api.Info)
+	router.GET("/api/idler/info/:namespace/", api.Info)
 
-	router.GET("/iapi/idler/idle/:namespace", api.Idle)
-	router.GET("/iapi/idler/idle/:namespace/", api.Idle)
+	router.GET("/api/idler/idle/:namespace", api.Idle)
+	router.GET("/api/idler/idle/:namespace/", api.Idle)
 
-	router.GET("/iapi/idler/unidle/:namespace", api.UnIdle)
-	router.GET("/iapi/idler/unidle/:namespace/", api.UnIdle)
+	router.GET("/api/idler/unidle/:namespace", api.UnIdle)
+	router.GET("/api/idler/unidle/:namespace/", api.UnIdle)
 
-	router.GET("/iapi/idler/isidle/:namespace", api.IsIdle)
-	router.GET("/iapi/idler/isidle/:namespace/", api.IsIdle)
+	router.GET("/api/idler/isidle/:namespace", api.IsIdle)
+	router.GET("/api/idler/isidle/:namespace/", api.IsIdle)
 
 	return router
 }

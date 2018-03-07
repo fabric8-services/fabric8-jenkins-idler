@@ -64,7 +64,7 @@ func (c *UserCondition) Eval(object interface{}) (bool, error) {
 }
 
 func (c *UserCondition) getProxyResponse(userName string) (*ProxyResponse, error) {
-	url := fmt.Sprintf("%s/papi/info/%s-jenkins", c.proxyURL, userName)
+	url := fmt.Sprintf("%s/api/info/%s-jenkins", c.proxyURL, userName)
 	logger.WithField("url", url).Debug("Accessing Proxy API.")
 	resp, err := http.Get(url)
 	if err != nil {
