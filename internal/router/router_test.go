@@ -76,17 +76,17 @@ func Test_all_routes_are_setup(t *testing.T) {
 		route  string
 		target string
 	}{
-		{"/iapi/idler/info/my-namepace", "Info"},
-		{"/iapi/idler/info/my-namepace/", "Info"},
-		{"/iapi/idler/idle/my-namepace", "Idle"},
-		{"/iapi/idler/idle/my-namepace/", "Idle"},
-		{"/iapi/idler/unidle/my-namepace", "UnIdle"},
-		{"/iapi/idler/unidle/my-namepace/", "UnIdle"},
-		{"/iapi/idler/isidle/my-namepace", "IsIdle"},
-		{"/iapi/idler/isidle/my-namepace/", "IsIdle"},
+		{"/api/idler/info/my-namepace", "Info"},
+		{"/api/idler/info/my-namepace/", "Info"},
+		{"/api/idler/idle/my-namepace", "Idle"},
+		{"/api/idler/idle/my-namepace/", "Idle"},
+		{"/api/idler/unidle/my-namepace", "UnIdle"},
+		{"/api/idler/unidle/my-namepace/", "UnIdle"},
+		{"/api/idler/isidle/my-namepace", "IsIdle"},
+		{"/api/idler/isidle/my-namepace/", "IsIdle"},
 
-		{"/iapi/idler/foo", "404 page not found\n"},
-		{"/iapi/idler/builds/foo/bar", "404 page not found\n"},
+		{"/api/idler/foo", "404 page not found\n"},
+		{"/api/idler/builds/foo/bar", "404 page not found\n"},
 	}
 
 	for _, testRoute := range routes {
@@ -119,7 +119,7 @@ func Test_router_start(t *testing.T) {
 
 	// we need to give a bit time for the server to come up
 	time.Sleep(1 * time.Second)
-	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/iapi/idler/info/foo", testPort))
+	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/api/idler/info/foo", testPort))
 	assert.NoError(t, err, "The call to the API should have succeeded.")
 	body, err := ioutil.ReadAll(resp.Body)
 	assert.Equal(t, "Info", string(body), "Unexpected result from HTTP request")
