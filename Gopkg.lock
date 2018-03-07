@@ -13,10 +13,51 @@
   revision = "be883ea1af714aff427d0668dbd4fc549d4f701c"
 
 [[projects]]
+  name = "github.com/ajg/form"
+  packages = ["."]
+  revision = "cc2954064ec9ea8d93917f0f87456e11d7b881ad"
+  version = "v1.5"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/armon/go-metrics"
+  packages = ["."]
+  revision = "783273d703149aaeb9897cf58613d5af48861c25"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
+
+[[projects]]
+  name = "github.com/dimfeld/httptreemux"
+  packages = ["."]
+  revision = "7f532489e7739b3d49df5c602bf63549881fe753"
+  version = "v5.0.1"
+
+[[projects]]
+  name = "github.com/goadesign/goa"
+  packages = [
+    ".",
+    "client",
+    "encoding/form",
+    "uuid"
+  ]
+  revision = "fc29b77a218fb9e190849c81911ed12d25e771de"
+  version = "v1.3.1"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/hashicorp/go-immutable-radix"
+  packages = ["."]
+  revision = "7f3cd4390caab3250a57f30efdb2a65dd7649ecf"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/hashicorp/golang-lru"
+  packages = ["simplelru"]
+  revision = "0fb14efe8c47ae851c0034ed7a448854d3d34cf3"
 
 [[projects]]
   name = "github.com/julienschmidt/httprouter"
@@ -37,6 +78,11 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/satori/go.uuid"
+  packages = ["."]
+  revision = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e"
+
+[[projects]]
   name = "github.com/sirupsen/logrus"
   packages = [
     ".",
@@ -53,6 +99,12 @@
 
 [[projects]]
   branch = "master"
+  name = "golang.org/x/net"
+  packages = ["websocket"]
+  revision = "d0aafc73d5cdc42264b0af071c261abac580695e"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
   revision = "7dca6fe1f43775aa6d1334576870ff63f978f539"
@@ -60,6 +112,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "004e44c142fb6b76475a9ed49d42617ec8ae1a416675ad591067e61700b5e8b6"
+  inputs-digest = "8c5480c60f8b010e1613d09c8e8a8eb08cb530e810297154e10199f57478fba0"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -1,21 +1,27 @@
 package mock
 
-import "github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
+import (
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
+)
 
 // Config a mock implementation of the configuration.Configuration interface.
 // It can be used in tests where any field can be explicitly set to return the needed value.
 type Config struct {
-	OpenShiftToken string
-	OpenShiftURL   string
-	ProxyURL       string
-	TenantURL      string
-	AuthToken      string
-	ToggleURL      string
-	IdleAfter      int
-	MaxRetries     int
-	CheckInterval  int
-	Debug          bool
-	FixedUuids     []string
+	// TODO Issue #107 Remove obsolete members
+	OpenShiftToken       string
+	OpenShiftURL         string
+	ProxyURL             string
+	TenantURL            string
+	AuthToken            string
+	ToggleURL            string
+	IdleAfter            int
+	MaxRetries           int
+	CheckInterval        int
+	Debug                bool
+	FixedUuids           []string
+	ServiceAccountID     string
+	ServiceAccountSecret string
+	AuthTokenKey         string
 }
 
 // GetOpenShiftToken returns the OpenShift token.
@@ -72,6 +78,21 @@ func (c *Config) GetDebugMode() bool {
 // which only enabled the idler feature for the specified list of users. This is mainly used for local dev only.
 func (c *Config) GetFixedUuids() []string {
 	return c.FixedUuids
+}
+
+// GetServiceAccountID returns the service account id for the Auth service. Used to identify the Idler to the Auth service
+func (c *Config) GetServiceAccountID() string {
+	return c.ServiceAccountID
+}
+
+// GetServiceAccountSecret returns the service account secret. Used to authenticate the Idler to the Auth service.
+func (c *Config) GetServiceAccountSecret() string {
+	return c.ServiceAccountSecret
+}
+
+// GetAuthTokenKey returns the key to decrypt OpenShift API tokens obtained via the Cluster API.
+func (c *Config) GetAuthTokenKey() string {
+	return c.AuthTokenKey
 }
 
 // Verify validates the configuration and returns an error in case the configuration is missing required settings

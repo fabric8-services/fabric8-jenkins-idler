@@ -10,6 +10,9 @@ LINT_PACKAGES = $(shell echo $(PACKAGES) | sed -e 's@github.com/fabric8-services
 SOURCE_DIRS = $(shell echo $(PACKAGES) | awk 'BEGIN{FS="/"; RS=" "}{print $$4}' | uniq)
 LD_FLAGS := -X github.com/fabric8-services/fabric8-jenkins-idler/internal/version.version=$(IMAGE_TAG)
 
+# Goa
+AUTH_GEN_DIR=internal/auth/client
+
 # Misc
 START_COMMIT_MESSAGE_VALIDATION = e380f5c9a591c7f01a937a274561e4b715f985e3
 .DEFAULT_GOAL := help
@@ -28,15 +31,15 @@ __check_defined = \
       $(error Undefined $1$(if $2, ($2))))
 
 .PHONY: all
-all: tools build test fmtcheck validate_commits vet image lint ## Compiles binary and runs format and style checks
+all: tools build test fmtcheck vet lint validate_commits image ## Compiles binary and runs format and style checks
 
-build: vendor ## Builds the binary into $GOPATH/bin
+build: vendor $(AUTH_GEN_DIR)/*.go ## Builds the binary into $GOPATH/bin
 	go install -ldflags="$(LD_FLAGS)" ./cmd/fabric8-jenkins-idler
 
 $(BUILD_DIR):
 	mkdir $(BUILD_DIR)
 
-$(BUILD_DIR)/$(REGISTRY_IMAGE): vendor $(BUILD_DIR) ## Builds the Linux binary for the container image into $BUILD_DIR
+$(BUILD_DIR)/$(REGISTRY_IMAGE): vendor  $(AUTH_GEN_DIR)/*.go $(BUILD_DIR) ## Builds the Linux binary for the container image into $BUILD_DIR
 	CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build  -ldflags="$(LD_FLAGS)" -o $(BUILD_DIR)/$(REGISTRY_IMAGE) ./cmd/fabric8-jenkins-idler
 
 image: $(BUILD_DIR)/$(REGISTRY_IMAGE) ## Builds the container image
@@ -56,10 +59,14 @@ tools.timestamp:
 	go get -u github.com/golang/dep/cmd/dep
 	go get -u github.com/golang/lint/golint
 	go get -u github.com/vbatts/git-validation/...
+	go get -u github.com/goadesign/goa/goagen
 	@touch tools.timestamp
 
-vendor: tools.timestamp ## Runs dep to vendor project dependencies
+vendor: tools.timestamp $(AUTH_GEN_DIR)/*.go ## Runs dep to vendor project dependencies
 	dep ensure -v
+
+$(AUTH_GEN_DIR)/*.go:  ## Runs goagen to generate auth service client
+	goagen client -d github.com/fabric8-services/fabric8-auth/design --notool --out internal/auth --pkg client
 
 .PHONY: test
 test: vendor ## Runs unit tests

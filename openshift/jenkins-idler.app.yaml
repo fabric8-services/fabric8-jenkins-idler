@@ -29,16 +29,6 @@ objects:
       spec:
         containers:
         - env:
-          - name: JC_OPENSHIFT_API_URL
-            valueFrom:
-              configMapKeyRef:
-                name: f8tenant
-                key: openshift.tenant.masterurl
-          - name: JC_OPENSHIFT_API_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: openshift-online-tokens
-                key: dsaas-service-token
           - name: JC_IDLE_AFTER
             valueFrom:
               configMapKeyRef:
@@ -69,11 +59,22 @@ objects:
               configMapKeyRef:
                 name: jenkins-idler
                 key: toggles.api.url
-          - name: JC_AUTH_TOKEN
+          - name: JC_AUTH_TOKEN_KEY
             valueFrom:
               secretKeyRef:
-                name: jenkins-proxy
-                key: proxy.auth.token
+                name: jenkins-idler
+                key: auth.token.key
+          # TODO Issue #107 Sync with ops that we use the right configs
+          - name: JC_SERVICE_ACCOUNT_ID
+            valueFrom:
+              secretKeyRef:
+                name: jenkins-idler
+                key: service.account.id
+          - name: JC_SERVICE_ACCOUNT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: jenkins-idler
+                key: service.account.secret
           - name: GODEBUG
             value: gctrace=0
           image: ${IMAGE}:${IMAGE_TAG}

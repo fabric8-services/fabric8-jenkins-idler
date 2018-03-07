@@ -239,6 +239,7 @@ env() {
     echo export JC_SERVICE_ACCOUNT_SECRET=\"${JC_SERVICE_ACCOUNT_SECRET}\"
     echo export JC_AUTH_TOKEN_KEY=\"${JC_AUTH_TOKEN_KEY}\"
     echo export JC_FIXED_UUIDS=${JC_FIXED_UUIDS}
+    # TODO Issue #107 remove obsolete variables
     echo export JC_OPENSHIFT_API_URL=https://api.free-stg.openshift.com
     echo export JC_OPENSHIFT_API_TOKEN=\"${JC_OPENSHIFT_API_TOKEN}\"
     echo export JC_AUTH_TOKEN=${JC_AUTH_TOKEN}
@@ -262,6 +263,7 @@ unsetEnv() {
     echo unset JC_SERVICE_ACCOUNT_ID
     echo unset JC_SERVICE_ACCOUNT_SECRET
     echo unset JC_AUTH_TOKEN_KEY
+    # TODO Issue #107 remove obsolete variables
     echo unset JC_OPENSHIFT_API_URL
     echo unset JC_OPENSHIFT_API_TOKEN
     echo unset JC_AUTH_TOKEN
