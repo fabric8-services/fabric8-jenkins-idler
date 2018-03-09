@@ -5,7 +5,7 @@
 - [Webhooks](#webhooks)
 	- [Problem](#problem)
 	- [Proposed solution](#proposed-solution)
-- [User accessing the Jenkins UI/API](#user-accessing-the-jenkins-uiapi)
+- [User accessing the Jenkins UI/API](#user-accessing-the-jenkins-uapi)
 	- [Problem](#problem-1)
 	- [Proposed solution](#proposed-solution-1)
 - [A build starter in OpenShift](#a-build-starter-in-openshift)
@@ -41,7 +41,7 @@ Create a webhook proxy which will accept the request, verify tenant & Jenkins in
 The proxy will buffer the request and unidle Jenkins.
 Once Jenkins is running, the original request is replayed to Jenkins to start the build.
 
-<a name="user-accessing-the-jenkins-uiapi"></a>
+<a name="user-accessing-the-jenkins-uapi"></a>
 ## User accessing the Jenkins UI/API
 
 <a name="problem-1"></a>
