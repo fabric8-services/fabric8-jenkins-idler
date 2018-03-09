@@ -22,7 +22,7 @@ LOCAL_DEFAULT_IDLE_TIME=${LOCAL_DEFAULT_IDLE_TIME:-30}
 ###############################################################################
 printHelp() {
     cat << EOF
-Usage: ${0##*/} [start|stop|env]
+Usage: ${0##*/} [start|stop|env|unset]
 
 This script is used to run the Jenkins Idler on localhost.
 
@@ -158,9 +158,9 @@ forwardToggleService() {
 ###############################################################################
 # Retrieves the required OpenShift and Auth token from
 # Globals:
-#   JC_OPENSHIFT_API_TOKEN - OpenShift service account token used to monitor
-#                            OpenShift events
-#   JC_AUTH_TOKEN          - Auth token for the auth service
+#   JC_SERVICE_ACCOUNT_ID     - Id for authenticating against Auth service
+#   JC_SERVICE_ACCOUNT_SECRET - Secret for authenticating against Auth service
+#   JC_AUTH_TOKEN_KEY         - Key to decrypt OpenShift API tokens
 # Arguments:
 #   None
 # Returns:
@@ -173,8 +173,12 @@ setTokens() {
         return
     fi
 
-    export JC_AUTH_TOKEN=$(loc exec ${pod} env | grep JC_AUTH_TOKEN | sed -e 's/JC_AUTH_TOKEN=//')
-    export JC_OPENSHIFT_API_TOKEN=$(loc exec ${pod} env | grep JC_OPENSHIFT_API_TOKEN | sed -e 's/JC_OPENSHIFT_API_TOKEN=//')
+    # TODO Issue #107 Remove obsolete variables
+    export JC_AUTH_TOKEN=$(loc exec ${pod} env | grep JC_AUTH_TOKEN= | sed -e 's/JC_AUTH_TOKEN=//')
+    export JC_OPENSHIFT_API_TOKEN=$(loc exec ${pod} env | grep JC_OPENSHIFT_API_TOKEN= | sed -e 's/JC_OPENSHIFT_API_TOKEN=//')
+    export JC_SERVICE_ACCOUNT_ID=$(loc exec ${pod} env | grep JC_SERVICE_ACCOUNT_ID= | sed -e 's/JC_SERVICE_ACCOUNT_ID=//')
+    export JC_SERVICE_ACCOUNT_SECRET=$(loc exec ${pod} env | grep JC_SERVICE_ACCOUNT_SECRET= | sed -e 's/JC_SERVICE_ACCOUNT_SECRET=//')
+    export JC_AUTH_TOKEN_KEY=$(loc exec ${pod} env | grep JC_AUTH_TOKEN_KEY= | sed -e 's/JC_AUTH_TOKEN_KEY=//')
 }
 
 ###############################################################################
@@ -226,14 +230,41 @@ env() {
     login
     setTokens
 
-    echo export JC_OPENSHIFT_API_URL=https://api.free-stg.openshift.com
-    echo export JC_OPENSHIFT_API_TOKEN=${JC_OPENSHIFT_API_TOKEN}
-    echo export JC_AUTH_TOKEN=${JC_AUTH_TOKEN}
     echo export JC_IDLE_AFTER=${LOCAL_DEFAULT_IDLE_TIME}
     echo export JC_JENKINS_PROXY_API_URL=http://localhost:${LOCAL_PROXY_PORT}
     echo export JC_F8TENANT_API_URL=http://localhost:${LOCAL_TENANT_PORT}
     echo export JC_TOGGLE_API_URL=http://localhost:${LOCAL_TOGGLE_PORT}/api
+    echo export JC_AUTH_URL=https://auth.prod-preview.openshift.io
+    echo export JC_SERVICE_ACCOUNT_ID=${JC_SERVICE_ACCOUNT_ID}
+    echo export JC_SERVICE_ACCOUNT_SECRET=\"${JC_SERVICE_ACCOUNT_SECRET}\"
+    echo export JC_AUTH_TOKEN_KEY=\"${JC_AUTH_TOKEN_KEY}\"
     echo export JC_FIXED_UUIDS=${JC_FIXED_UUIDS}
+    echo export JC_OPENSHIFT_API_URL=https://api.free-stg.openshift.com
+    echo export JC_OPENSHIFT_API_TOKEN=\"${JC_OPENSHIFT_API_TOKEN}\"
+    echo export JC_AUTH_TOKEN=${JC_AUTH_TOKEN}
+}
+
+###############################################################################
+# Unsets the exported Idler environment variables.
+# Globals:
+#   None
+# Arguments:
+#   None
+# Returns:
+#   None
+###############################################################################
+unsetEnv() {
+    echo unset JC_IDLE_AFTER
+    echo unset JC_JENKINS_PROXY_API_URL
+    echo unset JC_F8TENANT_API_URL
+    echo unset JC_TOGGLE_API_URL
+    echo unset JC_AUTH_URL
+    echo unset JC_SERVICE_ACCOUNT_ID
+    echo unset JC_SERVICE_ACCOUNT_SECRET
+    echo unset JC_AUTH_TOKEN_KEY
+    echo unset JC_OPENSHIFT_API_URL
+    echo unset JC_OPENSHIFT_API_TOKEN
+    echo unset JC_AUTH_TOKEN
 }
 
 ###############################################################################
@@ -260,6 +291,9 @@ case "$1" in
     ;;
   env)
     env
+    ;;
+  unset)
+    unsetEnv
     ;;
   *)
     printHelp
