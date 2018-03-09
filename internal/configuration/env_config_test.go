@@ -27,13 +27,10 @@ func Test_validations(t *testing.T) {
 		"value for JC_SERVICE_ACCOUNT_ID cannot be empty",
 		"value for JC_SERVICE_ACCOUNT_SECRET cannot be empty",
 		"value for JC_AUTH_TOKEN_KEY cannot be empty",
-		"value for JC_OPENSHIFT_API_TOKEN cannot be empty",
-		"value for JC_AUTH_TOKEN cannot be empty",
 		"value for JC_F8TENANT_API_URL needs to be a valid URL",
 		"value for JC_JENKINS_PROXY_API_URL needs to be a valid URL",
 		"value for JC_F8TENANT_API_URL needs to be a valid URL",
 		"value for JC_TOGGLE_API_URL needs to be a valid URL",
-		"value for JC_OPENSHIFT_API_URL needs to be a valid URL",
 	}
 
 	for _, verifyError := range expectedErrors {

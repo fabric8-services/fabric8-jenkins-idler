@@ -6,20 +6,11 @@ import (
 
 // Configuration defines the configuration options of the Idler.
 type Configuration interface {
-	// GetOpenShiftToken returns the OpenShift token.
-	GetOpenShiftToken() string
-
-	// GetOpenShiftURL returns the OpenShift API URL.
-	GetOpenShiftURL() string
-
 	// GetProxyURL returns the Jenkins Proxy API URL.
 	GetProxyURL() string
 
 	// GetTenantURL returns the F8 Tenant API URL.
 	GetTenantURL() string
-
-	// GetAuthToken returns the Auth token.
-	GetAuthToken() string
 
 	// GetToggleURL returns the Toggle Service URL.
 	GetToggleURL() string
@@ -40,6 +31,9 @@ type Configuration interface {
 	// which only enabled the idler feature for the specified list of users. This is mainly used for local dev only.
 	GetFixedUuids() []string
 
+	// GetAuthURL returns the Auth API URL as set via default, config file, or environment variable
+	GetAuthURL() string
+
 	// GetServiceAccountID returns the service account id for the Auth service. Used to identify the Idler to the Auth service
 	GetServiceAccountID() string
 
@@ -48,6 +42,10 @@ type Configuration interface {
 
 	// GetAuthTokenKey returns the key to decrypt OpenShift API tokens obtained via the Cluster API.
 	GetAuthTokenKey() string
+
+	// GetAuthGrantType returns the fabric8-auth Grant type used while retrieving
+	// user account token
+	GetAuthGrantType() string
 
 	// Verify validates the configuration and returns an error in case the configuration is missing required settings
 	// or contains invalid settings. If the configuration is correct nil is returned.

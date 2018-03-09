@@ -64,7 +64,11 @@ objects:
               secretKeyRef:
                 name: jenkins-idler
                 key: auth.token.key
-          # TODO Issue #107 Sync with ops that we use the right configs
+          - name: JC_AUTH_URL
+            valueFrom:
+              configMapKeyRef:
+                name: core
+                key: auth.serviceurl
           - name: JC_SERVICE_ACCOUNT_ID
             valueFrom:
               secretKeyRef:
@@ -75,6 +79,8 @@ objects:
               secretKeyRef:
                 name: jenkins-idler
                 key: service.account.secret
+          - name: JC_LOG_LEVEL
+            value: info
           - name: GODEBUG
             value: gctrace=0
           image: ${IMAGE}:${IMAGE_TAG}

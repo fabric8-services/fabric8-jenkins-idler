@@ -12,7 +12,6 @@ import (
 	"sync"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/mock"
 	log "github.com/sirupsen/logrus"
@@ -97,8 +96,7 @@ func setUp(t *testing.T) {
 	}
 	openShiftService = common.MockServer(deploymentConfigData)
 
-	openShiftClient := client.NewOpenShift(openShiftService.URL, "")
-	tenantClient := tenant.NewTenant(tenantService.URL, "")
+	tenantService := tenant.NewTenantService(tenantService.URL, "")
 
 	features := &mockFeatureToggle{}
 
@@ -106,7 +104,8 @@ func setUp(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	controller = NewController(ctx, openShiftClient, &tenantClient, features, &mock.Config{}, &wg, cancel)
+	userIdlers := NewUserIdlerMap()
+	controller = NewController(ctx, "", "", userIdlers, tenantService, features, &mock.Config{}, &wg, cancel)
 }
 
 func tearDown() {

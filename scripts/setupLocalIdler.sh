@@ -173,9 +173,6 @@ setTokens() {
         return
     fi
 
-    # TODO Issue #107 Remove obsolete variables
-    export JC_AUTH_TOKEN=$(loc exec ${pod} env | grep JC_AUTH_TOKEN= | sed -e 's/JC_AUTH_TOKEN=//')
-    export JC_OPENSHIFT_API_TOKEN=$(loc exec ${pod} env | grep JC_OPENSHIFT_API_TOKEN= | sed -e 's/JC_OPENSHIFT_API_TOKEN=//')
     export JC_SERVICE_ACCOUNT_ID=$(loc exec ${pod} env | grep JC_SERVICE_ACCOUNT_ID= | sed -e 's/JC_SERVICE_ACCOUNT_ID=//')
     export JC_SERVICE_ACCOUNT_SECRET=$(loc exec ${pod} env | grep JC_SERVICE_ACCOUNT_SECRET= | sed -e 's/JC_SERVICE_ACCOUNT_SECRET=//')
     export JC_AUTH_TOKEN_KEY=$(loc exec ${pod} env | grep JC_AUTH_TOKEN_KEY= | sed -e 's/JC_AUTH_TOKEN_KEY=//')
@@ -239,10 +236,6 @@ env() {
     echo export JC_SERVICE_ACCOUNT_SECRET=\"${JC_SERVICE_ACCOUNT_SECRET}\"
     echo export JC_AUTH_TOKEN_KEY=\"${JC_AUTH_TOKEN_KEY}\"
     echo export JC_FIXED_UUIDS=${JC_FIXED_UUIDS}
-    # TODO Issue #107 remove obsolete variables
-    echo export JC_OPENSHIFT_API_URL=https://api.free-stg.openshift.com
-    echo export JC_OPENSHIFT_API_TOKEN=\"${JC_OPENSHIFT_API_TOKEN}\"
-    echo export JC_AUTH_TOKEN=${JC_AUTH_TOKEN}
 }
 
 ###############################################################################
@@ -263,10 +256,6 @@ unsetEnv() {
     echo unset JC_SERVICE_ACCOUNT_ID
     echo unset JC_SERVICE_ACCOUNT_SECRET
     echo unset JC_AUTH_TOKEN_KEY
-    # TODO Issue #107 remove obsolete variables
-    echo unset JC_OPENSHIFT_API_URL
-    echo unset JC_OPENSHIFT_API_TOKEN
-    echo unset JC_AUTH_TOKEN
 }
 
 ###############################################################################

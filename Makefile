@@ -37,7 +37,7 @@ build: vendor $(AUTH_GEN_DIR)/*.go ## Builds the binary into $GOPATH/bin
 	go install -ldflags="$(LD_FLAGS)" ./cmd/fabric8-jenkins-idler
 
 $(BUILD_DIR):
-	mkdir $(BUILD_DIR)
+	@mkdir $(BUILD_DIR)
 
 $(BUILD_DIR)/$(REGISTRY_IMAGE): vendor  $(AUTH_GEN_DIR)/*.go $(BUILD_DIR) ## Builds the Linux binary for the container image into $BUILD_DIR
 	CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build  -ldflags="$(LD_FLAGS)" -o $(BUILD_DIR)/$(REGISTRY_IMAGE) ./cmd/fabric8-jenkins-idler
@@ -70,7 +70,7 @@ $(AUTH_GEN_DIR)/*.go:  ## Runs goagen to generate auth service client
 
 .PHONY: test
 test: vendor ## Runs unit tests
-	go test $(PACKAGES)
+	@go test $(PACKAGES)
 
 .PHONY: fmtcheck
 fmtcheck: ## Runs gofmt and returns error in case of violations

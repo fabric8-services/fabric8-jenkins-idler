@@ -19,14 +19,31 @@ type ServiceAccountTokenService interface {
 // ServiceAccountTokenServiceConfig the config for the Service Account service
 type ServiceAccountTokenServiceConfig interface {
 	GetAuthURL() string
-	GetAuthClientID() string
-	GetClientSecret() string
+	GetServiceAccountID() string
+	GetServiceAccountSecret() string
 	GetAuthGrantType() string
 }
 
 // NewServiceAccountTokenService initializes a new ServiceAccountTokenService
 func NewServiceAccountTokenService(config ServiceAccountTokenServiceConfig, options ...configuration.HTTPClientOption) ServiceAccountTokenService {
 	return &serviceAccountTokenService{config: config}
+}
+
+// GetServiceAccountToken returns the OSIO service account token based on the passed configuration. If an error
+// occurs the empty string together with the error are returned.
+func GetServiceAccountToken(config configuration.Configuration) (string, error) {
+	// fetch service account token for tenant service
+	saTokenService := NewServiceAccountTokenService(config)
+	saToken, err := saTokenService.GetOAuthToken(context.Background())
+	if err != nil {
+		return "", err
+	}
+
+	if saToken == nil {
+		return "", fmt.Errorf("retrieved empty service account token")
+	}
+
+	return *saToken, nil
 }
 
 type serviceAccountTokenService struct {
@@ -42,9 +59,9 @@ func (s *serviceAccountTokenService) GetOAuthToken(ctx context.Context) (*string
 
 	path := authclient.ExchangeTokenPath()
 	payload := &authclient.TokenExchange{
-		ClientID: s.config.GetAuthClientID(),
+		ClientID: s.config.GetServiceAccountID(),
 		ClientSecret: func() *string {
-			sec := s.config.GetClientSecret()
+			sec := s.config.GetServiceAccountSecret()
 			return &sec
 		}(),
 		GrantType: s.config.GetAuthGrantType(),
@@ -60,9 +77,9 @@ func (s *serviceAccountTokenService) GetOAuthToken(ctx context.Context) (*string
 		res.Body.Close()
 	}()
 
-	validationerror := auth.ValidateResponse(c, res)
-	if validationerror != nil {
-		return nil, errors.Wrapf(validationerror, "error from server %q", s.config.GetAuthURL())
+	validationError := auth.ValidateResponse(c, res)
+	if validationError != nil {
+		return nil, errors.Wrapf(validationError, "error from server %q", s.config.GetAuthURL())
 	}
 	token, err := c.DecodeOauthToken(res)
 	if err != nil {

@@ -14,44 +14,37 @@ type OpenShiftClient struct {
 
 // Idle mocks Idle method of client.OpenShiftClient.
 // It increases IdleCallCount by 1.
-func (c *OpenShiftClient) Idle(namespace string, service string) error {
+func (c *OpenShiftClient) Idle(apiURL string, bearerToken string, namespace string, service string) error {
 	c.IdleCallCount++
 	return nil
 }
 
 // UnIdle mocks UnIdle method of client.OpenShiftClient.
 // It increases UnIdleCallCount by 1.
-func (c *OpenShiftClient) UnIdle(namespace string, service string) error {
+func (c *OpenShiftClient) UnIdle(apiURL string, bearerToken string, namespace string, service string) error {
 	c.UnIdleCallCount++
 	return nil
 }
 
 // IsIdle mocks IsIdle method of client.OpenShiftClient.
-func (c *OpenShiftClient) IsIdle(namespace string, service string) (int, error) {
+func (c *OpenShiftClient) IsIdle(apiURL string, bearerToken string, namespace string, service string) (int, error) {
 	return c.IdleState, nil
 }
 
-// GetRoute mocks GetRoute method of client.OpenShiftClient.
-// It always return ("", true, nil).
-func (c *OpenShiftClient) GetRoute(n string, s string) (r string, tls bool, err error) {
-	return "", true, nil
-}
-
-// GetAPIURL mocks GetAPIURL method of client.OpenShiftClient.
-// It always returns "".
-func (c *OpenShiftClient) GetAPIURL() string {
-	return ""
+// WhoAmI returns the name of the logged in user, aka the owner of the bearer token.
+func (c *OpenShiftClient) WhoAmI(apiURL string, bearerToken string) (string, error) {
+	return "foo", nil
 }
 
 // WatchBuilds mocks WatchBuilds method of client.OpenShiftClient.
 // It always returns nil.
-func (c *OpenShiftClient) WatchBuilds(namespace string, buildType string, callback func(model.Object) error) error {
+func (c *OpenShiftClient) WatchBuilds(apiURL string, bearerToken string, buildType string, callback func(model.Object) error) error {
 	return nil
 }
 
 // WatchDeploymentConfigs mocks WatchDeploymentConfigs method of client.OpenShiftClient.
 // It always returns nil.
-func (c *OpenShiftClient) WatchDeploymentConfigs(namespace string, nsSuffix string, callback func(model.DCObject) error) error {
+func (c *OpenShiftClient) WatchDeploymentConfigs(apiURL string, bearerToken string, nsSuffix string, callback func(model.DCObject) error) error {
 	return nil
 }
 

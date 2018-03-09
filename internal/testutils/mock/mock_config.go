@@ -7,31 +7,18 @@ import (
 // Config a mock implementation of the configuration.Configuration interface.
 // It can be used in tests where any field can be explicitly set to return the needed value.
 type Config struct {
-	// TODO Issue #107 Remove obsolete members
-	OpenShiftToken       string
-	OpenShiftURL         string
 	ProxyURL             string
 	TenantURL            string
-	AuthToken            string
 	ToggleURL            string
 	IdleAfter            int
 	MaxRetries           int
 	CheckInterval        int
 	Debug                bool
 	FixedUuids           []string
+	AuthURL              string
 	ServiceAccountID     string
 	ServiceAccountSecret string
 	AuthTokenKey         string
-}
-
-// GetOpenShiftToken returns the OpenShift token.
-func (c *Config) GetOpenShiftToken() string {
-	return c.OpenShiftToken
-}
-
-// GetOpenShiftURL returns the OpenShift API URL.
-func (c *Config) GetOpenShiftURL() string {
-	return c.OpenShiftURL
 }
 
 // GetProxyURL returns the Jenkins Proxy API URL.
@@ -44,9 +31,9 @@ func (c *Config) GetTenantURL() string {
 	return c.TenantURL
 }
 
-// GetAuthToken returns the Auth token.
-func (c *Config) GetAuthToken() string {
-	return c.AuthToken
+// GetAuthURL returns the Auth API URL as set via default, config file, or environment variable
+func (c *Config) GetAuthURL() string {
+	return c.AuthURL
 }
 
 // GetToggleURL returns the Toggle Service URL.
@@ -93,6 +80,12 @@ func (c *Config) GetServiceAccountSecret() string {
 // GetAuthTokenKey returns the key to decrypt OpenShift API tokens obtained via the Cluster API.
 func (c *Config) GetAuthTokenKey() string {
 	return c.AuthTokenKey
+}
+
+// GetAuthGrantType returns the fabric8-auth Grant type used while retrieving
+// user account token
+func (c *Config) GetAuthGrantType() string {
+	return "client_credentials"
 }
 
 // Verify validates the configuration and returns an error in case the configuration is missing required settings

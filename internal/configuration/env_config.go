@@ -21,19 +21,16 @@ var (
 
 func init() {
 	// service URLs for required services
-	settings["GetOpenShiftURL"] = Setting{"JC_OPENSHIFT_API_URL", "", []func(interface{}, string) error{util.IsURL}}
 	settings["GetProxyURL"] = Setting{"JC_JENKINS_PROXY_API_URL", "", []func(interface{}, string) error{util.IsURL}}
 	settings["GetTenantURL"] = Setting{"JC_F8TENANT_API_URL", "", []func(interface{}, string) error{util.IsURL}}
 	settings["GetToggleURL"] = Setting{"JC_TOGGLE_API_URL", "", []func(interface{}, string) error{util.IsURL}}
 
 	// Auth service id and secret as well as key to decrypt OpenShift API tokens
-	settings["GetServiceAccountId"] = Setting{"JC_SERVICE_ACCOUNT_ID", "", []func(interface{}, string) error{util.IsNotEmpty}}
+	settings["GetAuthURL"] = Setting{"JC_AUTH_URL", "", []func(interface{}, string) error{util.IsURL}}
+	settings["GetServiceAccountID"] = Setting{"JC_SERVICE_ACCOUNT_ID", "", []func(interface{}, string) error{util.IsNotEmpty}}
 	settings["GetServiceAccountSecret"] = Setting{"JC_SERVICE_ACCOUNT_SECRET", "", []func(interface{}, string) error{util.IsNotEmpty}}
 	settings["GetAuthTokenKey"] = Setting{"JC_AUTH_TOKEN_KEY", "", []func(interface{}, string) error{util.IsNotEmpty}}
-
-	// required secrets
-	settings["GetOpenShiftToken"] = Setting{"JC_OPENSHIFT_API_TOKEN", "", []func(interface{}, string) error{util.IsNotEmpty}}
-	settings["GetAuthToken"] = Setting{"JC_AUTH_TOKEN", "", []func(interface{}, string) error{util.IsNotEmpty}}
+	settings["GetAuthGrantType"] = Setting{"JC_AUTH_GRANT_TYPE", "client_credentials", []func(interface{}, string) error{util.IsNotEmpty}}
 
 	// timeouts and retry counts
 	settings["GetIdleAfter"] = Setting{"JC_IDLE_AFTER", strconv.Itoa(defaultIdleAfter), []func(interface{}, string) error{util.IsInt}}
@@ -60,22 +57,6 @@ type EnvConfig struct {
 func NewConfiguration() (Configuration, error) {
 	c := EnvConfig{}
 	return &c, nil
-}
-
-// GetOpenShiftToken returns the OpenShift token as set via default, config file, or environment variable.
-func (c *EnvConfig) GetOpenShiftToken() string {
-	callPtr, _, _, _ := runtime.Caller(0)
-	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
-
-	return value
-}
-
-// GetOpenShiftURL returns the OpenShift API url as set via default, config file, or environment variable.
-func (c *EnvConfig) GetOpenShiftURL() string {
-	callPtr, _, _, _ := runtime.Caller(0)
-	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
-
-	return value
 }
 
 // GetProxyURL returns the Jenkins Proxy API URL as set via default, config file, or environment variable.
@@ -121,14 +102,6 @@ func (c *EnvConfig) GetTenantURL() string {
 	return value
 }
 
-// GetAuthToken returns the Auth token as set via default, config file, or environment variable.
-func (c *EnvConfig) GetAuthToken() string {
-	callPtr, _, _, _ := runtime.Caller(0)
-	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
-
-	return value
-}
-
 // GetToggleURL returns the Toggle Service URL as set via default, config file, or environment variable.
 func (c *EnvConfig) GetToggleURL() string {
 	callPtr, _, _, _ := runtime.Caller(0)
@@ -160,6 +133,14 @@ func (c *EnvConfig) GetFixedUuids() []string {
 	return strings.Split(value, ",")
 }
 
+// GetAuthURL returns the Auth API URL as set via default, config file, or environment variable
+func (c *EnvConfig) GetAuthURL() string {
+	callPtr, _, _, _ := runtime.Caller(0)
+	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
+
+	return value
+}
+
 // GetServiceAccountId returns the service account id for the Auth service. Used to identify the Idler to the Auth service
 func (c *EnvConfig) GetServiceAccountID() string {
 	callPtr, _, _, _ := runtime.Caller(0)
@@ -178,6 +159,15 @@ func (c *EnvConfig) GetServiceAccountSecret() string {
 
 // GetAuthTokenKey returns the key to decrypt OpenShift API tokens obtained via the Cluster API.
 func (c *EnvConfig) GetAuthTokenKey() string {
+	callPtr, _, _, _ := runtime.Caller(0)
+	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
+
+	return value
+}
+
+// GetAuthGrantType returns the fabric8-auth Grant type used while retrieving
+// user account token
+func (c *EnvConfig) GetAuthGrantType() string {
 	callPtr, _, _, _ := runtime.Caller(0)
 	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
 
@@ -204,6 +194,10 @@ func (c *EnvConfig) String() string {
 		value := c.getConfigValueFromEnv(key)
 		// don't echo tokens
 		if strings.Contains(setting.key, "TOKEN") && len(value) > 0 {
+			value = "***"
+		}
+
+		if strings.Contains(setting.key, "SECRET") && len(value) > 0 {
 			value = "***"
 		}
 		config[key] = value

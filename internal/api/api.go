@@ -5,11 +5,18 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/cluster"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
+)
+
+const (
+	// OpenShiftAPIParam is the parameter name under which the OpenShift cluster API URL is passed using
+	// Idle, UnIdle and IsIdle.
+	OpenShiftAPIParam = "openshift_api_url"
 )
 
 // IdlerAPI defines the REST endpoints of the Idler
@@ -29,9 +36,14 @@ type IdlerAPI interface {
 
 	// Info writes a JSON representation of internal state of the specified namespace to the response writer.
 	Info(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
+
+	// ClusterDNSView writes a JSON representation of the current cluster state to the response writer.
+	ClusterDNSView(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 }
 
 type idler struct {
+	userIdlers      *openshift.UserIdlerMap
+	clusterView     cluster.View
 	openShiftClient client.OpenShiftClient
 	controller      openshift.Controller
 }
@@ -41,15 +53,22 @@ type status struct {
 }
 
 // NewIdlerAPI creates a new instance of IdlerAPI.
-func NewIdlerAPI(openShiftClient client.OpenShiftClient, controller openshift.Controller) IdlerAPI {
+func NewIdlerAPI(userIdlers *openshift.UserIdlerMap, clusterView cluster.View) IdlerAPI {
 	return &idler{
-		openShiftClient: openShiftClient,
-		controller:      controller,
+		userIdlers:      userIdlers,
+		clusterView:     clusterView,
+		openShiftClient: client.NewOpenShift(),
 	}
 }
 
 func (api *idler) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	err := api.openShiftClient.Idle(ps.ByName("namespace"), "jenkins")
+	openShiftAPI, openShiftBearerToken, err := api.getURLAndToken(r)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	err = api.openShiftClient.Idle(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), "jenkins")
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -59,7 +78,14 @@ func (api *idler) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 }
 
 func (api *idler) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	err := api.openShiftClient.UnIdle(ps.ByName("namespace"), "jenkins")
+	openShiftAPI, openShiftBearerToken, err := api.getURLAndToken(r)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
+		return
+	}
+
+	err = api.openShiftClient.UnIdle(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), "jenkins")
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -69,8 +95,15 @@ func (api *idler) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 }
 
 func (api *idler) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	openShiftAPI, openShiftBearerToken, err := api.getURLAndToken(r)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	state, err := api.openShiftClient.IsIdle(ps.ByName("namespace"), "jenkins")
+	state, err := api.openShiftClient.IsIdle(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), "jenkins")
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -84,19 +117,42 @@ func (api *idler) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	json.NewEncoder(w).Encode(s)
 }
 
+func (api *idler) ClusterDNSView(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	w.Header().Set("Content-Type", "application/json")
+
+	clusterDNSView := api.clusterView.GetDNSView()
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(clusterDNSView)
+}
+
 func (api *idler) Info(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	w.Header().Set("Content-Type", "application/json")
-	ns := ps.ByName("namespace")
+	namespace := ps.ByName("namespace")
 
-	err := json.NewEncoder(w).Encode(api.controller.GetUser(ns))
+	userIdler, ok := api.userIdlers.Load(namespace)
+	if ok {
+		err := json.NewEncoder(w).Encode(userIdler.GetUser())
 
-	if err != nil {
-		log.Error("Could not serialize users")
-		fmt.Fprint(w, "{'error': 'Could not serialize users'}")
+		if err != nil {
+			log.Error("Could not serialize users")
+			fmt.Fprint(w, "{'error': 'Could not serialize users'}")
+		}
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
+func (api *idler) getURLAndToken(r *http.Request) (string, string, error) {
+	var openShiftAPIURL string
+	values, ok := r.URL.Query()[OpenShiftAPIParam]
+	if !ok || len(values) < 1 {
+		return "", "", fmt.Errorf("OpenShift API URL needs to be specified")
 	}
 
-	if err != nil {
-		log.Error("Could not serialize users")
-		fmt.Fprint(w, "{'error': 'Could not serialize users'}")
+	openShiftAPIURL = values[0]
+	bearerToken, ok := api.clusterView.GetToken(openShiftAPIURL)
+	if ok {
+		return openShiftAPIURL, bearerToken, nil
 	}
+	return "", "", nil
 }

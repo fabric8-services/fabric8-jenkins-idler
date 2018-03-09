@@ -28,21 +28,23 @@ const (
 // of the Jenkins instance of the user and idle resp. un-idle depending on the evaluation
 // of the given conditions for this UserIdler.
 type UserIdler struct {
-	openShiftClient client.OpenShiftClient
-	maxRetries      int
-	idleAttempts    int
-	unIdleAttempts  int
-	Conditions      *condition.Conditions
-	logger          *log.Entry
-	userChan        chan model.User
-	user            model.User
-	config          configuration.Configuration
-	features        toggles.Features
+	openShiftAPI         string
+	openShiftBearerToken string
+	openShiftClient      client.OpenShiftClient
+	maxRetries           int
+	idleAttempts         int
+	unIdleAttempts       int
+	Conditions           *condition.Conditions
+	logger               *log.Entry
+	userChan             chan model.User
+	user                 model.User
+	config               configuration.Configuration
+	features             toggles.Features
 }
 
 // NewUserIdler creates an instance of UserIdler.
 // It returns a pointer to UserIdler,
-func NewUserIdler(user model.User, openShiftClient client.OpenShiftClient, config configuration.Configuration, features toggles.Features) *UserIdler {
+func NewUserIdler(user model.User, openShiftAPI string, openShiftBearerToken string, config configuration.Configuration, features toggles.Features) *UserIdler {
 	logEntry := log.WithFields(log.Fields{
 		"component": "user-idler",
 		"username":  user.Name,
@@ -55,18 +57,25 @@ func NewUserIdler(user model.User, openShiftClient client.OpenShiftClient, confi
 	userChan := make(chan model.User, bufferSize)
 
 	userIdler := UserIdler{
-		openShiftClient: openShiftClient,
-		maxRetries:      config.GetMaxRetries(),
-		idleAttempts:    0,
-		unIdleAttempts:  0,
-		Conditions:      conditions,
-		logger:          logEntry,
-		userChan:        userChan,
-		user:            user,
-		config:          config,
-		features:        features,
+		openShiftAPI:         openShiftAPI,
+		openShiftBearerToken: openShiftBearerToken,
+		openShiftClient:      client.NewOpenShift(),
+		maxRetries:           config.GetMaxRetries(),
+		idleAttempts:         0,
+		unIdleAttempts:       0,
+		Conditions:           conditions,
+		logger:               logEntry,
+		userChan:             userChan,
+		user:                 user,
+		config:               config,
+		features:             features,
 	}
 	return &userIdler
+}
+
+// GetUser returns the model.User of this idler.
+func (idler *UserIdler) GetUser() model.User {
+	return idler.user
 }
 
 // GetChannel gets channel of model.User type of this UserIdler.
@@ -145,7 +154,7 @@ func (idler *UserIdler) doIdle() error {
 	if state > model.JenkinsIdled {
 		idler.incrementIdleAttempts()
 		idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.idleAttempts, idler.maxRetries)).Info("About to idle Jenkins")
-		err := idler.openShiftClient.Idle(idler.user.Name+jenkinsNamespaceSuffix, jenkinsServiceName)
+		err := idler.openShiftClient.Idle(idler.openShiftAPI, idler.openShiftBearerToken, idler.user.Name+jenkinsNamespaceSuffix, jenkinsServiceName)
 		if err != nil {
 			return err
 		}
@@ -167,7 +176,7 @@ func (idler *UserIdler) doUnIdle() error {
 	if state == model.JenkinsIdled {
 		idler.incrementUnIdleAttempts()
 		idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.unIdleAttempts, idler.maxRetries)).Info("About to un-idle Jenkins")
-		err := idler.openShiftClient.UnIdle(idler.user.Name+jenkinsNamespaceSuffix, jenkinsServiceName)
+		err := idler.openShiftClient.UnIdle(idler.openShiftAPI, idler.openShiftBearerToken, idler.user.Name+jenkinsNamespaceSuffix, jenkinsServiceName)
 		if err != nil {
 			return err
 		}
@@ -192,7 +201,7 @@ func (idler *UserIdler) isIdlerEnabled() (bool, error) {
 
 func (idler *UserIdler) getJenkinsState() (int, error) {
 	ns := idler.user.Name + jenkinsNamespaceSuffix
-	state, err := idler.openShiftClient.IsIdle(ns, jenkinsServiceName)
+	state, err := idler.openShiftClient.IsIdle(idler.openShiftAPI, idler.openShiftBearerToken, ns, jenkinsServiceName)
 	if err != nil {
 		return -1, err
 	}

@@ -38,7 +38,7 @@ func Test_idle_check_skipped_if_feature_not_enabled(t *testing.T) {
 	hook := test.NewGlobal()
 
 	user := model.User{ID: "100"}
-	userIdler := NewUserIdler(user, nil, &mock.Config{}, mock.NewMockFeatureToggle([]string{"42"}))
+	userIdler := NewUserIdler(user, "", "", &mock.Config{}, mock.NewMockFeatureToggle([]string{"42"}))
 
 	err := userIdler.checkIdle()
 	assert.NoError(t, err, "No error expected.")
@@ -51,7 +51,7 @@ func Test_idle_check_returns_error_on_evaluation_failure(t *testing.T) {
 	log.SetOutput(ioutil.Discard)
 
 	user := model.User{ID: "42"}
-	userIdler := NewUserIdler(user, nil, &mock.Config{}, mock.NewMockFeatureToggle([]string{"42"}))
+	userIdler := NewUserIdler(user, "", "", &mock.Config{}, mock.NewMockFeatureToggle([]string{"42"}))
 	userIdler.Conditions.Add("error", &ErrorCondition{})
 
 	err := userIdler.checkIdle()
@@ -64,10 +64,9 @@ func Test_timeout_occurs_regardless_of_other_events(t *testing.T) {
 	hook := test.NewGlobal()
 
 	user := model.User{ID: "100", Name: "John Doe"}
-	openShiftClient := &mock.OpenShiftClient{}
 	config := &mock.Config{}
 	features := mock.NewMockFeatureToggle([]string{"42"})
-	userIdler := NewUserIdler(user, openShiftClient, config, features)
+	userIdler := NewUserIdler(user, "", "", config, features)
 
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
@@ -100,7 +99,7 @@ func Test_timeout_occurs_regardless_of_other_events(t *testing.T) {
 	assert.Equal(t, 3, idleAfterCount, "The timeout should have occurred 3 times.")
 	assert.Equal(t, 2, userDataCount, "User data should have been received twice")
 
-	assert.Contains(t, logMessages, "Shutting down user idler.", "NNo proper shutdown recorded.")
+	assert.Contains(t, logMessages, "Shutting down user idler.", "No proper shutdown recorded.")
 }
 
 func Test_number_of_idle_calls_are_capped(t *testing.T) {
@@ -115,7 +114,8 @@ func Test_number_of_idle_calls_are_capped(t *testing.T) {
 	maxRetry := 3
 	config.MaxRetries = maxRetry
 	features := mock.NewMockFeatureToggle([]string{"42"})
-	userIdler := NewUserIdler(user, openShiftClient, config, features)
+	userIdler := NewUserIdler(user, "", "", config, features)
+	userIdler.openShiftClient = openShiftClient
 
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
@@ -162,7 +162,8 @@ func Test_number_of_unidle_calls_are_capped(t *testing.T) {
 
 	features := mock.NewMockFeatureToggle([]string{"42"})
 
-	userIdler := NewUserIdler(user, openShiftClient, config, features)
+	userIdler := NewUserIdler(user, "", "", config, features)
+	userIdler.openShiftClient = openShiftClient
 	conditions := condition.NewConditions()
 	conditions.Add("unidle", &UnIdleCondition{})
 	userIdler.Conditions = &conditions
