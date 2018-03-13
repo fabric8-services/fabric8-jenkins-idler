@@ -43,6 +43,7 @@ type controllerImpl struct {
 	wg                   *sync.WaitGroup
 	ctx                  context.Context
 	cancel               context.CancelFunc
+	unknownTenants       map[string]interface{}
 }
 
 // NewController creates an instance of ControllerImpl.
@@ -59,6 +60,7 @@ func NewController(ctx context.Context, openShiftAPI string, openShiftBearerToke
 		wg:                   wg,
 		ctx:                  ctx,
 		cancel:               cancel,
+		unknownTenants:       make(map[string]interface{}),
 	}
 
 	return &controller
@@ -70,9 +72,17 @@ func NewController(ctx context.Context, openShiftAPI string, openShiftBearerToke
 // just does couple comparisons and returns.
 func (c *controllerImpl) HandleBuild(o model.Object) error {
 	ns := o.Object.Metadata.Namespace
-	err := c.createIfNotExist(ns)
+	ok, err := c.createIfNotExist(ns)
 	if err != nil {
 		return err
+	}
+
+	if !ok {
+		// We can have a situation where a single OpenShift cluster is used by prod as well as prod-preview
+		// For now we see in this case events from tenants of both clusters which means in some cases
+		// we won't get tenant information
+		// See also https://github.com/fabric8-services/fabric8-jenkins-idler/issues/155
+		return nil
 	}
 
 	userIdler := c.userIdlerForNamespace(ns)
@@ -108,9 +118,17 @@ func (c *controllerImpl) HandleBuild(o model.Object) error {
 // of ConfigChange or manual intervention.
 func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 	ns := dc.Object.Metadata.Namespace[:len(dc.Object.Metadata.Namespace)-len(jenkinsNamespaceSuffix)]
-	err := c.createIfNotExist(ns)
+	ok, err := c.createIfNotExist(ns)
 	if err != nil {
 		return err
+	}
+
+	if !ok {
+		// We can have a situation where a single OpenShift cluster is used by prod as well as prod-preview
+		// For now we see in this case events from tenants of both clusters which means in some cases
+		// we won't get tenant information
+		// See also https://github.com/fabric8-services/fabric8-jenkins-idler/issues/155
+		return nil
 	}
 
 	userIdler := c.userIdlerForNamespace(ns)
@@ -143,29 +161,35 @@ func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 }
 
 // createIfNotExist checks existence of a user in the map, initialise if it does not exist.
-func (c *controllerImpl) createIfNotExist(ns string) error {
+func (c *controllerImpl) createIfNotExist(ns string) (bool, error) {
+	if _, exist := c.unknownTenants[ns]; exist {
+		logger.WithField("ns", ns).Debug("Namespace listed in unknown users list")
+		return false, nil
+	}
+
 	if _, exist := c.userIdlers.Load(ns); exist {
-		logger.WithField("ns", ns).Debug("User idler exists")
-		return nil
+		logger.WithField("ns", ns).Debug("User idler found in cache")
+		return true, nil
 	}
 
 	logger.WithField("ns", ns).Debug("Creating user idler")
 	ti, err := c.tenantService.GetTenantInfoByNamespace(c.openShiftAPI, ns)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if ti.Meta.TotalCount > 1 {
-		return fmt.Errorf("could not add new user - Tenant service returned multiple items: %d", ti.Meta.TotalCount)
+		return false, fmt.Errorf("could not add new user - Tenant service returned multiple items: %d", ti.Meta.TotalCount)
 	} else if len(ti.Data) == 0 {
-		return fmt.Errorf("could not find tenantService in cluster %s for namespace %s: %+v", c.openShiftAPI, ns, ti.Errors)
+		c.unknownTenants[ns] = nil
+		return false, nil
 	}
 
 	newUser := model.NewUser(ti.Data[0].ID, ns)
 	userIdler := idler.NewUserIdler(newUser, c.openShiftAPI, c.openShiftBearerToken, c.config, c.features)
 	c.userIdlers.Store(ns, userIdler)
 	userIdler.Run(c.ctx, c.wg, c.cancel, time.Duration(c.config.GetCheckInterval())*time.Minute)
-	return nil
+	return true, nil
 }
 
 func (c *controllerImpl) userIdlerForNamespace(namespace string) *idler.UserIdler {
