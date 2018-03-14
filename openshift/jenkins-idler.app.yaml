@@ -93,7 +93,7 @@ objects:
           terminationMessagePath: /dev/termination-log
           readinessProbe:
             httpGet:
-              path: /api/idler/info/none
+              path: /api/idler/cluster
               port: 8080
               scheme: HTTP
             initialDelaySeconds: 15
@@ -101,7 +101,7 @@ objects:
             timeoutSeconds: 10
           livenessProbe:
             httpGet:
-              path: /api/idler/info/none
+              path: /api/idler/cluster
               port: 8080
               scheme: HTTP
             initialDelaySeconds: 30
