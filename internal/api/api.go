@@ -64,7 +64,8 @@ func NewIdlerAPI(userIdlers *openshift.UserIdlerMap, clusterView cluster.View) I
 func (api *idler) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	openShiftAPI, openShiftBearerToken, err := api.getURLAndToken(r)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
 		return
 	}
 
@@ -80,7 +81,7 @@ func (api *idler) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 func (api *idler) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	openShiftAPI, openShiftBearerToken, err := api.getURLAndToken(r)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
 		return
 	}
@@ -97,7 +98,7 @@ func (api *idler) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 func (api *idler) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	openShiftAPI, openShiftBearerToken, err := api.getURLAndToken(r)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
 		return
 	}
