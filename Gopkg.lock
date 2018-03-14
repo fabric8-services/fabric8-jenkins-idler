@@ -112,29 +112,23 @@
     "openpgp/packet",
     "openpgp/s2k"
   ]
-  revision = "c7dcf104e3a7a1417abc0230cb0d5240d764159d"
+  revision = "21652f85b0fdddb6c2b6b77a5beca5c5a908174a"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["websocket"]
-  revision = "ae89d30ce0c63142b652837da33d782e2b0a9b25"
+  revision = "e0c57d8f86c17f0724497efcb3bc617e82834821"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "c28acc882ebcbfbe8ce9f0f14b9ac26ee138dd51"
-
-[[projects]]
-  name = "gopkg.in/yaml.v2"
-  packages = ["."]
-  revision = "7f97868eec74b32b0982dd158a51a446d1da7eb5"
-  version = "v2.1.1"
+  revision = "89ac7f292d17a339edab4de8efcba5d8672ff661"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "821cd74a920a63fbd8a63d135068af9b4ccb42946795d7b9d182df109c244af7"
+  inputs-digest = "abbfe3d22307ba7f59fec8b7bcd3f55f3dce0f2b96fd243bebb2ea578d55c9dd"
   solver-name = "gps-cdcl"
   solver-version = 1

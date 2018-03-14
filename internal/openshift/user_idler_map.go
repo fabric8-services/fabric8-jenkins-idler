@@ -12,14 +12,14 @@ type UserIdlerMap struct {
 	internal map[string]*idler.UserIdler
 }
 
-// NewUserIdlerMap creates a new instance of UserIdlerMap.
+// NewUserIdlerMap creates a new instance of UnknownUsersMap.
 func NewUserIdlerMap() *UserIdlerMap {
 	return &UserIdlerMap{
 		internal: make(map[string]*idler.UserIdler),
 	}
 }
 
-// Load returns a pointer to UserIdlerMap keyed against the specified key.
+// Load returns a pointer to UnknownUsersMap keyed against the specified key.
 func (m *UserIdlerMap) Load(namespace string) (*idler.UserIdler, bool) {
 	m.RLock()
 	result, ok := m.internal[namespace]
@@ -27,14 +27,14 @@ func (m *UserIdlerMap) Load(namespace string) (*idler.UserIdler, bool) {
 	return result, ok
 }
 
-// Delete deletes the channel of model.User from UserChannelMap given its key.
+// Delete deletes the entry for the specified namespace from the map.
 func (m *UserIdlerMap) Delete(namespace string) {
 	m.Lock()
 	delete(m.internal, namespace)
 	m.Unlock()
 }
 
-// Store stores a channel for given model.User at the given key in UserChannelMap.
+// Store stores the user user idler with the given key.
 func (m *UserIdlerMap) Store(key string, i *idler.UserIdler) {
 	m.Lock()
 	m.internal[key] = i

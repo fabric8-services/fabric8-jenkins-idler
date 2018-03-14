@@ -31,9 +31,10 @@ type Controller interface {
 	HandleDeploymentConfig(dc model.DCObject) error
 }
 
-// controllerImpl watches openShift cluser for changes and implements Controller.
+// controllerImpl watches a single OpenShift cluster for Build and Deployment Config changes. This struct needs to be
+// safe for concurrent use.
 type controllerImpl struct {
-	openShiftAPI         string
+	openShiftAPIURL      string
 	openShiftBearerToken string
 	userIdlers           *UserIdlerMap
 	openShiftClient      client.OpenShiftClient
@@ -43,14 +44,14 @@ type controllerImpl struct {
 	wg                   *sync.WaitGroup
 	ctx                  context.Context
 	cancel               context.CancelFunc
-	unknownTenants       map[string]interface{}
+	unknownUsers         *UnknownUsersMap
 }
 
-// NewController creates an instance of ControllerImpl.
+// NewController creates an instance of controllerImpl.
 func NewController(ctx context.Context, openShiftAPI string, openShiftBearerToken string, userIdlers *UserIdlerMap, t tenant.Service, features toggles.Features, config configuration.Configuration, wg *sync.WaitGroup, cancel context.CancelFunc) Controller {
 	logger.WithField("cluster", openShiftAPI).Info("Creating new controller instance")
 	controller := controllerImpl{
-		openShiftAPI:         openShiftAPI,
+		openShiftAPIURL:      openShiftAPI,
 		openShiftBearerToken: openShiftBearerToken,
 		userIdlers:           userIdlers,
 		openShiftClient:      client.NewOpenShift(),
@@ -60,7 +61,7 @@ func NewController(ctx context.Context, openShiftAPI string, openShiftBearerToke
 		wg:                   wg,
 		ctx:                  ctx,
 		cancel:               cancel,
-		unknownTenants:       make(map[string]interface{}),
+		unknownUsers:         NewUnknownUsersMap(),
 	}
 
 	return &controller
@@ -162,7 +163,7 @@ func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 
 // createIfNotExist checks existence of a user in the map, initialise if it does not exist.
 func (c *controllerImpl) createIfNotExist(ns string) (bool, error) {
-	if _, exist := c.unknownTenants[ns]; exist {
+	if _, exist := c.unknownUsers.Load(ns); exist {
 		logger.WithField("ns", ns).Debug("Namespace listed in unknown users list")
 		return false, nil
 	}
@@ -173,7 +174,7 @@ func (c *controllerImpl) createIfNotExist(ns string) (bool, error) {
 	}
 
 	logger.WithField("ns", ns).Debug("Creating user idler")
-	ti, err := c.tenantService.GetTenantInfoByNamespace(c.openShiftAPI, ns)
+	ti, err := c.tenantService.GetTenantInfoByNamespace(c.openShiftAPIURL, ns)
 	if err != nil {
 		return false, err
 	}
@@ -181,12 +182,12 @@ func (c *controllerImpl) createIfNotExist(ns string) (bool, error) {
 	if ti.Meta.TotalCount > 1 {
 		return false, fmt.Errorf("could not add new user - Tenant service returned multiple items: %d", ti.Meta.TotalCount)
 	} else if len(ti.Data) == 0 {
-		c.unknownTenants[ns] = nil
+		c.unknownUsers.Store(ns, nil)
 		return false, nil
 	}
 
 	newUser := model.NewUser(ti.Data[0].ID, ns)
-	userIdler := idler.NewUserIdler(newUser, c.openShiftAPI, c.openShiftBearerToken, c.config, c.features)
+	userIdler := idler.NewUserIdler(newUser, c.openShiftAPIURL, c.openShiftBearerToken, c.config, c.features)
 	c.userIdlers.Store(ns, userIdler)
 	userIdler.Run(c.ctx, c.wg, c.cancel, time.Duration(c.config.GetCheckInterval())*time.Minute)
 	return true, nil
