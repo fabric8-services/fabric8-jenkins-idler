@@ -114,10 +114,10 @@ objects:
             timeoutSeconds: 10
           resources:
             requests:
-              memory: "50Mi"
+              memory: "256Mi"
               cpu: "30m"
             limits:
-              memory: "128Mi"
+              memory: "512Mi"
               cpu: "500m"
         dnsPolicy: ClusterFirst
         restartPolicy: Always
