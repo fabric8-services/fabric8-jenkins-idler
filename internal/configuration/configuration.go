@@ -21,6 +21,9 @@ type Configuration interface {
 	// GetMaxRetries returns the maximum number of retries to idle resp. un-idle the Jenkins service.
 	GetMaxRetries() int
 
+	// GetMaxRetriesQuietInterval returns the number of minutes no retry occurs after the maximum retry count is reached.
+	GetMaxRetriesQuietInterval() int
+
 	// GetCheckInterval returns the number of minutes after which a regular idle check occurs.
 	GetCheckInterval() int
 

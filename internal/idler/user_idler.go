@@ -109,11 +109,12 @@ func (idler *UserIdler) checkIdle() error {
 
 // Run runs/starts the Idler
 // It checks if Jenkins is idle at every checkIdle duration.
-func (idler *UserIdler) Run(ctx context.Context, wg *sync.WaitGroup, cancel context.CancelFunc, checkIdle time.Duration) {
-	idler.logger.Info("UserIdler started.")
+func (idler *UserIdler) Run(ctx context.Context, wg *sync.WaitGroup, cancel context.CancelFunc, checkIdle time.Duration, maxRetriesQuietInterval time.Duration) {
+	idler.logger.WithFields(log.Fields{"checkIdle": checkIdle, "maxRetriesQuietInterval": maxRetriesQuietInterval}).Info("UserIdler started.")
 	wg.Add(1)
 	go func() {
-		ticker := time.Tick(checkIdle)
+		ticker := time.Tick(maxRetriesQuietInterval)
+		timer := time.After(checkIdle)
 		defer wg.Done()
 		for {
 			select {
@@ -128,13 +129,20 @@ func (idler *UserIdler) Run(ctx context.Context, wg *sync.WaitGroup, cancel cont
 				if err != nil {
 					idler.logger.WithField("error", err.Error()).Warn("Error during idle check.")
 				}
-			case <-ticker:
+				// Resetting the timer
+				timer = time.After(checkIdle)
+			case <-timer:
+				// Timer handles the case where there are no OpenShift events received for the user for the checkIdle
+				// duration. This ensures checkIdle will be called regularly.
 				idler.logger.WithField("state", idler.user.String()).Info("Time based idle check.")
-				idler.resetCounters()
 				err := idler.checkIdle()
 				if err != nil {
 					idler.logger.WithField("error", err.Error()).Warn("Error during idle check.")
 				}
+			case <-ticker:
+				// Using ticker for the resetting of counters to ensure it occurs
+				idler.logger.Debug("Resetting retry counters.")
+				idler.resetCounters()
 			}
 		}
 	}()

@@ -39,6 +39,11 @@ objects:
               configMapKeyRef:
                 name: jenkins-idler
                 key: max.retries
+          - name: JC_MAX_RETRIES_QUIET_INTERVAL
+            valueFrom:
+              configMapKeyRef:
+                name: jenkins-idler
+                key: max.retries.quiet.interval
           - name: JC_CHECK_INTERVAL
             valueFrom:
               configMapKeyRef:

@@ -6,6 +6,7 @@ type: Opaque
 data:
   idle.after: "45"
   check.interval: "15"
-  max.retries: "5"
+  max.retries: "3"
+  max.retries.quiet.interval: "30"
   jenkins.proxy.url: "http://jenkins-proxy:9091"
   toggles.api.url: "http://f8toggles"

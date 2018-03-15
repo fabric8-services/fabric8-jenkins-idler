@@ -10,9 +10,10 @@ import (
 )
 
 const (
-	defaultIdleAfter     = 45
-	defaultMaxRetries    = 5
-	defaultCheckInterval = 15
+	defaultIdleAfter               = 45
+	defaultMaxRetries              = 3
+	defaultMaxRetriesQuietInterval = 30
+	defaultCheckInterval           = 15
 )
 
 var (
@@ -35,6 +36,7 @@ func init() {
 	// timeouts and retry counts
 	settings["GetIdleAfter"] = Setting{"JC_IDLE_AFTER", strconv.Itoa(defaultIdleAfter), []func(interface{}, string) error{util.IsInt}}
 	settings["GetMaxRetries"] = Setting{"JC_MAX_RETRIES", strconv.Itoa(defaultMaxRetries), []func(interface{}, string) error{util.IsInt}}
+	settings["GetMaxRetriesQuietInterval"] = Setting{"JC_MAX_RETRIES_QUIET_INTERVAL", strconv.Itoa(defaultMaxRetriesQuietInterval), []func(interface{}, string) error{util.IsInt}}
 	settings["GetCheckInterval"] = Setting{"JC_CHECK_INTERVAL", strconv.Itoa(defaultCheckInterval), []func(interface{}, string) error{util.IsInt}}
 
 	// debug
@@ -69,6 +71,15 @@ func (c *EnvConfig) GetProxyURL() string {
 
 // GetIdleAfter returns the number of minutes before Jenkins is idled as set via default, config file, or environment variable.
 func (c *EnvConfig) GetIdleAfter() int {
+	callPtr, _, _, _ := runtime.Caller(0)
+	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
+
+	i, _ := strconv.Atoi(value)
+	return i
+}
+
+// GetMaxRetriesQuietInterval returns the number of minutes no retry occurs after the maximum retry count is reached.
+func (c *EnvConfig) GetMaxRetriesQuietInterval() int {
 	callPtr, _, _, _ := runtime.Caller(0)
 	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
 

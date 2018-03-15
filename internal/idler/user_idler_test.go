@@ -59,8 +59,9 @@ func Test_idle_check_returns_error_on_evaluation_failure(t *testing.T) {
 	assert.Equal(t, "eval error", err.Error(), "Unexpected error message.")
 }
 
-func Test_timeout_occurs_regardless_of_other_events(t *testing.T) {
+func Test_idle_check_occurs_even_without_openshift_events(t *testing.T) {
 	log.SetOutput(ioutil.Discard)
+	log.SetLevel(log.DebugLevel)
 	hook := test.NewGlobal()
 
 	user := model.User{ID: "100", Name: "John Doe"}
@@ -72,14 +73,14 @@ func Test_timeout_occurs_regardless_of_other_events(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
-		time.Sleep(3500 * time.Millisecond)
+		time.Sleep(2300 * time.Millisecond)
 		cancel()
 	}()
 
-	userIdler.Run(ctx, &wg, cancel, time.Duration(1*time.Second))
+	userIdler.Run(ctx, &wg, cancel, time.Duration(500*time.Millisecond), time.Duration(2000*time.Millisecond))
 
 	userIdler.GetChannel() <- user
-	time.Sleep(1 * time.Second)
+	time.Sleep(1100 * time.Millisecond)
 	userIdler.GetChannel() <- user
 
 	wg.Wait()
@@ -87,6 +88,7 @@ func Test_timeout_occurs_regardless_of_other_events(t *testing.T) {
 	logMessages := extractLogMessages(hook.Entries)
 	idleAfterCount := 0
 	userDataCount := 0
+	resetCounterCounts := 0
 	for _, message := range logMessages {
 		if message == "Time based idle check." {
 			idleAfterCount++
@@ -94,10 +96,14 @@ func Test_timeout_occurs_regardless_of_other_events(t *testing.T) {
 		if message == "Received user data." {
 			userDataCount++
 		}
+		if message == "Resetting retry counters." {
+			resetCounterCounts++
+		}
 	}
 
-	assert.Equal(t, 3, idleAfterCount, "The timeout should have occurred 3 times.")
-	assert.Equal(t, 2, userDataCount, "User data should have been received twice")
+	assert.Equal(t, 2, idleAfterCount, "Unexpected number of time based idle checks")
+	assert.Equal(t, 2, userDataCount, "Unexpected number of user data events")
+	assert.Equal(t, 1, resetCounterCounts, "Unexpected number of counter resets")
 
 	assert.Contains(t, logMessages, "Shutting down user idler.", "No proper shutdown recorded.")
 }
@@ -125,7 +131,7 @@ func Test_number_of_idle_calls_are_capped(t *testing.T) {
 		cancel()
 	}()
 
-	userIdler.Run(ctx, &wg, cancel, time.Duration(2000*time.Millisecond))
+	userIdler.Run(ctx, &wg, cancel, time.Duration(2000*time.Millisecond), time.Duration(2000*time.Millisecond))
 
 	sendDataCount := 5
 	for i := 0; i < sendDataCount; i++ {
@@ -176,7 +182,7 @@ func Test_number_of_unidle_calls_are_capped(t *testing.T) {
 		cancel()
 	}()
 
-	userIdler.Run(ctx, &wg, cancel, time.Duration(2000*time.Millisecond))
+	userIdler.Run(ctx, &wg, cancel, time.Duration(2000*time.Millisecond), time.Duration(2000*time.Millisecond))
 
 	sendDataCount := 5
 	for i := 0; i < sendDataCount; i++ {

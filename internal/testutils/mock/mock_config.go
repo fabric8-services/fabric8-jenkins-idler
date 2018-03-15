@@ -7,18 +7,19 @@ import (
 // Config a mock implementation of the configuration.Configuration interface.
 // It can be used in tests where any field can be explicitly set to return the needed value.
 type Config struct {
-	ProxyURL             string
-	TenantURL            string
-	ToggleURL            string
-	IdleAfter            int
-	MaxRetries           int
-	CheckInterval        int
-	Debug                bool
-	FixedUuids           []string
-	AuthURL              string
-	ServiceAccountID     string
-	ServiceAccountSecret string
-	AuthTokenKey         string
+	ProxyURL              string
+	TenantURL             string
+	ToggleURL             string
+	IdleAfter             int
+	MaxRetries            int
+	MaxRetriesQuietPeriod int
+	CheckInterval         int
+	Debug                 bool
+	FixedUuids            []string
+	AuthURL               string
+	ServiceAccountID      string
+	ServiceAccountSecret  string
+	AuthTokenKey          string
 }
 
 // GetProxyURL returns the Jenkins Proxy API URL.
@@ -49,6 +50,11 @@ func (c *Config) GetIdleAfter() int {
 // GetMaxRetries returns the maximum number of retries to idle resp. un-idle the Jenkins service.
 func (c *Config) GetMaxRetries() int {
 	return c.MaxRetries
+}
+
+// GetMaxRetriesQuietInterval returns the number of minutes no retry occurs after the maximum retry count is reached.
+func (c *Config) GetMaxRetriesQuietInterval() int {
+	return c.MaxRetriesQuietPeriod
 }
 
 // GetCheckInterval returns the number of minutes after which a regular idle check occurs.
