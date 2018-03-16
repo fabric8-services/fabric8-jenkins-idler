@@ -30,50 +30,33 @@ objects:
         containers:
         - env:
           - name: JC_IDLE_AFTER
-            valueFrom:
-              configMapKeyRef:
-                name: jenkins-idler
-                key: idle.after
-          - name: JC_MAX_RETRIES
-            valueFrom:
-              configMapKeyRef:
-                name: jenkins-idler
-                key: max.retries
-          - name: JC_MAX_RETRIES_QUIET_INTERVAL
-            valueFrom:
-              configMapKeyRef:
-                name: jenkins-idler
-                key: max.retries.quiet.interval
+            value: "45"
           - name: JC_CHECK_INTERVAL
-            valueFrom:
-              configMapKeyRef:
-                name: jenkins-idler
-                key: check.interval
+            value: "15"
+          - name: JC_MAX_RETRIES
+            value: "3"
+          - name: JC_MAX_RETRIES_QUIET_INTERVAL
+            value: "30"
           - name: JC_JENKINS_PROXY_API_URL
-            valueFrom:
-              configMapKeyRef:
-                name: jenkins-idler
-                key: jenkins.proxy.url
+            value: "http://jenkins-proxy:9091"
           - name: JC_F8TENANT_API_URL
-            valueFrom:
-              configMapKeyRef:
-                name: jenkins-proxy
-                key: f8tenant.api.url
+            value: "http://f8tenant"
           - name: JC_TOGGLE_API_URL
-            valueFrom:
-              configMapKeyRef:
-                name: jenkins-idler
-                key: toggles.api.url
-          - name: JC_AUTH_TOKEN_KEY
-            valueFrom:
-              secretKeyRef:
-                name: jenkins-idler
-                key: auth.token.key
+            value: "http://f8toggles"
+          - name: JC_LOG_LEVEL
+            value: "info"
+          - name: GODEBUG
+            value: "gctrace=0"
           - name: JC_AUTH_URL
             valueFrom:
               configMapKeyRef:
                 name: core
                 key: auth.serviceurl
+          - name: JC_AUTH_TOKEN_KEY
+            valueFrom:
+              secretKeyRef:
+                name: jenkins-idler
+                key: auth.token.key
           - name: JC_SERVICE_ACCOUNT_ID
             valueFrom:
               secretKeyRef:
@@ -84,10 +67,6 @@ objects:
               secretKeyRef:
                 name: jenkins-idler
                 key: service.account.secret
-          - name: JC_LOG_LEVEL
-            value: info
-          - name: GODEBUG
-            value: gctrace=0
           image: ${IMAGE}:${IMAGE_TAG}
           imagePullPolicy: Always
           name: jenkins-idler
