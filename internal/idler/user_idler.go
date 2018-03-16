@@ -110,7 +110,7 @@ func (idler *UserIdler) checkIdle() error {
 // Run runs/starts the Idler
 // It checks if Jenkins is idle at every checkIdle duration.
 func (idler *UserIdler) Run(ctx context.Context, wg *sync.WaitGroup, cancel context.CancelFunc, checkIdle time.Duration, maxRetriesQuietInterval time.Duration) {
-	idler.logger.WithFields(log.Fields{"checkIdle": fmt.Sprintf("%.3fm", checkIdle.Minutes()), "maxRetriesQuietInterval": fmt.Sprintf("%.3fm", maxRetriesQuietInterval.Minutes())}).Info("UserIdler started.")
+	idler.logger.WithFields(log.Fields{"checkIdle": fmt.Sprintf("%.0fm", checkIdle.Minutes()), "maxRetriesQuietInterval": fmt.Sprintf("%.0fm", maxRetriesQuietInterval.Minutes())}).Info("UserIdler started.")
 	wg.Add(1)
 	go func() {
 		ticker := time.Tick(maxRetriesQuietInterval)
