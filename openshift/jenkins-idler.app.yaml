@@ -42,7 +42,7 @@ objects:
           - name: JC_F8TENANT_API_URL
             value: "http://f8tenant"
           - name: JC_TOGGLE_API_URL
-            value: "http://f8toggles"
+            value: "http://f8toggles/api"
           - name: JC_LOG_LEVEL
             value: "info"
           - name: GODEBUG
