@@ -126,6 +126,9 @@ func (o openShift) Idle(apiURL string, bearerToken string, namespace string, ser
 		return
 	}
 	b, err = o.patch(req)
+	if err != nil {
+		return
+	}
 	ndc := &model.DeploymentConfig{}
 	err = json.Unmarshal(b, ndc)
 	if err != nil {

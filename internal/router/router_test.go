@@ -1,7 +1,6 @@
 package router
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -12,45 +11,23 @@ import (
 	"time"
 
 	"encoding/json"
+	"net/http/httptest"
+
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/api"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/cluster"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/mock"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
-	"net/http/httptest"
 )
 
 const (
 	testPortBase = 48080
 )
-
-type mockResponseWriter struct {
-	buffer bytes.Buffer
-}
-
-func (m *mockResponseWriter) Header() (h http.Header) {
-	return http.Header{}
-}
-
-func (m *mockResponseWriter) Write(p []byte) (n int, err error) {
-	m.buffer.Write(p)
-	return len(p), nil
-}
-
-func (m *mockResponseWriter) WriteString(s string) (n int, err error) {
-	m.buffer.WriteString(s)
-	return len(s), nil
-}
-
-func (m *mockResponseWriter) WriteHeader(int) {}
-
-func (m *mockResponseWriter) GetBody() string {
-	return m.buffer.String()
-}
 
 type mockIdlerAPI struct {
 }
@@ -103,7 +80,7 @@ func Test_all_routes_are_setup(t *testing.T) {
 	}
 
 	for _, testRoute := range routes {
-		w := new(mockResponseWriter)
+		w := new(mock.ResponseWriter)
 
 		req, _ := http.NewRequest("GET", testRoute.route, nil)
 		router.ServeHTTP(w, req)

@@ -64,6 +64,7 @@ func NewIdlerAPI(userIdlers *openshift.UserIdlerMap, clusterView cluster.View) I
 func (api *idler) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	openShiftAPI, openShiftBearerToken, err := api.getURLAndToken(r)
 	if err != nil {
+		log.Error(err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
 		return
@@ -71,7 +72,9 @@ func (api *idler) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 
 	err = api.openShiftClient.Idle(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), "jenkins")
 	if err != nil {
+		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
 		return
 	}
 
@@ -81,6 +84,7 @@ func (api *idler) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 func (api *idler) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	openShiftAPI, openShiftBearerToken, err := api.getURLAndToken(r)
 	if err != nil {
+		log.Error(err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
 		return
@@ -88,7 +92,9 @@ func (api *idler) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 
 	err = api.openShiftClient.UnIdle(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), "jenkins")
 	if err != nil {
+		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
 		return
 	}
 
@@ -98,6 +104,7 @@ func (api *idler) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 func (api *idler) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	openShiftAPI, openShiftBearerToken, err := api.getURLAndToken(r)
 	if err != nil {
+		log.Error(err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
 		return
@@ -135,8 +142,9 @@ func (api *idler) Info(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 		err := json.NewEncoder(w).Encode(userIdler.GetUser())
 
 		if err != nil {
-			log.Error("Could not serialize users")
-			fmt.Fprint(w, "{'error': 'Could not serialize users'}")
+			log.Errorf("Could not serialize users: %s", err)
+			w.Write([]byte(fmt.Sprintf("{\"error\": \"Could not serialize users: %s\"}", err)))
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 	} else {
 		w.WriteHeader(http.StatusNotFound)
@@ -155,5 +163,5 @@ func (api *idler) getURLAndToken(r *http.Request) (string, string, error) {
 	if ok {
 		return openShiftAPIURL, bearerToken, nil
 	}
-	return "", "", nil
+	return "", "", fmt.Errorf("Unknown or invalid OpenShift API URL")
 }
