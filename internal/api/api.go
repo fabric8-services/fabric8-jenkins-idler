@@ -19,6 +19,13 @@ const (
 	OpenShiftAPIParam = "openshift_api_url"
 )
 
+var (
+	// JenkinsServices is an array of all the services getting idled or unidled
+	// they go along the main build detection logic of jenkins and don't have
+	// any specific scenarios.
+	JenkinsServices = []string{"jenkins", "content-repository"}
+)
+
 // IdlerAPI defines the REST endpoints of the Idler
 type IdlerAPI interface {
 	// Idle triggers an idling of the Jenkins service running in the namespace specified in the namespace
@@ -70,12 +77,14 @@ func (api *idler) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 		return
 	}
 
-	err = api.openShiftClient.Idle(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), "jenkins")
-	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
-		return
+	for _, service := range JenkinsServices {
+		err = api.openShiftClient.Idle(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), service)
+		if err != nil {
+			log.Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -90,12 +99,15 @@ func (api *idler) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		return
 	}
 
-	err = api.openShiftClient.UnIdle(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), "jenkins")
-	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
-		return
+	for _, service := range JenkinsServices {
+
+		err = api.openShiftClient.UnIdle(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), service)
+		if err != nil {
+			log.Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)

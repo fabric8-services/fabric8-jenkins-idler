@@ -18,8 +18,9 @@ type JSError struct {
 type ReqFuncType func(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 
 func Test_success(t *testing.T) {
+	mosc := &mock.OpenShiftClient{}
 	mockidle := idler{
-		openShiftClient: &mock.OpenShiftClient{},
+		openShiftClient: mosc,
 		clusterView:     &mock.ClusterView{},
 	}
 	functions := []ReqFuncType{mockidle.Idle, mockidle.UnIdle, mockidle.IsIdle}
@@ -34,6 +35,7 @@ func Test_success(t *testing.T) {
 		function(writer, reader, nil)
 
 		require.Equal(t, http.StatusOK, writer.WriterStatus, fmt.Sprintf("Bad Error Code: %d", writer.WriterStatus))
+		require.Equal(t, mosc.IdleCallCount, 2, fmt.Sprintf("Idle was not called for 2 times but %d", mosc.IdleCallCount))
 	}
 }
 
