@@ -19,7 +19,6 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/mock"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
-	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -29,36 +28,8 @@ const (
 	testPortBase = 48080
 )
 
-type mockIdlerAPI struct {
-}
-
-func (i *mockIdlerAPI) Info(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	w.Write([]byte("Info"))
-	w.WriteHeader(http.StatusOK)
-}
-
-func (i *mockIdlerAPI) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	w.Write([]byte("Idle"))
-	w.WriteHeader(http.StatusOK)
-}
-
-func (i *mockIdlerAPI) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	w.Write([]byte("UnIdle"))
-	w.WriteHeader(http.StatusOK)
-}
-
-func (i *mockIdlerAPI) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	w.Write([]byte("IsIdle"))
-	w.WriteHeader(http.StatusOK)
-}
-
-func (i *mockIdlerAPI) ClusterDNSView(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-	w.Write([]byte("GetClusterDNSView"))
-	w.WriteHeader(http.StatusOK)
-}
-
 func Test_all_routes_are_setup(t *testing.T) {
-	router := CreateAPIRouter(&mockIdlerAPI{})
+	router := CreateAPIRouter(&mock.IdlerAPI{})
 
 	var routes = []struct {
 		route  string
@@ -98,7 +69,7 @@ func Test_router_start(t *testing.T) {
 
 	assert.True(t, isTCPPortAvailable(testPort), fmt.Sprintf("Port '%d' should be free.", testPort))
 
-	router := NewRouterWithPort(CreateAPIRouter(&mockIdlerAPI{}), testPort)
+	router := NewRouterWithPort(CreateAPIRouter(&mock.IdlerAPI{}), testPort)
 
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())

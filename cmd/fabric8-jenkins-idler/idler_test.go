@@ -1,16 +1,18 @@
 package main
 
 import (
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/cluster"
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
-	log "github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/cluster"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/mock"
+	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
 )
 
 type mockFeatureToggle struct {
@@ -29,11 +31,11 @@ func (m *mockTenantService) GetTenantInfoByNamespace(apiURL string, ns string) (
 }
 
 type mockClusterView struct {
+	*mock.ClusterView
 }
 
 func (mc *mockClusterView) GetClusters() []cluster.Cluster {
 	var clusters []cluster.Cluster
-
 	// dummy cluster
 	cluster := cluster.Cluster{
 		APIURL: "http://127.0.0.1",
@@ -42,19 +44,6 @@ func (mc *mockClusterView) GetClusters() []cluster.Cluster {
 	clusters = append(clusters, cluster)
 
 	return clusters
-}
-
-func (mc *mockClusterView) GetDNSView() []cluster.DNSView {
-	var clusters []cluster.DNSView
-	return clusters
-}
-
-func (mc *mockClusterView) GetToken(openShiftAPIURL string) (string, bool) {
-	return "", false
-}
-
-func (mc *mockClusterView) String() string {
-	return "mockClusterView"
 }
 
 func Test_graceful_shutdown(t *testing.T) {
