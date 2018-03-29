@@ -44,6 +44,13 @@ Sample usage (in your shell from the root of fabric8-jenkins-idler):
 > eval \$(./scripts/${0##*/} env)
 > fabric8-jenkins-idler
 
+If you want to test with the docker image, after you have "start" this script, eval its environment variable
+and build its image with "make image" you can do :
+
+\$ docker run -it --net=host --env-file <(env|grep JC_) push.registry.devshift.net/fabric8-services/fabric8-jenkins-idler
+
+which would run the idler with the local setup.
+
 To stop:
 
 > ./scripts/${0##*/} stop
@@ -289,4 +296,3 @@ case "$1" in
   *)
     printHelp
 esac
-
