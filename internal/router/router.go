@@ -9,6 +9,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/api"
 	"github.com/julienschmidt/httprouter"
+	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -38,6 +39,11 @@ func NewRouterWithPort(router *httprouter.Router, port int) *Router {
 	}
 
 	return &Router{port: port, srv: srv}
+}
+
+// AddMetrics add metrics handler to serve promotheus metrics
+func (r *Router) AddMetrics(router *httprouter.Router) {
+	router.Handler("GET", "/metrics", prometheus.Handler())
 }
 
 // Start starts the HTTP router.
