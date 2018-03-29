@@ -1,8 +1,27 @@
 FROM centos:7
-LABEL maintainer=vasek@redhat.com
+MAINTAINER "Chmouel Boudjnah <chmouel@redhat.com>"
+ENV LANG=en_US.utf8
+ENV INSTALL_PREFIX=/usr/local/f8
+
+# Create a non-root user and a group with the same name: "f8" USER_NAME=f8
+ENV USER_NAME=f8
+RUN useradd --no-create-home -s /bin/bash ${USER_NAME}
+
+COPY out/fabric8-jenkins-idler ${INSTALL_PREFIX}/bin/fabric8-jenkins-idler
+
+# Install little pcp pmcd server for metrics collection
+# would prefer only pmcd, and not the /bin/pm*tools etc.
+COPY scripts/pcp/pcp.repo /etc/yum.repos.d/pcp.repo
+RUN yum install -y pcp pcp-pmda-prometheus && yum clean all && \
+    mkdir -p /etc/pcp /var/run/pcp /var/lib/pcp /var/log/pcp && \
+    chown -R ${USER_NAME} /etc/pcp /var/run/pcp /var/lib/pcp /var/log/pcp && \
+    chmod -R ug+rw /etc/pcp /var/run/pcp /var/lib/pcp /var/log/pcp
+COPY ./scripts/pcp/idler+pmcd.sh /idler+pmcd.sh
+EXPOSE 44321
+
+USER ${USER_NAME}
+
+WORKDIR ${INSTALL_PREFIX}
+ENTRYPOINT [ "/idler+pmcd.sh" ]
 
 EXPOSE 8080
-
-COPY out/fabric8-jenkins-idler /usr/local/bin/fabric8-jenkins-idler
-
-ENTRYPOINT [ "fabric8-jenkins-idler" ]
