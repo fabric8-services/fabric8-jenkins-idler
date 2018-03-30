@@ -15,6 +15,7 @@ COPY scripts/pcp/pcp.repo /etc/yum.repos.d/pcp.repo
 RUN yum install -y pcp pcp-pmda-prometheus && yum clean all && \
     mkdir -p /etc/pcp /var/run/pcp /var/lib/pcp/config/pmda /var/log/pcp && \
     chown -R ${USER_NAME} /etc/pcp /var/run/pcp /var/lib/pcp /var/log/pcp && \
+	chmod a+rw /var/lib/pcp/config/pmda && \
     chmod -R ug+rw /etc/pcp /var/run/pcp /var/lib/pcp /var/log/pcp
 COPY ./scripts/pcp/idler+pmcd.sh /idler+pmcd.sh
 EXPOSE 44321
