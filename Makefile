@@ -94,7 +94,7 @@ lint: ## Runs golint
 
 .PHONY: validate_commits
 validate_commits: tools ## Validates git commit messages
-	git-validation -q -run short-subject,message_regexp='^(Fix\s)?(Issue\s)?#[0-9]+ [A-Z]+.*' -range $(START_COMMIT_MESSAGE_VALIDATION)...
+	git-validation -q -run short-subject,message_regexp='^(Fix\s)?(Issue\s)?#[0-9]+\s+[A-Z0-9]+.*' -range $(START_COMMIT_MESSAGE_VALIDATION)...
 
 .PHONY: clean
 clean: ## Deletes all build artifacts
