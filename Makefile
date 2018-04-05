@@ -60,6 +60,7 @@ tools.timestamp:
 	go get -u github.com/golang/lint/golint
 	go get -u github.com/vbatts/git-validation/...
 	go get -u github.com/goadesign/goa/goagen
+	go get -u github.com/haya14busa/goverage
 	@touch tools.timestamp
 
 vendor: tools.timestamp $(AUTH_GEN_DIR)/*.go ## Runs dep to vendor project dependencies
@@ -71,6 +72,12 @@ $(AUTH_GEN_DIR)/*.go:  ## Runs goagen to generate auth service client
 .PHONY: test
 test: vendor ## Runs unit tests
 	@go test $(PACKAGES)
+
+.PHONY: coverage
+coverage: vendor tools $(BUILD_DIR) ## Run coverage, need goverage tool installed
+	goverage -coverprofile=$(BUILD_DIR)/coverage.out $(PACKAGES) && \
+	go tool cover -html=$(BUILD_DIR)/coverage.out -o $(BUILD_DIR)/coverage.html
+	@echo $(realpath $(BUILD_DIR))/coverage.html
 
 .PHONY: fmtcheck
 fmtcheck: ## Runs gofmt and returns error in case of violations
