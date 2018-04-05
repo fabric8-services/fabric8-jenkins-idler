@@ -115,11 +115,10 @@ Both CI systems build all merges to master as well as pull requests.
 ## Running locally
 
 The repository contains a script [`setupLocalIdler.sh`](./scripts/setupLocalIdler.sh) which can be used to run the Idler locally.
-A prerequisite for this is access to https://console.rh-idev.openshift.com/.
-To run the script you need to export your OpenShift access token for console.rh-idev.openshift.com as DSAAS_PREVIEW_TOKEN.
-Note, you need edit permissions on the dsaas-preview namespace in order to port forward.
-You also need to make sure to limit the Idler feature to a specific set of users by setting JC_FIXED_UUIDS to a comma separated list of dedicated user UUIDs.
-For more information refer to help of `setupLocalIdler.sh` itself.
+
+A prerequisite for this is to access the Red Hat OpenShift.io prodpreview infrastructure.
+
+The internal documentation for how to set this up is located in this (private) [document](https://docs.google.com/document/d/1h7PIOBwtVyFl5mRuERFRL8dXBT9UMtLZdXR0Sgy-ARo/edit#heading=h.nqojkv5m23p8).
 
 <a name="misc"></a>
 # Misc
