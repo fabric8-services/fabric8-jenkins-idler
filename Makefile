@@ -14,7 +14,7 @@ LD_FLAGS := -X github.com/fabric8-services/fabric8-jenkins-idler/internal/versio
 AUTH_GEN_DIR=internal/auth/client
 
 # Misc
-START_COMMIT_MESSAGE_VALIDATION = e380f5c9a591c7f01a937a274561e4b715f985e3
+START_COMMIT_MESSAGE_VALIDATION = f3cb0bf1fccf06c43298f4667757e774a89b1062
 .DEFAULT_GOAL := help
 
 # Check that given variables are set and all have non-empty values,
