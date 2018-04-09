@@ -113,14 +113,18 @@ func (api *idler) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	}
 
 	for _, service := range JenkinsServices {
-
+		startTime := time.Now()
 		err = api.openShiftClient.UnIdle(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), service)
+		elapsedTime := time.Since(startTime).Seconds()
 		if err != nil {
 			log.Error(err)
+			Recorder.RecordReqDuration(service, "UnIdle", http.StatusInternalServerError, elapsedTime)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
 			return
 		}
+
+		Recorder.RecordReqDuration(service, "UnIdle", http.StatusOK, elapsedTime)
 	}
 
 	w.WriteHeader(http.StatusOK)
