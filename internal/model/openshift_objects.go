@@ -90,7 +90,7 @@ type DCStatus struct {
 	ReadyReplicas       int
 	Conditions          []Condition
 	ObservedGeneration  int `json:"observedGeneration,omitempty"`
-	UnavailableReplicas int `json:"unavailableReplicas, omitempty"`
+	UnavailableReplicas int `json:"unavailableReplicas,omitempty"`
 }
 
 // Condition covers changes to Build.
