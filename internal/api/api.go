@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/cluster"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
+	"github.com/fabric8-services/fabric8-jenkins-idler/metric"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
 )
@@ -24,6 +26,9 @@ var (
 	// they go along the main build detection logic of jenkins and don't have
 	// any specific scenarios.
 	JenkinsServices = []string{"jenkins", "content-repository"}
+
+	// Recorder to capture events
+	Recorder = metric.PrometheusRecorder{}
 )
 
 // IdlerAPI defines the REST endpoints of the Idler
@@ -61,6 +66,8 @@ type status struct {
 
 // NewIdlerAPI creates a new instance of IdlerAPI.
 func NewIdlerAPI(userIdlers *openshift.UserIdlerMap, clusterView cluster.View) IdlerAPI {
+	// Initialize metrics
+	Recorder.Initialize()
 	return &idler{
 		userIdlers:      userIdlers,
 		clusterView:     clusterView,
@@ -78,13 +85,19 @@ func (api *idler) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 	}
 
 	for _, service := range JenkinsServices {
+		startTime := time.Now()
 		err = api.openShiftClient.Idle(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), service)
+		elapsedTime := time.Since(startTime).Seconds()
+
 		if err != nil {
 			log.Error(err)
+			Recorder.RecordReqDuration(service, "Idle", http.StatusInternalServerError, elapsedTime)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
 			return
 		}
+
+		Recorder.RecordReqDuration(service, "Idle", http.StatusOK, elapsedTime)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -100,14 +113,18 @@ func (api *idler) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	}
 
 	for _, service := range JenkinsServices {
-
+		startTime := time.Now()
 		err = api.openShiftClient.UnIdle(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), service)
+		elapsedTime := time.Since(startTime).Seconds()
 		if err != nil {
 			log.Error(err)
+			Recorder.RecordReqDuration(service, "UnIdle", http.StatusInternalServerError, elapsedTime)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
 			return
 		}
+
+		Recorder.RecordReqDuration(service, "UnIdle", http.StatusOK, elapsedTime)
 	}
 
 	w.WriteHeader(http.StatusOK)

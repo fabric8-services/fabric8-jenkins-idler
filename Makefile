@@ -14,7 +14,7 @@ LD_FLAGS := -X github.com/fabric8-services/fabric8-jenkins-idler/internal/versio
 AUTH_GEN_DIR=internal/auth/client
 
 # Misc
-START_COMMIT_MESSAGE_VALIDATION = e380f5c9a591c7f01a937a274561e4b715f985e3
+START_COMMIT_MESSAGE_VALIDATION = f3cb0bf1fccf06c43298f4667757e774a89b1062
 .DEFAULT_GOAL := help
 
 # Check that given variables are set and all have non-empty values,
@@ -60,6 +60,7 @@ tools.timestamp:
 	go get -u github.com/golang/lint/golint
 	go get -u github.com/vbatts/git-validation/...
 	go get -u github.com/goadesign/goa/goagen
+	go get -u github.com/haya14busa/goverage
 	@touch tools.timestamp
 
 vendor: tools.timestamp $(AUTH_GEN_DIR)/*.go ## Runs dep to vendor project dependencies
@@ -71,6 +72,12 @@ $(AUTH_GEN_DIR)/*.go:  ## Runs goagen to generate auth service client
 .PHONY: test
 test: vendor ## Runs unit tests
 	@go test $(PACKAGES)
+
+.PHONY: coverage
+coverage: vendor tools $(BUILD_DIR) ## Run coverage, need goverage tool installed
+	goverage -coverprofile=$(BUILD_DIR)/coverage.out $(PACKAGES) && \
+	go tool cover -html=$(BUILD_DIR)/coverage.out -o $(BUILD_DIR)/coverage.html
+	@echo $(realpath $(BUILD_DIR))/coverage.html
 
 .PHONY: fmtcheck
 fmtcheck: ## Runs gofmt and returns error in case of violations
@@ -94,7 +101,7 @@ lint: ## Runs golint
 
 .PHONY: validate_commits
 validate_commits: tools ## Validates git commit messages
-	git-validation -q -run short-subject,message_regexp='^(Fix\s)?(Issue\s)?#[0-9]+ [A-Z]+.*' -range $(START_COMMIT_MESSAGE_VALIDATION)...
+	git-validation -q -run short-subject,message_regexp='^(Fix\s)?(Issue\s)?#[0-9]+\s+[A-Z0-9]+.*' -range $(START_COMMIT_MESSAGE_VALIDATION)...
 
 .PHONY: clean
 clean: ## Deletes all build artifacts
