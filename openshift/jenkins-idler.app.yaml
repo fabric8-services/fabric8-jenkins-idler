@@ -121,19 +121,6 @@ objects:
       service: jenkins-idler
     sessionAffinity: None
     type: ClusterIP
-- kind: Route
-  apiVersion: v1
-  metadata:
-    name: jenkins-idler
-  spec:
-    host: ''
-    port:
-      targetPort: 8080-tcp
-    to:
-      kind: Service
-      name: jenkins-idler
-      weight: 100
-    wildcardPolicy: None
 parameters:
 - name: IMAGE
   value: registry.devshift.net/fabric8-services/fabric8-jenkins-idler
