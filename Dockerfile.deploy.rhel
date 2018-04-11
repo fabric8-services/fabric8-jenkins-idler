@@ -1,0 +1,26 @@
+FROM prod.registry.devshift.net/osio-prod/base/pcp:latest
+LABEL maintainer "Devtools <devtools@redhat.com>"
+LABEL author "Devtools <devtools@redhat.com>"
+
+ENV LANG=en_US.utf8
+ENV INSTALL_PREFIX=/usr/local/f8
+
+# Create a non-root user and a group with the same name: "f8" USER_NAME=f8
+ENV USER_NAME=f8
+RUN useradd --no-create-home -s /bin/bash ${USER_NAME}
+
+COPY out/fabric8-jenkins-idler ${INSTALL_PREFIX}/bin/fabric8-jenkins-idler
+
+RUN mkdir -p /var/lib/pcp/config/pmda && \
+    chown -R ${USER_NAME} /etc/pcp /var/run/pcp /var/lib/pcp /var/log/pcp && \
+    chmod a+rw /var/lib/pcp/config/pmda && \
+    chmod -R ug+rw /etc/pcp /var/run/pcp /var/lib/pcp /var/log/pcp
+COPY ./scripts/pcp/idler+pmcd.sh /idler+pmcd.sh
+EXPOSE 44321
+
+USER ${USER_NAME}
+
+WORKDIR ${INSTALL_PREFIX}
+ENTRYPOINT [ "/idler+pmcd.sh" ]
+
+EXPOSE 8080
