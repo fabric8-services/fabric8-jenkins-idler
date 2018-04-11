@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/cluster"
+	pidler "github.com/fabric8-services/fabric8-jenkins-idler/internal/idler"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
@@ -22,11 +23,6 @@ const (
 )
 
 var (
-	// JenkinsServices is an array of all the services getting idled or unidled
-	// they go along the main build detection logic of jenkins and don't have
-	// any specific scenarios.
-	JenkinsServices = []string{"jenkins", "content-repository"}
-
 	// Recorder to capture events
 	Recorder = metric.PrometheusRecorder{}
 )
@@ -84,7 +80,7 @@ func (api *idler) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 		return
 	}
 
-	for _, service := range JenkinsServices {
+	for _, service := range pidler.JenkinsServices {
 		startTime := time.Now()
 		err = api.openShiftClient.Idle(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), service)
 		elapsedTime := time.Since(startTime).Seconds()
@@ -112,7 +108,7 @@ func (api *idler) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		return
 	}
 
-	for _, service := range JenkinsServices {
+	for _, service := range pidler.JenkinsServices {
 		startTime := time.Now()
 		err = api.openShiftClient.UnIdle(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), service)
 		elapsedTime := time.Since(startTime).Seconds()
