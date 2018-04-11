@@ -17,10 +17,15 @@ import (
 
 var logger = log.WithFields(log.Fields{"component": "user-idler"})
 
+// JenkinsServices is an array of all the services getting idled or unidled
+// they go along the main build detection logic of jenkins and don't have
+// any specific scenarios.
+var JenkinsServices = []string{"jenkins", "content-repository"}
+
 const (
 	bufferSize             = 10
-	jenkinsServiceName     = "jenkins"
 	jenkinsNamespaceSuffix = "-jenkins"
+	jenkinsServiceName     = "jenkins"
 )
 
 // UserIdler is created for each monitored user/namespace.
@@ -161,10 +166,12 @@ func (idler *UserIdler) doIdle() error {
 
 	if state > model.JenkinsIdled {
 		idler.incrementIdleAttempts()
-		idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.idleAttempts, idler.maxRetries)).Info("About to idle Jenkins")
-		err := idler.openShiftClient.Idle(idler.openShiftAPI, idler.openShiftBearerToken, idler.user.Name+jenkinsNamespaceSuffix, jenkinsServiceName)
-		if err != nil {
-			return err
+		for _, service := range JenkinsServices {
+			idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.idleAttempts, idler.maxRetries)).Info("About to idle " + service)
+			err := idler.openShiftClient.Idle(idler.openShiftAPI, idler.openShiftBearerToken, idler.user.Name+jenkinsNamespaceSuffix, service)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -183,10 +190,12 @@ func (idler *UserIdler) doUnIdle() error {
 
 	if state == model.JenkinsIdled {
 		idler.incrementUnIdleAttempts()
-		idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.unIdleAttempts, idler.maxRetries)).Info("About to un-idle Jenkins")
-		err := idler.openShiftClient.UnIdle(idler.openShiftAPI, idler.openShiftBearerToken, idler.user.Name+jenkinsNamespaceSuffix, jenkinsServiceName)
-		if err != nil {
-			return err
+		for _, service := range JenkinsServices {
+			idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.unIdleAttempts, idler.maxRetries)).Info("About to un-idle " + service)
+			err := idler.openShiftClient.UnIdle(idler.openShiftAPI, idler.openShiftBearerToken, idler.user.Name+jenkinsNamespaceSuffix, service)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

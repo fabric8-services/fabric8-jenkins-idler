@@ -117,7 +117,7 @@ func Test_number_of_idle_calls_are_capped(t *testing.T) {
 	openShiftClient.IdleState = model.JenkinsRunning
 
 	config := &mock.Config{}
-	maxRetry := 3
+	maxRetry := 10
 	config.MaxRetries = maxRetry
 	features := mock.NewMockFeatureToggle([]string{"42"})
 	userIdler := NewUserIdler(user, "", "", config, features)
@@ -163,7 +163,7 @@ func Test_number_of_unidle_calls_are_capped(t *testing.T) {
 	openShiftClient.IdleState = model.JenkinsIdled
 
 	config := &mock.Config{}
-	maxRetry := 3
+	maxRetry := 10
 	config.MaxRetries = maxRetry
 
 	features := mock.NewMockFeatureToggle([]string{"42"})
