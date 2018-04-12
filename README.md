@@ -130,3 +130,104 @@ The internal documentation for how to set this up is located in this (private) [
 # How to contribute?
 
 If you want to contribute, make sure to follow the [contribution guidelines](./CONTRIBUTING.md) when you open issues or submit pull requests.
+
+<a name="apis"></a>
+# APIs
+Below area sample API requests
+
+1.
+
+    Task: Get API URL of all openshift clusters
+    
+    Request: http://localhost:8080/api/idler/cluster
+
+    Response: 
+    [
+      {
+        "APIURL": "https://api.starter-us-east-2a.openshift.com/",
+        "AppDNS": "b542.starter-us-east-2a.openshiftapps.com"
+      },
+      {
+        "APIURL": "https://api.free-stg.openshift.com/",
+        "AppDNS": "1b7d.free-stg.openshiftapps.com"
+      }
+    ]
+    
+2.
+
+    Task: Get internal state of a specified namespace
+
+    Request: http://localhost:8080/api/idler/info/ksagathi-preview
+
+    Response:
+    {
+      "Name": "ksagathi-preview",
+      "ID": "7219a11c-f86a-4db1-ab3e-83216ff53009",
+      "ActiveBuild": {
+        "metadata": {
+          "annotations": {
+            
+          },
+          "Generation": 0
+        },
+        "status": {
+          "phase": "New",
+          "startTimestamp": "0001-01-01T00:00:00Z",
+          "completionTimestamp": "0001-01-01T00:00:00Z"
+        },
+        "spec": {
+          "replicas": 0,
+          "Strategy": {
+            "Type": ""
+          }
+        }
+      },
+      "DoneBuild": {
+        "metadata": {
+          "name": "sample1-1",
+          "namespace": "ksagathi-preview",
+          "annotations": {
+            "openshift.io/build.number": "1",
+            "openshift.io/jenkins-namespace": "ksagathi-preview-jenkins"
+          },
+          "Generation": 0
+        },
+        "status": {
+          "phase": "Complete",
+          "startTimestamp": "2018-04-11T08:27:15Z",
+          "completionTimestamp": "2018-04-11T08:31:51Z"
+        },
+        "spec": {
+          "replicas": 0,
+          "Strategy": {
+            "Type": "JenkinsPipeline"
+          }
+        }
+      },
+      "JenkinsLastUpdate": "2018-04-11T09:41:57Z"
+    }
+
+
+3. 
+
+    Task: Check whether Jenkins pod is idle or not for a specific namespace
+    
+    Request: curl http://localhost:8080/api/idler/isidle/ksagathi-preview-jenkins?openshift_api_url=https://api.starter-us-east-2a.openshift.com/
+
+    Response: {"is_idle":true}
+
+4.  
+  
+    Task: Unidle Jenkins Pod of the a specified namespace 
+    
+    Request: curl http://localhost:8080/api/idler/unidle/ksagathi-preview-jenkins?openshift_api_url=https://api.starter-us-east-2a.openshift.com/
+
+    Response: (Empty response with 200 status code)
+
+5. 
+
+    Task: Idle Jenkins Pod of a specified namespace
+
+    Request: curl -i http://localhost:8080/api/idler/idle/ksagathi-preview-jenkins?openshift_api_url=https://api.starter-us-east-2a.openshift.com/
+
+    Response: (Empty Response with 200 status code)
