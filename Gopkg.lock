@@ -3,7 +3,13 @@
 
 [[projects]]
   name = "github.com/Unleash/unleash-client-go"
-  packages = [".","context","internal/api","internal/strategies","strategy"]
+  packages = [
+    ".",
+    "context",
+    "internal/api",
+    "internal/strategies",
+    "strategy"
+  ]
   revision = "be883ea1af714aff427d0668dbd4fc549d4f701c"
 
 [[projects]]
@@ -38,7 +44,12 @@
 
 [[projects]]
   name = "github.com/goadesign/goa"
-  packages = [".","client","encoding/form","uuid"]
+  packages = [
+    ".",
+    "client",
+    "encoding/form",
+    "uuid"
+  ]
   revision = "fc29b77a218fb9e190849c81911ed12d25e771de"
   version = "v1.3.1"
 
@@ -99,13 +110,22 @@
 [[projects]]
   branch = "master"
   name = "github.com/prometheus/common"
-  packages = ["expfmt","internal/bitbucket.org/ww/goautoneg","model"]
+  packages = [
+    "expfmt",
+    "internal/bitbucket.org/ww/goautoneg",
+    "model"
+  ]
   revision = "38c53a9f4bfcd932d1b00bfc65e256a7fba6b37a"
 
 [[projects]]
   branch = "master"
   name = "github.com/prometheus/procfs"
-  packages = [".","internal/util","nfs","xfs"]
+  packages = [
+    ".",
+    "internal/util",
+    "nfs",
+    "xfs"
+  ]
   revision = "780932d4fbbe0e69b84c34c20f5c8d0981e109ea"
 
 [[projects]]
@@ -115,20 +135,34 @@
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
-  packages = [".","hooks/test"]
+  packages = [
+    ".",
+    "hooks/test"
+  ]
   revision = "202f25545ea4cf9b191ff7f846df5d87c9382c2b"
   version = "v1.0.0"
 
 [[projects]]
   name = "github.com/stretchr/testify"
-  packages = ["assert","require"]
+  packages = [
+    "assert",
+    "require"
+  ]
   revision = "69483b4bd14f5845b5a1e55bca19e954e827f1d0"
   version = "v1.1.4"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["cast5","openpgp","openpgp/armor","openpgp/elgamal","openpgp/errors","openpgp/packet","openpgp/s2k"]
+  packages = [
+    "cast5",
+    "openpgp",
+    "openpgp/armor",
+    "openpgp/elgamal",
+    "openpgp/errors",
+    "openpgp/packet",
+    "openpgp/s2k"
+  ]
   revision = "21652f85b0fdddb6c2b6b77a5beca5c5a908174a"
 
 [[projects]]
@@ -146,6 +180,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "cc10c25aee4098042be278519b6a28759804d0a7042283f02c20135076fcc161"
+  inputs-digest = "bb69474f6c7a21658d3a84712f2148b8deedc7046dae134b277e7dfe86f56e3b"
   solver-name = "gps-cdcl"
   solver-version = 1
