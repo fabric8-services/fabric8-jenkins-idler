@@ -11,6 +11,7 @@ type Config struct {
 	TenantURL             string
 	ToggleURL             string
 	IdleAfter             int
+	IdleLongBuild         int
 	MaxRetries            int
 	MaxRetriesQuietPeriod int
 	CheckInterval         int
@@ -45,6 +46,11 @@ func (c *Config) GetToggleURL() string {
 // GetIdleAfter returns the number of minutes before Jenkins is idled.
 func (c *Config) GetIdleAfter() int {
 	return c.IdleAfter
+}
+
+// GetIdleLongBuild returns the number of minutes before Jenkins is idled.
+func (c *Config) GetIdleLongBuild() int {
+	return c.IdleLongBuild
 }
 
 // GetMaxRetries returns the maximum number of retries to idle resp. un-idle the Jenkins service.
