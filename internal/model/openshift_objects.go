@@ -135,7 +135,7 @@ type Project struct {
 
 // BuildTime is duration of the Build.
 type BuildTime struct {
-	time.Time
+	Time time.Time
 }
 
 // UnmarshalJSON gets time from raw (in the form of []byte) JSON object.

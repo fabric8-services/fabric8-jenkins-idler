@@ -57,7 +57,7 @@ func NewUserIdler(user model.User, openShiftAPI string, openShiftBearerToken str
 	})
 	logEntry.Info("UserIdler created.")
 
-	conditions := createWatchConditions(config.GetProxyURL(), config.GetIdleAfter(), logEntry)
+	conditions := createWatchConditions(config.GetProxyURL(), config.GetIdleAfter(), config.GetIdleLongBuild(), logEntry)
 
 	userChan := make(chan model.User, bufferSize)
 
@@ -167,7 +167,13 @@ func (idler *UserIdler) doIdle() error {
 	if state > model.JenkinsIdled {
 		idler.incrementIdleAttempts()
 		for _, service := range JenkinsServices {
-			idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.idleAttempts, idler.maxRetries)).Info("About to idle " + service)
+
+			// Let's add some more reasons, we probably want to
+			reasonString := fmt.Sprintf("DoneBuild BuildName:%s Last:%s", idler.user.DoneBuild.Metadata.Name, idler.user.DoneBuild.Status.StartTimestamp.Time)
+			if idler.user.ActiveBuild.Metadata.Name != "" {
+				reasonString = fmt.Sprintf("ActiveBuild BuildName:%s Last:%s", idler.user.ActiveBuild.Metadata.Name, idler.user.ActiveBuild.Status.StartTimestamp.Time)
+			}
+			idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.idleAttempts, idler.maxRetries)).Info("About to idle " + service + ", Reason: " + reasonString)
 			err := idler.openShiftClient.Idle(idler.openShiftAPI, idler.openShiftBearerToken, idler.user.Name+jenkinsNamespaceSuffix, service)
 			if err != nil {
 				return err
@@ -238,11 +244,11 @@ func (idler *UserIdler) resetCounters() {
 	idler.unIdleAttempts = 0
 }
 
-func createWatchConditions(proxyURL string, idleAfter int, logEntry *log.Entry) *condition.Conditions {
+func createWatchConditions(proxyURL string, idleAfter int, idleLongBuild int, logEntry *log.Entry) *condition.Conditions {
 	conditions := condition.NewConditions()
 
 	// Add a Build condition.
-	conditions.Add("build", condition.NewBuildCondition(time.Duration(idleAfter)*time.Minute))
+	conditions.Add("build", condition.NewBuildCondition(time.Duration(idleAfter)*time.Minute, time.Duration(idleLongBuild)*time.Hour))
 
 	// Add a DeploymentConfig condition.
 	conditions.Add("DC", condition.NewDCCondition(time.Duration(idleAfter)*time.Minute))
