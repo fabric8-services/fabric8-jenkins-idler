@@ -57,7 +57,7 @@ tools: tools.timestamp
 
 tools.timestamp:
 	go get -u github.com/golang/dep/cmd/dep
-	go get -u github.com/golang/lint/golint
+	go get -u github.com/golang/lint/golint || true
 	go get -u github.com/vbatts/git-validation/...
 	go get -u github.com/goadesign/goa/goagen
 	go get -u github.com/haya14busa/goverage
