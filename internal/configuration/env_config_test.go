@@ -46,6 +46,7 @@ func Test_default_values(t *testing.T) {
 	assert.NoError(t, err, "Creating the configuration failed unexpectedly.")
 	assert.False(t, config.GetDebugMode(), "The default value for profiling should be false.")
 	assert.Equal(t, config.GetIdleAfter(), defaultIdleAfter, "Unexpected default value for idle after.")
+	assert.Equal(t, config.GetIdleLongBuild(), defaultIdleLongBuild, "Unexpected default value for idle long build.")
 	assert.Equal(t, config.GetMaxRetries(), defaultMaxRetries, "Unexpected default value for number of unidle retries.")
 	assert.Equal(t, config.GetCheckInterval(), defaultCheckInterval, "Unexpected default value for number of unidle retries.")
 }

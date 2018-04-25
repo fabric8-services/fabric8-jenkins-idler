@@ -9,13 +9,14 @@ import (
 
 // BuildCondition covers builds a user has/had running.
 type BuildCondition struct {
-	idleAfter time.Duration
+	idleAfter     time.Duration
+	idleLongBuild time.Duration
 }
 
 // NewBuildCondition creates a new instance of BuildCondition given
 // idleAfter(time after which jenkins should be idled).
-func NewBuildCondition(idleAfter time.Duration) Condition {
-	b := &BuildCondition{idleAfter: idleAfter}
+func NewBuildCondition(idleAfter time.Duration, idleLongBuild time.Duration) Condition {
+	b := &BuildCondition{idleAfter: idleAfter, idleLongBuild: idleLongBuild}
 	return b
 }
 
@@ -28,6 +29,11 @@ func (c *BuildCondition) Eval(object interface{}) (bool, error) {
 	}
 
 	if u.HasActiveBuilds() {
+		// if we have activebuild being active over x time then see it as
+		// expired or they would be lingering forever (i.e: approval process pipelines)
+		if u.ActiveBuild.Metadata.Name != "" && u.ActiveBuild.Status.StartTimestamp.Time.Add(c.idleLongBuild).Before(time.Now()) {
+			return true, nil
+		}
 		return false, nil
 	}
 

@@ -18,6 +18,9 @@ type Configuration interface {
 	// GetIdleAfter returns the number of minutes before Jenkins is idled.
 	GetIdleAfter() int
 
+	// GetIdleLongBuild returns how long it waits in hours for a long running build before idling
+	GetIdleLongBuild() int
+
 	// GetMaxRetries returns the maximum number of retries to idle resp. un-idle the Jenkins service.
 	GetMaxRetries() int
 

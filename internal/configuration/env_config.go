@@ -2,14 +2,16 @@ package configuration
 
 import (
 	"fmt"
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
 )
 
 const (
+	defaultIdleLongBuild           = 3
 	defaultIdleAfter               = 45
 	defaultMaxRetries              = 3
 	defaultMaxRetriesQuietInterval = 30
@@ -35,6 +37,7 @@ func init() {
 
 	// timeouts and retry counts
 	settings["GetIdleAfter"] = Setting{"JC_IDLE_AFTER", strconv.Itoa(defaultIdleAfter), []func(interface{}, string) error{util.IsInt}}
+	settings["GetIdleLongBuild"] = Setting{"JC_IDLE_LONG_BUILD", strconv.Itoa(defaultIdleLongBuild), []func(interface{}, string) error{util.IsInt}}
 	settings["GetMaxRetries"] = Setting{"JC_MAX_RETRIES", strconv.Itoa(defaultMaxRetries), []func(interface{}, string) error{util.IsInt}}
 	settings["GetMaxRetriesQuietInterval"] = Setting{"JC_MAX_RETRIES_QUIET_INTERVAL", strconv.Itoa(defaultMaxRetriesQuietInterval), []func(interface{}, string) error{util.IsInt}}
 	settings["GetCheckInterval"] = Setting{"JC_CHECK_INTERVAL", strconv.Itoa(defaultCheckInterval), []func(interface{}, string) error{util.IsInt}}
@@ -71,6 +74,15 @@ func (c *EnvConfig) GetProxyURL() string {
 
 // GetIdleAfter returns the number of minutes before Jenkins is idled as set via default, config file, or environment variable.
 func (c *EnvConfig) GetIdleAfter() int {
+	callPtr, _, _, _ := runtime.Caller(0)
+	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
+
+	i, _ := strconv.Atoi(value)
+	return i
+}
+
+// GetIdleLongbuild returns the number of minutes before Jenkins is idled as set via default, config file, or environment variable.
+func (c *EnvConfig) GetIdleLongBuild() int {
 	callPtr, _, _, _ := runtime.Caller(0)
 	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
 
