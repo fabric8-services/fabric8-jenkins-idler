@@ -1,7 +1,15 @@
 REGISTRY_URI = push.registry.devshift.net
 REGISTRY_NS = fabric8-services
 REGISTRY_IMAGE = fabric8-jenkins-idler
-REGISTRY_URL = ${REGISTRY_URI}/${REGISTRY_NS}/${REGISTRY_IMAGE}
+
+ifeq ($(TARGET),rhel)
+	DOCKERFILE_DEPLOY := Dockerfile.deploy.rhel
+	REGISTRY_URL = ${REGISTRY_URI}/osio-prod/${REGISTRY_NS}/${REGISTRY_IMAGE}
+else
+	DOCKERFILE_DEPLOY := Dockerfile.deploy
+	REGISTRY_URL = ${REGISTRY_URI}/${REGISTRY_NS}/${REGISTRY_IMAGE}
+endif
+
 IMAGE_TAG ?= $(shell git rev-parse --short HEAD)
 
 BUILD_DIR = out
@@ -42,13 +50,15 @@ $(BUILD_DIR):
 $(BUILD_DIR)/$(REGISTRY_IMAGE): vendor  $(AUTH_GEN_DIR)/*.go $(BUILD_DIR) ## Builds the Linux binary for the container image into $BUILD_DIR
 	CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build  -ldflags="$(LD_FLAGS)" -o $(BUILD_DIR)/$(REGISTRY_IMAGE) ./cmd/fabric8-jenkins-idler
 
-image: $(BUILD_DIR)/$(REGISTRY_IMAGE) ## Builds the container image
-	docker build -t $(REGISTRY_URL) -f Dockerfile.deploy .
-
-push: image ## Pushes the container image to the registry
+login:
 	$(call check_defined, REGISTRY_USER, "You need to pass the registry user via REGISTRY_USER.")
 	$(call check_defined, REGISTRY_PASSWORD, "You need to pass the registry password via REGISTRY_PASSWORD.")
 	docker login -u $(REGISTRY_USER) -p $(REGISTRY_PASSWORD) $(REGISTRY_URI)
+
+image: $(BUILD_DIR)/$(REGISTRY_IMAGE) ## Builds the container image
+	docker build -t $(REGISTRY_URL) -f $(DOCKERFILE_DEPLOY) .
+
+push: image ## Pushes the container image to the registry
 	docker push $(REGISTRY_URL):latest
 	docker tag $(REGISTRY_URL):latest $(REGISTRY_URL):$(IMAGE_TAG)
 	docker push $(REGISTRY_URL):$(IMAGE_TAG)
