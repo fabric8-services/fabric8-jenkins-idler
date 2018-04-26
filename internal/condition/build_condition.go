@@ -31,9 +31,14 @@ func (c *BuildCondition) Eval(object interface{}) (bool, error) {
 	if u.HasActiveBuilds() {
 		// if we have activebuild being active over x time then see it as
 		// expired or they would be lingering forever (i.e: approval process pipelines)
-		if u.ActiveBuild.Metadata.Name != "" && u.ActiveBuild.Status.StartTimestamp.Time.Add(c.idleLongBuild).Before(time.Now()) {
+		if u.ActiveBuild.Status.StartTimestamp.Time.Add(c.idleLongBuild).Before(time.Now()) {
 			return true, nil
 		}
+
+		if u.ActiveBuild.Status.Phase == "New" && u.ActiveBuild.Status.StartTimestamp.Time.Add(time.Second*5).After(u.ActiveBuild.Status.CompletionTimestamp.Time) {
+			return true, nil
+		}
+
 		return false, nil
 	}
 
@@ -44,6 +49,5 @@ func (c *BuildCondition) Eval(object interface{}) (bool, error) {
 	if u.DoneBuild.Status.CompletionTimestamp.Time.Add(c.idleAfter).Before(time.Now()) {
 		return true, nil
 	}
-
 	return false, nil
 }
