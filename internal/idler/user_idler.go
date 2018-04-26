@@ -197,7 +197,12 @@ func (idler *UserIdler) doUnIdle() error {
 	if state == model.JenkinsIdled {
 		idler.incrementUnIdleAttempts()
 		for _, service := range JenkinsServices {
-			idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.unIdleAttempts, idler.maxRetries)).Info("About to un-idle " + service)
+			// Let's add some more reasons, we probably want to
+			reasonString := fmt.Sprintf("DoneBuild BuildName:%s Last:%s", idler.user.DoneBuild.Metadata.Name, idler.user.DoneBuild.Status.StartTimestamp.Time)
+			if idler.user.ActiveBuild.Metadata.Name != "" {
+				reasonString = fmt.Sprintf("ActiveBuild BuildName:%s Last:%s", idler.user.ActiveBuild.Metadata.Name, idler.user.ActiveBuild.Status.StartTimestamp.Time)
+			}
+			idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.unIdleAttempts, idler.maxRetries)).Info("About to un-idle "+service+", Reason: ", reasonString)
 			err := idler.openShiftClient.UnIdle(idler.openShiftAPI, idler.openShiftBearerToken, idler.user.Name+jenkinsNamespaceSuffix, service)
 			if err != nil {
 				return err

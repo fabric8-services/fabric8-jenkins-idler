@@ -40,7 +40,6 @@ func Test_eval_return_false_when_active_build_exists(t *testing.T) {
 }
 
 func Test_eval_return_true_when_activebuild_is_old(t *testing.T) {
-	type LStatus model.Status
 	oldTime, _ := time.Parse(
 		time.RFC3339,
 		"1979-04-16T16:30:41+00:00")
@@ -93,4 +92,24 @@ func Test_eval_completion_after_idletime_expires(t *testing.T) {
 	condValue, err := condition.Eval(user)
 	assert.NoError(t, err)
 	assert.True(t, condValue, "Condition should evaluate to false.")
+}
+
+func Test_eval_ignore_pesky_jenkins_sync_plugin(t *testing.T) {
+	startTime := time.Now()
+	completionTime := startTime.Add(time.Duration(4 * time.Second))
+	user := model.NewUser("123", "foo")
+	user.ActiveBuild = model.Build{
+		Metadata: model.Metadata{
+			Name: "test build",
+		},
+		Status: model.Status{
+			Phase:               "New",
+			StartTimestamp:      model.BuildTime{Time: startTime},
+			CompletionTimestamp: model.BuildTime{Time: completionTime},
+		},
+	}
+	condition := NewBuildCondition(time.Duration(5)*time.Minute, time.Duration(10)*time.Hour)
+	condValue, err := condition.Eval(user)
+	assert.NoError(t, err)
+	assert.True(t, condValue, "Condition should evaluate to true.")
 }
