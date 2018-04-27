@@ -45,6 +45,7 @@ type UserIdler struct {
 	user                 model.User
 	config               configuration.Configuration
 	features             toggles.Features
+	dryRun               bool
 }
 
 // NewUserIdler creates an instance of UserIdler.
@@ -74,6 +75,7 @@ func NewUserIdler(user model.User, openShiftAPI string, openShiftBearerToken str
 		user:                 user,
 		config:               config,
 		features:             features,
+		dryRun:               config.GetDryRun(),
 	}
 	return &userIdler
 }
@@ -174,11 +176,18 @@ func (idler *UserIdler) doIdle() error {
 				reasonString = fmt.Sprintf("ActiveBuild BuildName:%s Last:%s", idler.user.ActiveBuild.Metadata.Name, idler.user.ActiveBuild.Status.StartTimestamp.Time)
 			}
 			idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.idleAttempts, idler.maxRetries)).Info("About to idle " + service + ", Reason: " + reasonString)
+
+			if idler.dryRun {
+				idler.logger.Info("Dry run is enabled, skipping idling.")
+				return nil
+			}
+
 			err := idler.openShiftClient.Idle(idler.openShiftAPI, idler.openShiftBearerToken, idler.user.Name+jenkinsNamespaceSuffix, service)
 			if err != nil {
 				return err
 			}
 		}
+
 	}
 	return nil
 }

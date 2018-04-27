@@ -53,6 +53,9 @@ type Configuration interface {
 	// user account token
 	GetAuthGrantType() string
 
+	// GetDryRun returns if the idler is to be run in test mode or not. If dry run is set, no idling takes place
+	GetDryRun() bool
+
 	// Verify validates the configuration and returns an error in case the configuration is missing required settings
 	// or contains invalid settings. If the configuration is correct nil is returned.
 	Verify() util.MultiError

@@ -45,6 +45,7 @@ func init() {
 	// debug
 	settings["GetDebugMode"] = Setting{"JC_DEBUG_MODE", "false", []func(interface{}, string) error{util.IsBool}}
 	settings["GetFixedUuids"] = Setting{"JC_FIXED_UUIDS", "", []func(interface{}, string) error{}}
+	settings["GetDryRun"] = Setting{"JC_DRY_RUN", "false", []func(interface{}, string) error{}}
 }
 
 // Setting defines an element in the configuration of Jenkins Idler.
@@ -209,6 +210,13 @@ func (c *EnvConfig) Verify() util.MultiError {
 	}
 
 	return errors
+}
+
+// GetDryRun returns if dry run is enabled or not
+func (c *EnvConfig) GetDryRun() bool {
+	callPtr, _, _, _ := runtime.Caller(0)
+	value := c.getConfigValueFromEnv(util.NameOfFunction(callPtr))
+	return strings.ToLower(value) == "true"
 }
 
 func (c *EnvConfig) String() string {
