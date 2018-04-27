@@ -31,6 +31,8 @@ objects:
         - env:
           - name: JC_IDLE_AFTER
             value: "45"
+          - name: JC_IDLE_LONG_BUILD
+            value: "3"
           - name: JC_CHECK_INTERVAL
             value: "15"
           - name: JC_MAX_RETRIES
