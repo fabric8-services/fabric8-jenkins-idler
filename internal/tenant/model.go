@@ -40,8 +40,9 @@ type Attributes struct {
 // Namespace of the build.
 // It defines the space within each name must be unique.
 type Namespace struct {
-	ClusterURL string `json:"cluster-url"`
-	Name       string
-	State      string
-	Type       string
+	ClusterURL               string `json:"cluster-url"`
+	Name                     string
+	State                    string
+	Type                     string
+	ClusterCapacityExhausted bool `json:"cluster-capacity-exhausted"`
 }

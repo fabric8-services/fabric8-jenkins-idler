@@ -17,6 +17,7 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/cluster"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/mock"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
 	log "github.com/sirupsen/logrus"
@@ -104,8 +105,13 @@ func Test_cluster_dns_view(t *testing.T) {
 		APIURL: "http://localhost",
 		AppDNS: "example.com",
 	}
+
 	clusterView := cluster.NewView([]cluster.Cluster{dummyCluster})
-	idlerAPI := api.NewIdlerAPI(openshift.NewUserIdlerMap(), clusterView)
+
+	tenantService, cleanup := stubTenantService()
+	defer cleanup()
+
+	idlerAPI := api.NewIdlerAPI(openshift.NewUserIdlerMap(), clusterView, tenantService)
 	router := NewRouterWithPort(CreateAPIRouter(idlerAPI), testPort)
 
 	var wg sync.WaitGroup
@@ -132,19 +138,29 @@ func Test_openshift_url_parameter_is_used(t *testing.T) {
 	log.SetOutput(ioutil.Discard)
 	assert.True(t, isTCPPortAvailable(testPort), fmt.Sprintf("Port '%d' should be free.", testPort))
 
+	tenantTestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(model.DeploymentConfig{})
+	}))
+	defer tenantTestServer.Close()
+
+	tenantService := tenant.NewTenantService(
+		util.EnsureSuffix(tenantTestServer.URL, "/"),
+		"mysecret",
+	)
+
 	// a dummy HTTP server for the OpenShift API request which is going to occur
 	openShiftAPITestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(model.DeploymentConfig{})
 	}))
 	defer openShiftAPITestServer.Close()
-
 	// setup the router
 	dummyCluster := cluster.Cluster{
 		APIURL: util.EnsureSuffix(openShiftAPITestServer.URL, "/"),
 		Token:  "mysecret",
 	}
+
 	clusterView := cluster.NewView([]cluster.Cluster{dummyCluster})
-	idlerAPI := api.NewIdlerAPI(openshift.NewUserIdlerMap(), clusterView)
+	idlerAPI := api.NewIdlerAPI(openshift.NewUserIdlerMap(), clusterView, tenantService)
 	router := NewRouterWithPort(CreateAPIRouter(idlerAPI), testPort)
 
 	// start the router
@@ -182,4 +198,17 @@ func isTCPPortAvailable(port int) bool {
 	}
 	conn.Close()
 	return true
+}
+
+func stubTenantService() (tenant.Service, func()) {
+	tenantServer := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			json.NewEncoder(w).Encode(tenant.InfoList{})
+		}))
+
+	tenantService := tenant.NewTenantService(
+		util.EnsureSuffix(tenantServer.URL, "/"),
+		"mysecret",
+	)
+	return tenantService, tenantServer.Close
 }

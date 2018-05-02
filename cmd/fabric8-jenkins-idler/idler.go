@@ -73,7 +73,7 @@ func (idler *Idler) startWorkers(ctx context.Context, wg *sync.WaitGroup, cancel
 	// Start API router
 	go func() {
 		// Create and start a Router instance to serve the REST API
-		idlerAPI := api.NewIdlerAPI(userIdlers, idler.clusterView)
+		idlerAPI := api.NewIdlerAPI(userIdlers, idler.clusterView, idler.tenantService)
 		apirouter := router.CreateAPIRouter(idlerAPI)
 		router := router.NewRouter(apirouter)
 		router.AddMetrics(apirouter)

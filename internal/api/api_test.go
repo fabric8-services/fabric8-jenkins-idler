@@ -22,8 +22,13 @@ func Test_success(t *testing.T) {
 	mockidle := idler{
 		openShiftClient: mosc,
 		clusterView:     &mock.ClusterView{},
+		tenantService:   &mock.TenantService{},
 	}
 	functions := []ReqFuncType{mockidle.Idle, mockidle.UnIdle, mockidle.IsIdle}
+
+	params := httprouter.Params{
+		httprouter.Param{Key: "namespace", Value: "foobar"},
+	}
 
 	for _, function := range functions {
 		reader, _ := http.NewRequest("GET", "/", nil)
@@ -32,7 +37,7 @@ func Test_success(t *testing.T) {
 		reader.URL.RawQuery = q.Encode()
 
 		writer := &mock.ResponseWriter{}
-		function(writer, reader, nil)
+		function(writer, reader, params)
 
 		require.Equal(t, http.StatusOK, writer.WriterStatus, fmt.Sprintf("Bad Error Code: %d", writer.WriterStatus))
 		require.Equal(t, mosc.IdleCallCount, 2, fmt.Sprintf("Idle was not called for 2 times but %d", mosc.IdleCallCount))
@@ -62,9 +67,14 @@ func Test_fail(t *testing.T) {
 		openShiftClient: &mock.OpenShiftClient{
 			IdleError: idleError,
 		},
-		clusterView: &mock.ClusterView{},
+		clusterView:   &mock.ClusterView{},
+		tenantService: &mock.TenantService{},
 	}
 	functions = []ReqFuncType{mockidle.Idle, mockidle.UnIdle, mockidle.IsIdle}
+	params := httprouter.Params{
+		httprouter.Param{Key: "namespace", Value: "foobar"},
+	}
+
 	for _, function := range functions {
 		req, _ := http.NewRequest("GET", "/", nil)
 		query := req.URL.Query()
@@ -72,7 +82,7 @@ func Test_fail(t *testing.T) {
 		req.URL.RawQuery = query.Encode()
 
 		writer := &mock.ResponseWriter{}
-		function(writer, req, nil)
+		function(writer, req, params)
 
 		jserror := &JSError{}
 		_ = json.Unmarshal(writer.Buffer.Bytes(), &jserror)
