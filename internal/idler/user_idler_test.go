@@ -38,7 +38,11 @@ func Test_idle_check_skipped_if_feature_not_enabled(t *testing.T) {
 	hook := test.NewGlobal()
 
 	user := model.User{ID: "100"}
-	userIdler := NewUserIdler(user, "", "", &mock.Config{}, mock.NewMockFeatureToggle([]string{"42"}))
+	userIdler := NewUserIdler(
+		user, "", "", &mock.Config{},
+		mock.NewMockFeatureToggle([]string{"42"}),
+		&mock.TenantService{},
+	)
 
 	err := userIdler.checkIdle()
 	assert.NoError(t, err, "No error expected.")
@@ -51,7 +55,11 @@ func Test_idle_check_returns_error_on_evaluation_failure(t *testing.T) {
 	log.SetOutput(ioutil.Discard)
 
 	user := model.User{ID: "42"}
-	userIdler := NewUserIdler(user, "", "", &mock.Config{}, mock.NewMockFeatureToggle([]string{"42"}))
+	userIdler := NewUserIdler(
+		user, "", "", &mock.Config{},
+		mock.NewMockFeatureToggle([]string{"42"}),
+		&mock.TenantService{},
+	)
 	userIdler.Conditions.Add("error", &ErrorCondition{})
 
 	err := userIdler.checkIdle()
@@ -67,7 +75,8 @@ func Test_idle_check_occurs_even_without_openshift_events(t *testing.T) {
 	user := model.User{ID: "100", Name: "John Doe"}
 	config := &mock.Config{}
 	features := mock.NewMockFeatureToggle([]string{"42"})
-	userIdler := NewUserIdler(user, "", "", config, features)
+	tenantService := &mock.TenantService{}
+	userIdler := NewUserIdler(user, "", "", config, features, tenantService)
 
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
@@ -120,7 +129,8 @@ func Test_number_of_idle_calls_are_capped(t *testing.T) {
 	maxRetry := 10
 	config.MaxRetries = maxRetry
 	features := mock.NewMockFeatureToggle([]string{"42"})
-	userIdler := NewUserIdler(user, "", "", config, features)
+	tenantService := &mock.TenantService{}
+	userIdler := NewUserIdler(user, "", "", config, features, tenantService)
 	userIdler.openShiftClient = openShiftClient
 
 	var wg sync.WaitGroup
@@ -167,8 +177,9 @@ func Test_number_of_unidle_calls_are_capped(t *testing.T) {
 	config.MaxRetries = maxRetry
 
 	features := mock.NewMockFeatureToggle([]string{"42"})
+	tenantService := &mock.TenantService{}
 
-	userIdler := NewUserIdler(user, "", "", config, features)
+	userIdler := NewUserIdler(user, "", "", config, features, tenantService)
 	userIdler.openShiftClient = openShiftClient
 	conditions := condition.NewConditions()
 	conditions.Add("unidle", &UnIdleCondition{})

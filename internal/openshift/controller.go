@@ -187,7 +187,7 @@ func (c *controllerImpl) createIfNotExist(ns string) (bool, error) {
 	}
 
 	newUser := model.NewUser(ti.Data[0].ID, ns)
-	userIdler := idler.NewUserIdler(newUser, c.openShiftAPIURL, c.openShiftBearerToken, c.config, c.features)
+	userIdler := idler.NewUserIdler(newUser, c.openShiftAPIURL, c.openShiftBearerToken, c.config, c.features, c.tenantService)
 	c.userIdlers.Store(ns, userIdler)
 	userIdler.Run(c.ctx, c.wg, c.cancel, time.Duration(c.config.GetCheckInterval())*time.Minute, time.Duration(c.config.GetMaxRetriesQuietInterval())*time.Minute)
 	return true, nil
