@@ -11,6 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 	log "github.com/sirupsen/logrus"
 )
@@ -45,11 +46,18 @@ type UserIdler struct {
 	user                 model.User
 	config               configuration.Configuration
 	features             toggles.Features
+	tenantService        tenant.Service
 }
 
 // NewUserIdler creates an instance of UserIdler.
 // It returns a pointer to UserIdler,
-func NewUserIdler(user model.User, openShiftAPI string, openShiftBearerToken string, config configuration.Configuration, features toggles.Features) *UserIdler {
+func NewUserIdler(
+	user model.User,
+	openShiftAPI, openShiftBearerToken string,
+	config configuration.Configuration,
+	features toggles.Features,
+	tenantService tenant.Service) *UserIdler {
+
 	logEntry := log.WithFields(log.Fields{
 		"component": "user-idler",
 		"username":  user.Name,
@@ -74,6 +82,7 @@ func NewUserIdler(user model.User, openShiftAPI string, openShiftBearerToken str
 		user:                 user,
 		config:               config,
 		features:             features,
+		tenantService:        tenantService,
 	}
 	return &userIdler
 }
@@ -184,6 +193,7 @@ func (idler *UserIdler) doIdle() error {
 }
 
 func (idler *UserIdler) doUnIdle() error {
+
 	if idler.unIdleAttempts >= idler.maxRetries {
 		idler.logger.Warn("Skipping un-idle request since max retry count has been reached.")
 		return nil
@@ -193,20 +203,30 @@ func (idler *UserIdler) doUnIdle() error {
 	if err != nil {
 		return err
 	}
+	if state != model.JenkinsIdled {
+		return nil
+	}
 
-	if state == model.JenkinsIdled {
-		idler.incrementUnIdleAttempts()
-		for _, service := range JenkinsServices {
-			// Let's add some more reasons, we probably want to
-			reasonString := fmt.Sprintf("DoneBuild BuildName:%s Last:%s", idler.user.DoneBuild.Metadata.Name, idler.user.DoneBuild.Status.StartTimestamp.Time)
-			if idler.user.ActiveBuild.Metadata.Name != "" {
-				reasonString = fmt.Sprintf("ActiveBuild BuildName:%s Last:%s", idler.user.ActiveBuild.Metadata.Name, idler.user.ActiveBuild.Status.StartTimestamp.Time)
-			}
-			idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.unIdleAttempts, idler.maxRetries)).Info("About to un-idle "+service+", Reason: ", reasonString)
-			err := idler.openShiftClient.UnIdle(idler.openShiftAPI, idler.openShiftBearerToken, idler.user.Name+jenkinsNamespaceSuffix, service)
-			if err != nil {
-				return err
-			}
+	ns := idler.user.Name + jenkinsNamespaceSuffix
+	clusterFull, err := idler.tenantService.HasReachedMaxCapacity(idler.openShiftAPI, ns)
+	if err != nil {
+		return err
+	} else if clusterFull {
+		err := fmt.Errorf("Maximum Resource limit reached on %s for %s", idler.openShiftAPI, ns)
+		return err
+	}
+
+	idler.incrementUnIdleAttempts()
+	for _, service := range JenkinsServices {
+		// Let's add some more reasons, we probably want to
+		reasonString := fmt.Sprintf("DoneBuild BuildName:%s Last:%s", idler.user.DoneBuild.Metadata.Name, idler.user.DoneBuild.Status.StartTimestamp.Time)
+		if idler.user.ActiveBuild.Metadata.Name != "" {
+			reasonString = fmt.Sprintf("ActiveBuild BuildName:%s Last:%s", idler.user.ActiveBuild.Metadata.Name, idler.user.ActiveBuild.Status.StartTimestamp.Time)
+		}
+		idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.unIdleAttempts, idler.maxRetries)).Info("About to un-idle "+service+", Reason: ", reasonString)
+		err := idler.openShiftClient.UnIdle(idler.openShiftAPI, idler.openShiftBearerToken, ns, service)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
