@@ -112,10 +112,14 @@ func (idler *UserIdler) checkIdle() error {
 			return err
 		}
 		if enabled {
-			idler.doIdle()
+			err := idler.doIdle()
+			// TODO: find a better way to update IdleStatus inside doIdle()
+			idler.user.IdleStatus = model.NewIdleStatus(err)
 		}
 	} else {
-		idler.doUnIdle()
+		err := idler.doUnIdle()
+		// TODO: find a better way to update IdleStatus inside doUnIdle()
+		idler.user.IdleStatus = model.NewUnidleStatus(err)
 	}
 
 	return nil
