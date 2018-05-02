@@ -14,6 +14,47 @@ type User struct {
 	ActiveBuild       Build
 	DoneBuild         Build
 	JenkinsLastUpdate time.Time
+	IdleStatus        IdleStatus
+}
+
+// IdleStatus contains information about the idle/un-idle status like timestamp
+// and reasons of failure
+type IdleStatus struct {
+	Timestamp time.Time
+	Success   bool
+	Reason    string
+}
+
+// NewIdleStatus returns IdleStatus based on the error provided
+func NewIdleStatus(err error) IdleStatus {
+	if err != nil {
+		return IdleStatus{
+			Timestamp: time.Now().UTC(),
+			Success:   false,
+			Reason:    fmt.Sprintf("Failed to idle with error: %v", err),
+		}
+	}
+	return IdleStatus{
+		Timestamp: time.Now().UTC(),
+		Success:   true,
+		Reason:    "Successfully idled",
+	}
+}
+
+// NewUnidleStatus returns IdleStatus based on the error provided
+func NewUnidleStatus(err error) IdleStatus {
+	if err != nil {
+		return IdleStatus{
+			Timestamp: time.Now().UTC(),
+			Success:   false,
+			Reason:    fmt.Sprintf("Failed to un-idle with error: %v", err),
+		}
+	}
+	return IdleStatus{
+		Timestamp: time.Now().UTC(),
+		Success:   true,
+		Reason:    "Successfully un-idled",
+	}
 }
 
 // NewUser creates a new instance of a User given an id and name.
