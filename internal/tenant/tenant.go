@@ -12,6 +12,7 @@ import (
 // Service the interface for the cluster service
 type Service interface {
 	GetTenantInfoByNamespace(apiURL string, ns string) (InfoList, error)
+	HasReachedMaxCapacity(apiURL, ns string) (bool, error)
 }
 
 // Tenant is a simple client for the fabric8-tenant service.
@@ -61,4 +62,43 @@ func (t tenantService) GetTenantInfoByNamespace(apiURL string, ns string) (InfoL
 	}
 
 	return tenantInfo, nil
+}
+
+// returns true if the cluster the ns is on has reached maximum capacity
+func (t tenantService) HasReachedMaxCapacity(apiURL, ns string) (bool, error) {
+
+	ti, err := t.GetTenantInfoByNamespace(apiURL, ns)
+	if err != nil {
+		return true, err
+	}
+
+	if len(ti.Errors) != 0 {
+		firstError := ti.Errors[0]
+		err = fmt.Errorf("%s - %s", firstError.Code, firstError.Detail)
+		return true, err
+	}
+
+	if len(ti.Data) == 0 {
+		err = fmt.Errorf("Failed to fetch tenant information for %s", ns)
+		return true, err
+	}
+
+	namespaces := ti.Data[0].Attributes.Namespaces
+	index := indexOfNamespaceWithName(namespaces, ns)
+	if index < 0 {
+		return true, fmt.Errorf("Failed to find %s in tenant info", ns)
+	}
+
+	jenkins := namespaces[index]
+	return jenkins.ClusterCapacityExhausted, nil
+}
+
+// returns the index of the namespace that equals 'name'
+func indexOfNamespaceWithName(namespaces []Namespace, name string) int {
+	for i, ns := range namespaces {
+		if ns.Name == name {
+			return i
+		}
+	}
+	return -1
 }

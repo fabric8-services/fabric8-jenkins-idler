@@ -8,7 +8,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/cluster"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/mock"
 	log "github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
@@ -20,14 +19,6 @@ type mockFeatureToggle struct {
 
 func (m *mockFeatureToggle) IsIdlerEnabled(uid string) (bool, error) {
 	return true, nil
-}
-
-type mockTenantService struct {
-}
-
-func (m *mockTenantService) GetTenantInfoByNamespace(apiURL string, ns string) (tenant.InfoList, error) {
-	return tenant.InfoList{}, nil
-
 }
 
 type mockClusterView struct {
@@ -53,7 +44,7 @@ func Test_graceful_shutdown(t *testing.T) {
 	hook := test.NewGlobal()
 
 	config, _ := configuration.NewConfiguration()
-	idler := NewIdler(&mockFeatureToggle{}, &mockTenantService{}, &mockClusterView{}, config)
+	idler := NewIdler(&mockFeatureToggle{}, &mock.TenantService{}, &mockClusterView{}, config)
 
 	go func() {
 		// Send SIGTERM after two seconds
