@@ -183,6 +183,7 @@ func (o *openShift) UnIdle(apiURL string, bearerToken string, namespace string, 
 		return errors.New("could not scale the service")
 	}
 
+	logger.Infof("Scaled service %v to %v", service, ns.Spec.Replicas)
 	return
 }
 
