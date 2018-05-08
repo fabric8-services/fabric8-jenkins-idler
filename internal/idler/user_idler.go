@@ -198,15 +198,22 @@ func (idler *UserIdler) doIdle() error {
 
 func (idler *UserIdler) doUnIdle() error {
 
+	idler.logger.Debugf("Current un-idle attempt count: %v, maximum retry count: %v", idler.unIdleAttempts, idler.maxRetries)
 	if idler.unIdleAttempts >= idler.maxRetries {
 		idler.logger.Warn("Skipping un-idle request since max retry count has been reached.")
 		return nil
 	}
 
+	// The state can still return idled even though Jenkins is un-idled,
+	// because we check for dc.status.replicas to determine if jenkins
+	// is un-idled, which can still be 0 for some time after un-idling
+	// TODO: measure the time taken for idler.getJenkinsState() to actually
+	// change state from idled to un-idled, after a manual un-idling
 	state, err := idler.getJenkinsState()
 	if err != nil {
 		return err
 	}
+	idler.logger.Infof("Current Jenkins' pod's state is %v", state)
 	if state != model.PodIdled {
 		return nil
 	}
@@ -230,8 +237,11 @@ func (idler *UserIdler) doUnIdle() error {
 		idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.unIdleAttempts, idler.maxRetries)).Info("About to un-idle "+service+", Reason: ", reasonString)
 		err := idler.openShiftClient.UnIdle(idler.openShiftAPI, idler.openShiftBearerToken, ns, service)
 		if err != nil {
+			idler.logger.Warnf("Failed to un-idle service %v in namespace %v (un-idle attempt: %v)", service, ns, idler.unIdleAttempts)
+			idler.logger.Error(err)
 			return err
 		}
+		idler.logger.Infof("Successfully un-idled service %v in namespace %v (un-idle attempt: %v)", service, ns, idler.unIdleAttempts)
 	}
 	return nil
 }
