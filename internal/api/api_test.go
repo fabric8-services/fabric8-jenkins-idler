@@ -24,7 +24,10 @@ func Test_success(t *testing.T) {
 		clusterView:     &mock.ClusterView{},
 		tenantService:   &mock.TenantService{},
 	}
-	functions := []ReqFuncType{mockidle.Idle, mockidle.UnIdle, mockidle.IsIdle}
+	functions := []ReqFuncType{
+		mockidle.Idle, mockidle.UnIdle,
+		mockidle.IsIdle, mockidle.Status,
+	}
 
 	params := httprouter.Params{
 		httprouter.Param{Key: "namespace", Value: "foobar"},
@@ -88,4 +91,59 @@ func Test_fail(t *testing.T) {
 		_ = json.Unmarshal(writer.Buffer.Bytes(), &jserror)
 		require.Equal(t, idleError, jserror.Error, fmt.Sprintf("Unexpected error output: %s", jserror.Error))
 	}
+}
+
+func Test_Status_InternalError_fail(t *testing.T) {
+	mockIdler := &idler{
+		openShiftClient: &mock.OpenShiftClient{
+			IdleError: "some idle error",
+		},
+		clusterView:   &mock.ClusterView{},
+		tenantService: &mock.TenantService{},
+	}
+
+	req, _ := http.NewRequest("GET", "/", nil)
+
+	query := req.URL.Query()
+	query.Add(OpenShiftAPIParam, "http://localhost")
+	req.URL.RawQuery = query.Encode()
+
+	writer := &mock.ResponseWriter{}
+	params := httprouter.Params{
+		httprouter.Param{Key: "namespace", Value: "foobar"},
+	}
+	mockIdler.Status(writer, req, params)
+
+	sr := &statusResponse{}
+	json.Unmarshal(writer.Buffer.Bytes(), sr)
+
+	require.Equal(t, http.StatusInternalServerError, writer.WriterStatus,
+		fmt.Sprintf("Bad Error Code: %d", writer.WriterStatus))
+
+	require.Equal(t, 1, len(sr.Errors), "Errors must be present")
+	require.Contains(t, sr.Errors[0].Description,
+		"openshift client error: ", "Error must have a description")
+}
+
+func Test_Status_BadRequest_fail(t *testing.T) {
+
+	writer := &mock.ResponseWriter{}
+	reader, _ := http.NewRequest("GET", "/", nil)
+	mockIdler := idler{
+		openShiftClient: &mock.OpenShiftClient{},
+		clusterView:     &mock.ClusterView{},
+	}
+	mockIdler.Status(writer, reader, nil)
+
+	sr := &statusResponse{}
+	json.Unmarshal(writer.Buffer.Bytes(), sr)
+
+	require.Equal(t, http.StatusBadRequest, writer.WriterStatus,
+		fmt.Sprintf("Bad Error Code: %d", writer.WriterStatus))
+
+	require.Equal(t, len(sr.Errors), 1, "Errors be present")
+
+	require.Equal(t, sr.Errors[0].Code, tokenFetchFailed, "Error must have a code")
+	require.Contains(t, sr.Errors[0].Description,
+		"failed to obtain openshift token", "Error must have a description")
 }
