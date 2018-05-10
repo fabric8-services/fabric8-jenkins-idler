@@ -45,6 +45,12 @@ type IdlerAPI interface {
 	// If an error occurs a response with the HTTP status 500 is returned.
 	IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 
+	// IsIdle returns an StatusResponse struct indicating the state of the
+	// Jenkins service in the namespace specified in the namespace parameter
+	// of the request.
+	// If an error occurs a response with the HTTP status 500 is returned.
+	Status(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
+
 	// Info writes a JSON representation of internal state of the specified namespace to the response writer.
 	Info(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 
@@ -182,6 +188,86 @@ func (api *idler) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	s.IsIdle = state < model.JenkinsRunning
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(s)
+}
+
+type ResponseError struct {
+	Code        int    `json:"code"`
+	Description string `json:"description"`
+}
+
+type JenkinsInfo struct {
+	State string `json:"state"`
+}
+
+type StatusResponse struct {
+	Data   *JenkinsInfo    `json:"data,omitempty"`
+	Errors []ResponseError `json:"errors,omitempty"`
+}
+
+const (
+	TokenFetchFailed     = 1
+	OpenShiftClientError = 2
+)
+
+func writeStatusInfo(w http.ResponseWriter, status int, ret *StatusResponse) {
+	// TODO add logs
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(ret)
+}
+
+func (api *idler) Status(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	ret := &StatusResponse{}
+
+	openShiftAPI, openShiftBearerToken, err := api.getURLAndToken(r)
+	if err != nil {
+		ret.Errors = append(ret.Errors, ResponseError{
+			Code:        TokenFetchFailed,
+			Description: "failed to obtain openshift token: ", // + err.Error(),
+		})
+		writeStatusInfo(w, http.StatusInternalServerError, ret)
+		return
+	}
+
+	state, err := api.openShiftClient.IsIdle(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), "jenkins")
+	if err != nil {
+		fmt.Printf("%+v", ret.Errors)
+		ret.Errors = append(ret.Errors, ResponseError{
+			Code:        OpenShiftClientError,
+			Description: "openshift client error:" + err.Error(),
+		})
+		fmt.Printf("%+v", ret.Errors)
+		writeStatusInfo(w, http.StatusInternalServerError, ret)
+		return
+	}
+
+	stateStr, err := podStateToString(state)
+	if err != nil {
+		fmt.Printf("%+v", ret.Errors)
+		ret.Errors = append(ret.Errors, ResponseError{
+			Code:        OpenShiftClientError,
+			Description: "openshift client error: " + err.Error(),
+		})
+		fmt.Printf("%+v", ret.Errors)
+
+		writeStatusInfo(w, http.StatusInternalServerError, ret)
+		return
+	}
+	ret.Data = &JenkinsInfo{State: stateStr}
+	writeStatusInfo(w, http.StatusOK, ret)
+}
+
+func podStateToString(state int) (string, error) {
+	switch state {
+	case model.JenkinsRunning:
+		return "running", nil
+	case model.JenkinsStarting:
+		return "starting", nil
+	case model.JenkinsIdled:
+		return "idled", nil
+	}
+
+	return "", fmt.Errorf("Unknown pod state: %d", state)
 }
 
 func (api *idler) ClusterDNSView(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
