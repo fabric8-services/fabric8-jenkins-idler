@@ -38,6 +38,15 @@ func (i *IdlerAPI) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.
 	w.WriteHeader(http.StatusOK)
 }
 
+// Status returns an StatusResponse struct indicating whether the Jenkins service
+// in the namespace specified in the namespace parameter of the request is
+// idle, starting or running.
+// If an error occurs a response with the HTTP status 400 or 500 is returned.
+func (i *IdlerAPI) Status(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	w.Write([]byte("Status"))
+	w.WriteHeader(http.StatusOK)
+}
+
 // ClusterDNSView writes a JSON representation of the current cluster state to the response writer.
 func (i *IdlerAPI) ClusterDNSView(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	w.Write([]byte("GetClusterDNSView"))
