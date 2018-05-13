@@ -9,14 +9,32 @@ import (
 
 // OpenShift related structs
 
+// PodState represents an different states of a Pod
+type PodState int
+
 const (
-	// JenkinsIdled represents the idled state of a Jenkins instance.
-	JenkinsIdled = 0
-	// JenkinsStarting state is when Jenkins is about to start.
-	JenkinsStarting = 1
-	// JenkinsRunning state is Jenkins is running.
-	JenkinsRunning = 2
+	// PodStateUnknown represents an unknown state of the Pod. Used usually with Error.
+	PodStateUnknown PodState = 0
+	// PodIdled represents the idled state of a Pod.
+	PodIdled = 1
+	// PodStarting state is when Pods are about to start.
+	PodStarting = 2
+	// PodRunning state is when Pods are running.
+	PodRunning = 3
 )
+
+func (state PodState) String() string {
+	states := [...]string{
+		"unknown",
+		"idled",
+		"starting",
+		"running",
+	}
+	if state < PodStateUnknown || state > PodRunning {
+		state = 0
+	}
+	return states[state]
+}
 
 // Object is Build Object.
 type Object struct {

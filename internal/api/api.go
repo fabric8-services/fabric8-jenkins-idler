@@ -176,7 +176,7 @@ func (api *idler) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	state, err := api.openShiftClient.IsIdle(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), "jenkins")
+	state, err := api.openShiftClient.State(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), "jenkins")
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -185,7 +185,7 @@ func (api *idler) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	}
 
 	s := status{}
-	s.IsIdle = state < model.JenkinsRunning
+	s.IsIdle = state < model.PodRunning
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(s)
 }
@@ -232,12 +232,12 @@ func (api *idler) getURLAndToken(r *http.Request) (string, string, error) {
 }
 
 func (api idler) isJenkinsUnIdled(openshiftURL, openshiftToken, namespace string) (bool, error) {
-	state, err := api.openShiftClient.IsIdle(openshiftURL, openshiftToken, namespace, "jenkins")
+	state, err := api.openShiftClient.State(openshiftURL, openshiftToken, namespace, "jenkins")
 	if err != nil {
 		return false, err
 	}
 
-	status := state == model.JenkinsStarting || state == model.JenkinsRunning
+	status := state == model.PodStarting || state == model.PodRunning
 	return status, nil
 }
 
@@ -277,8 +277,8 @@ func (s *statusResponse) AppendError(code errorCode, description string) *status
 	return s
 }
 
-func (s *statusResponse) SetState(state string) *statusResponse {
-	s.Data = &jenkinsInfo{State: state}
+func (s *statusResponse) SetState(state model.PodState) *statusResponse {
+	s.Data = &jenkinsInfo{State: state.String()}
 	return s
 }
 
@@ -292,7 +292,7 @@ func (api *idler) Status(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		return
 	}
 
-	state, err := api.openShiftClient.IsIdle(
+	state, err := api.openShiftClient.State(
 		openshiftURL, openshiftToken,
 		ps.ByName("namespace"),
 		"jenkins",
@@ -303,28 +303,8 @@ func (api *idler) Status(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		return
 	}
 
-	stateStr, err := podStateToString(state)
-	if err != nil {
-		response.AppendError(openShiftClientError, "openshift client error: "+err.Error())
-		writeResponse(w, http.StatusInternalServerError, response)
-		return
-	}
-
-	response.SetState(stateStr)
+	response.SetState(state)
 	writeResponse(w, http.StatusOK, response)
-}
-
-func podStateToString(state int) (string, error) {
-	switch state {
-	case model.JenkinsRunning:
-		return "running", nil
-	case model.JenkinsStarting:
-		return "starting", nil
-	case model.JenkinsIdled:
-		return "idled", nil
-	}
-
-	return "", fmt.Errorf("unknown pod state: %d", state)
 }
 
 type any interface{}

@@ -123,7 +123,7 @@ func Test_number_of_idle_calls_are_capped(t *testing.T) {
 
 	user := model.User{ID: "42", Name: "John Doe"}
 	openShiftClient := &mock.OpenShiftClient{}
-	openShiftClient.IdleState = model.JenkinsRunning
+	openShiftClient.IdleState = model.PodRunning
 
 	config := &mock.Config{}
 	maxRetry := 10
@@ -170,7 +170,7 @@ func Test_number_of_unidle_calls_are_capped(t *testing.T) {
 	user := model.User{ID: "42", Name: "John Doe"}
 
 	openShiftClient := &mock.OpenShiftClient{}
-	openShiftClient.IdleState = model.JenkinsIdled
+	openShiftClient.IdleState = model.PodIdled
 
 	config := &mock.Config{}
 	maxRetry := 10

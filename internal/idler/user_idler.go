@@ -177,7 +177,7 @@ func (idler *UserIdler) doIdle() error {
 		return err
 	}
 
-	if state > model.JenkinsIdled {
+	if state > model.PodIdled {
 		idler.incrementIdleAttempts()
 		for _, service := range JenkinsServices {
 
@@ -207,7 +207,7 @@ func (idler *UserIdler) doUnIdle() error {
 	if err != nil {
 		return err
 	}
-	if state != model.JenkinsIdled {
+	if state != model.PodIdled {
 		return nil
 	}
 
@@ -251,11 +251,11 @@ func (idler *UserIdler) isIdlerEnabled() (bool, error) {
 	return false, nil
 }
 
-func (idler *UserIdler) getJenkinsState() (int, error) {
+func (idler *UserIdler) getJenkinsState() (model.PodState, error) {
 	ns := idler.user.Name + jenkinsNamespaceSuffix
-	state, err := idler.openShiftClient.IsIdle(idler.openShiftAPI, idler.openShiftBearerToken, ns, jenkinsServiceName)
+	state, err := idler.openShiftClient.State(idler.openShiftAPI, idler.openShiftBearerToken, ns, jenkinsServiceName)
 	if err != nil {
-		return -1, err
+		return model.PodStateUnknown, err
 	}
 	return state, nil
 }
