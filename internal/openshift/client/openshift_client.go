@@ -23,7 +23,7 @@ var logger = log.WithFields(log.Fields{"component": "openshift-client"})
 type OpenShiftClient interface {
 	Idle(apiURL string, bearerToken string, namespace string, service string) error
 	UnIdle(apiURL string, bearerToken string, namespace string, service string) error
-	IsIdle(apiURL string, bearerToken string, namespace string, service string) (int, error)
+	State(apiURL string, bearerToken string, namespace string, service string) (model.PodState, error)
 	WhoAmI(apiURL string, bearerToken string) (string, error)
 	WatchBuilds(apiURL string, bearerToken string, buildType string, callback func(model.Object) error) error
 	WatchDeploymentConfigs(apiURL string, bearerToken string, namespaceSuffix string, callback func(model.DCObject) error) error
@@ -186,34 +186,34 @@ func (o *openShift) UnIdle(apiURL string, bearerToken string, namespace string, 
 	return
 }
 
-// IsIdle returns `JenkinsIdled` if a service in OpenShit namespace is idled,
-// `JenkinsStarting` if it is in the process of scaling up, `JenkinsRunning`
+// State returns `PodIdled` if a service in OpenShift namespace is idled,
+// `PodStarting` if it is in the process of scaling up, `PodRunning`
 // if it is fully up.
-func (o *openShift) IsIdle(apiURL string, bearerToken string, namespace string, service string) (int, error) {
+func (o *openShift) State(apiURL string, bearerToken string, namespace string, service string) (model.PodState, error) {
 	req, err := o.reqOAPI(apiURL, bearerToken, "GET", namespace, "deploymentconfigs/"+service, nil)
 	if err != nil {
-		return -1, err
+		return model.PodStateUnknown, err
 	}
 	resp, err := o.do(req)
 	if err != nil {
-		return -1, err
+		return model.PodStateUnknown, err
 	}
 
 	defer bodyClose(resp)
 
-	dc := model.DeploymentConfig{}
-	err = json.NewDecoder(resp.Body).Decode(&dc)
+	dc := &model.DeploymentConfig{}
+	err = json.NewDecoder(resp.Body).Decode(dc)
 	if err != nil {
-		return -1, err
+		return model.PodStateUnknown, err
 	}
 
 	if dc.Status.Replicas == 0 {
-		return model.JenkinsIdled, nil
+		return model.PodIdled, nil
 	}
 	if dc.Status.ReadyReplicas == 0 {
-		return model.JenkinsStarting, nil
+		return model.PodStarting, nil
 	}
-	return model.JenkinsRunning, nil
+	return model.PodRunning, nil
 }
 
 // GetScheme converts bool representing whether a route

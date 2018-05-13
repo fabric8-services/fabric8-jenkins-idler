@@ -9,7 +9,7 @@ import (
 // OpenShiftClient is a client for OpenShift API
 // It is a mock implementation of client.OpenShiftClient.
 type OpenShiftClient struct {
-	IdleState       int
+	IdleState       model.PodState
 	IdleCallCount   int
 	UnIdleCallCount int
 	IdleError       string
@@ -35,8 +35,8 @@ func (c *OpenShiftClient) UnIdle(apiURL string, bearerToken string, namespace st
 	return nil
 }
 
-// IsIdle mocks IsIdle method of client.OpenShiftClient.
-func (c *OpenShiftClient) IsIdle(apiURL string, bearerToken string, namespace string, service string) (int, error) {
+// State mocks State method of client.OpenShiftClient.
+func (c *OpenShiftClient) State(apiURL string, bearerToken string, namespace string, service string) (model.PodState, error) {
 	if c.IdleError != "" {
 		return c.IdleState, fmt.Errorf(c.IdleError)
 	}
