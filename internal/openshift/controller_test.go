@@ -54,6 +54,57 @@ func Test_handle_build(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestHandleBuildChannelLength(t *testing.T) {
+	setUp(t)
+	defer tearDown()
+
+	tests := []struct {
+		name          string
+		object        model.Object
+		channelLength int
+	}{
+		{
+			name: "both, build is with different last active/done phase, and active and done build name is the same, length should still be 1",
+			object: model.Object{
+				Object: model.Build{
+					Status: model.Status{
+						Phase: "NotNew",
+					},
+				},
+			},
+			channelLength: 1,
+		},
+		{
+			name: "both, build is with different last active/done name, and active and done build name is the same, length should still be 1",
+			object: model.Object{
+				Object: model.Build{
+					Metadata: model.Metadata{
+						Name: "NotEmpty",
+					},
+				},
+			},
+			channelLength: 1,
+		},
+	}
+
+	for _, test := range tests {
+		t.Logf("Running test: %v", test.name)
+
+		err := controller.HandleBuild(test.object)
+		assert.NoError(t, err)
+
+		ns := test.object.Object.Metadata.Namespace
+		ci := controller.(*controllerImpl)
+		userIdler := ci.userIdlerForNamespace(ns)
+
+		userChannel := userIdler.GetChannel()
+		if test.channelLength != len(userChannel) {
+			t.Errorf("Expected channel length to be %v, but got %v", test.channelLength, len(userChannel))
+		}
+		emptyChannel(userChannel)
+	}
+}
+
 func Test_handle_deployment_config(t *testing.T) {
 	setUp(t)
 	defer tearDown()
@@ -77,6 +128,58 @@ func Test_handle_deployment_config(t *testing.T) {
 
 	err := controller.HandleDeploymentConfig(obj)
 	assert.NoError(t, err)
+}
+
+func TestHandleDeploymentConfigChannelLength(t *testing.T) {
+	setUp(t)
+	defer tearDown()
+
+	tests := []struct {
+		name          string
+		object        model.DCObject
+		channelLength int
+	}{
+		{
+			name: "both new DC and available condition is true, length should still be 1",
+			object: model.DCObject{
+				Object: model.DeploymentConfig{
+					Metadata: model.Metadata{
+						Namespace:  "test-namespace-jenkins",
+						Generation: 1,
+					},
+					Spec: model.Spec{
+						Replicas: 1,
+					},
+					Status: model.DCStatus{
+						ObservedGeneration: 2,
+						Conditions: []model.Condition{
+							{
+								Type:   availableCond,
+								Status: "true",
+							},
+						},
+					},
+				},
+			},
+			channelLength: 1,
+		},
+	}
+
+	for _, test := range tests {
+		t.Logf("Running test: %v", test.name)
+
+		err := controller.HandleDeploymentConfig(test.object)
+		assert.NoError(t, err)
+
+		ns := test.object.Object.Metadata.Namespace[:len(test.object.Object.Metadata.Namespace)-len(jenkinsNamespaceSuffix)]
+		ci := controller.(*controllerImpl)
+		userIdler := ci.userIdlerForNamespace(ns)
+		userChannel := userIdler.GetChannel()
+		if test.channelLength != len(userChannel) {
+			t.Errorf("Expected channel length to be %v, but got %v", test.channelLength, len(userChannel))
+		}
+		emptyChannel(userChannel)
+	}
 }
 
 func setUp(t *testing.T) {
@@ -106,6 +209,12 @@ func setUp(t *testing.T) {
 
 	userIdlers := NewUserIdlerMap()
 	controller = NewController(ctx, "", "", userIdlers, tenantService, features, &mock.Config{}, &wg, cancel)
+}
+
+func emptyChannel(ch chan model.User) {
+	for len(ch) > 0 {
+		<-ch
+	}
 }
 
 func tearDown() {
