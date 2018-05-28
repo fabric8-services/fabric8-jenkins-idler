@@ -36,7 +36,7 @@ objects:
           - name: JC_CHECK_INTERVAL
             value: "15"
           - name: JC_MAX_RETRIES
-            value: "3"
+            value: "10"
           - name: JC_MAX_RETRIES_QUIET_INTERVAL
             value: "30"
           - name: JC_JENKINS_PROXY_API_URL
