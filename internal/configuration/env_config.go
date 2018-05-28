@@ -13,7 +13,7 @@ import (
 const (
 	defaultIdleLongBuild           = 3
 	defaultIdleAfter               = 45
-	defaultMaxRetries              = 3
+	defaultMaxRetries              = 10
 	defaultMaxRetriesQuietInterval = 30
 	defaultCheckInterval           = 15
 )
