@@ -93,12 +93,14 @@ func (c *controllerImpl) HandleBuild(o model.Object) error {
 		lastActive := user.ActiveBuild
 		if lastActive.Status.Phase != o.Object.Status.Phase || lastActive.Metadata.Name != o.Object.Metadata.Name {
 			user.ActiveBuild = o.Object
+			log.Infof("Will send user %v to idler due to active build", user.Name)
 			sendUserToIdler = true
 		}
 	} else {
 		lastDone := user.DoneBuild
 		if lastDone.Status.Phase != o.Object.Status.Phase || lastDone.Metadata.Name != o.Object.Metadata.Name {
 			user.DoneBuild = o.Object
+			log.Infof("Will send user %v to idler due to done build", user.Name)
 			sendUserToIdler = true
 		}
 	}
@@ -108,10 +110,12 @@ func (c *controllerImpl) HandleBuild(o model.Object) error {
 	if user.ActiveBuild.Metadata.Name == user.DoneBuild.Metadata.Name {
 		logger.WithFields(log.Fields{"ns": ns}).Infof("Active and Done builds are the same (%s), cleaning active builds", user.ActiveBuild.Metadata.Name)
 		user.ActiveBuild = model.Build{Status: model.Status{Phase: "New"}}
+		log.Infof("Will send user %v to idler due to transition of active build to a done build", user.Name)
 		sendUserToIdler = true
 	}
 
 	if sendUserToIdler {
+		log.Infof("Sending user %v to idler from a Build event", user.Name)
 		c.sendUserToIdler(userIdler, user)
 	}
 
@@ -150,6 +154,7 @@ func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 	// This is either a new version of DC or we existing version waiting to come up.
 	if (dc.Object.Metadata.Generation != dc.Object.Status.ObservedGeneration && dc.Object.Spec.Replicas > 0) || dc.Object.Status.UnavailableReplicas > 0 {
 		user.JenkinsLastUpdate = time.Now().UTC()
+		log.Infof("Will send user %v to idler due to a new version of DC or an existing version is coming up", user.Name)
 		sendUserToIdler = true
 	}
 
@@ -161,10 +166,12 @@ func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 
 	if status == true {
 		user.JenkinsLastUpdate = condition.LastUpdateTime
+		log.Infof("Will send user %v to idler because Jenkins was just started", user.Name)
 		sendUserToIdler = true
 	}
 
 	if sendUserToIdler {
+		log.Infof("Sending user %v to idler from a Deployment Config event", user.Name)
 		c.sendUserToIdler(userIdler, user)
 	}
 
