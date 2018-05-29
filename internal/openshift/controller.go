@@ -86,19 +86,20 @@ func (c *controllerImpl) HandleBuild(o model.Object) error {
 		return nil
 	}
 
+	sendUserToIdler := false
 	userIdler := c.userIdlerForNamespace(ns)
 	user := userIdler.GetUser()
 	if c.isActive(&o.Object) {
 		lastActive := user.ActiveBuild
 		if lastActive.Status.Phase != o.Object.Status.Phase || lastActive.Metadata.Name != o.Object.Metadata.Name {
 			user.ActiveBuild = o.Object
-			c.sendUserToIdler(userIdler, user)
+			sendUserToIdler = true
 		}
 	} else {
 		lastDone := user.DoneBuild
 		if lastDone.Status.Phase != o.Object.Status.Phase || lastDone.Metadata.Name != o.Object.Metadata.Name {
 			user.DoneBuild = o.Object
-			c.sendUserToIdler(userIdler, user)
+			sendUserToIdler = true
 		}
 	}
 
@@ -107,6 +108,10 @@ func (c *controllerImpl) HandleBuild(o model.Object) error {
 	if user.ActiveBuild.Metadata.Name == user.DoneBuild.Metadata.Name {
 		logger.WithFields(log.Fields{"ns": ns}).Infof("Active and Done builds are the same (%s), cleaning active builds", user.ActiveBuild.Metadata.Name)
 		user.ActiveBuild = model.Build{Status: model.Status{Phase: "New"}}
+		sendUserToIdler = true
+	}
+
+	if sendUserToIdler {
 		c.sendUserToIdler(userIdler, user)
 	}
 
@@ -134,6 +139,7 @@ func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 
 	userIdler := c.userIdlerForNamespace(ns)
 	user := userIdler.GetUser()
+	sendUserToIdler := false
 
 	condition, err := dc.Object.Status.GetByType(availableCond)
 	if err != nil {
@@ -144,7 +150,7 @@ func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 	// This is either a new version of DC or we existing version waiting to come up.
 	if (dc.Object.Metadata.Generation != dc.Object.Status.ObservedGeneration && dc.Object.Spec.Replicas > 0) || dc.Object.Status.UnavailableReplicas > 0 {
 		user.JenkinsLastUpdate = time.Now().UTC()
-		c.sendUserToIdler(userIdler, user)
+		sendUserToIdler = true
 	}
 
 	// Also check if the event means that Jenkins just started (OS AvailableCondition.Status == true) and update time.
@@ -155,6 +161,10 @@ func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 
 	if status == true {
 		user.JenkinsLastUpdate = condition.LastUpdateTime
+		sendUserToIdler = true
+	}
+
+	if sendUserToIdler {
 		c.sendUserToIdler(userIdler, user)
 	}
 
