@@ -85,11 +85,11 @@ func (o openShift) Idle(apiURL string, bearerToken string, namespace string, ser
 
 	req, err := o.reqAPI(apiURL, bearerToken, "PATCH", namespace, fmt.Sprintf("endpoints/%s", service), br)
 	if err != nil {
-		return
+		return fmt.Errorf("could not patch endpoints/%s: %v", service, err)
 	}
 	b, err := o.patch(req)
 	if err != nil {
-		return
+		return fmt.Errorf("could not patch endpoints/%s: %v", service, err)
 	}
 
 	ne := &model.Endpoint{}
@@ -123,11 +123,11 @@ func (o openShift) Idle(apiURL string, bearerToken string, namespace string, ser
 
 	req, err = o.reqOAPI(apiURL, bearerToken, "PATCH", namespace, fmt.Sprintf("deploymentconfigs/%s", service), br)
 	if err != nil {
-		return
+		return fmt.Errorf("could not patch deploymentconfigs/%s: %v", service, err)
 	}
 	b, err = o.patch(req)
 	if err != nil {
-		return
+		return fmt.Errorf("could not patch deploymentconfigs/%s: %v", service, err)
 	}
 	ndc := &model.DeploymentConfig{}
 	err = json.Unmarshal(b, ndc)
@@ -163,11 +163,11 @@ func (o *openShift) UnIdle(apiURL string, bearerToken string, namespace string, 
 	br := ioutil.NopCloser(bytes.NewReader(body))
 	req, err := o.reqOAPI(apiURL, bearerToken, "PUT", namespace, fmt.Sprintf("deploymentconfigs/%s/scale", service), br)
 	if err != nil {
-		return
+		return fmt.Errorf("could not scale up deploymentconfigs/%s: %v", service, err)
 	}
 	resp, err := o.client.Do(req)
 	if err != nil {
-		return
+		return fmt.Errorf("could not scale up deploymentconfigs/%s: %v", service, err)
 	}
 
 	defer bodyClose(resp)
