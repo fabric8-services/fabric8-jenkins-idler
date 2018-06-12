@@ -147,7 +147,9 @@ func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 
 	condition, err := dc.Object.Status.GetByType(availableCond)
 	if err != nil {
-		return err
+		log.Infof("Available condition not present (%s) in the list of conditions - SKIPPING", err)
+		// stop processing since the pod isn't available yet
+		return nil
 	}
 
 	// TODO Verify if we need Generation vs. ObservedGeneration
