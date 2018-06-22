@@ -275,9 +275,10 @@ unsetEnv() {
 #   None
 ###############################################################################
 stop() {
-    pids=$(pgrep -a -f -d " " "setupLocalIdler.sh start")
-    pids+=$(pgrep -a -f -d " " "oc --config $(dirname $0)/config")
-    kill -9 ${pids}
+    pgrep -a -f "oc --config $(dirname "$0")/config" | cut -f1 -d ' '  |
+    xargs --no-run-if-empty --verbose  kill -9 || true
+    pgrep -a -f "$(basename "$0") start" | cut -f1 -d ' '  |
+    xargs --no-run-if-empty --verbose kill -9 || true
 }
 
 case "$1" in
