@@ -56,6 +56,9 @@ type IdlerAPI interface {
 
 	// ClusterDNSView writes a JSON representation of the current cluster state to the response writer.
 	ClusterDNSView(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
+
+	// Reset deletes a pod and starts a new one
+	Reset(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 }
 
 type idler struct {
@@ -214,6 +217,27 @@ func (api *idler) Info(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 	} else {
 		w.WriteHeader(http.StatusNotFound)
 	}
+}
+
+func (api *idler) Reset(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	openShiftAPI, openShiftBearerToken, err := api.getURLAndToken(r)
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err = api.openShiftClient.Reset(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), "jenkins")
+	if err != nil {
+		log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (api *idler) getURLAndToken(r *http.Request) (string, string, error) {
