@@ -229,7 +229,7 @@ func (api *idler) Reset(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	err = api.openShiftClient.Reset(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), "jenkins")
+	err = api.openShiftClient.Reset(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"))
 	if err != nil {
 		log.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)

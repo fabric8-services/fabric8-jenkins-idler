@@ -28,7 +28,7 @@ type OpenShiftClient interface {
 	WhoAmI(apiURL string, bearerToken string) (string, error)
 	WatchBuilds(apiURL string, bearerToken string, buildType string, callback func(model.Object) error) error
 	WatchDeploymentConfigs(apiURL string, bearerToken string, namespaceSuffix string, callback func(model.DCObject) error) error
-	Reset(apiURL string, bearerToken string, namespace string, service string) error
+	Reset(apiURL string, bearerToken string, namespace string) error
 }
 
 type user struct {
@@ -146,8 +146,8 @@ func (o openShift) Idle(apiURL string, bearerToken string, namespace string, ser
 }
 
 // Reset deletes a pod and start a new one
-func (o openShift) Reset(apiURL string, bearerToken string, namespace string, service string) (err error) {
-	logger.Info("reseting " + service + " in " + namespace)
+func (o openShift) Reset(apiURL string, bearerToken string, namespace string) (err error) {
+	logger.Info("reseting pods in " + namespace)
 
 	req, err := o.reqAPI(apiURL, bearerToken, "GET", namespace, "pods", nil)
 	if err != nil {

@@ -47,6 +47,12 @@ func (i *IdlerAPI) Status(w http.ResponseWriter, r *http.Request, ps httprouter.
 	w.WriteHeader(http.StatusOK)
 }
 
+// Reset mock resets pods
+func (i *IdlerAPI) Reset(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	w.Write([]byte("Reset"))
+	w.WriteHeader(http.StatusOK)
+}
+
 // ClusterDNSView writes a JSON representation of the current cluster state to the response writer.
 func (i *IdlerAPI) ClusterDNSView(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	w.Write([]byte("GetClusterDNSView"))
