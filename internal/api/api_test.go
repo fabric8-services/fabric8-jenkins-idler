@@ -27,6 +27,7 @@ func Test_success(t *testing.T) {
 	functions := []ReqFuncType{
 		mockidle.Idle, mockidle.UnIdle,
 		mockidle.IsIdle, mockidle.Status,
+		mockidle.Reset,
 	}
 
 	params := httprouter.Params{
@@ -52,7 +53,7 @@ func Test_fail(t *testing.T) {
 		openShiftClient: &mock.OpenShiftClient{},
 		clusterView:     &mock.ClusterView{},
 	}
-	functions := []ReqFuncType{mockidle.Idle, mockidle.UnIdle, mockidle.IsIdle}
+	functions := []ReqFuncType{mockidle.Idle, mockidle.UnIdle, mockidle.IsIdle, mockidle.Reset}
 	for _, function := range functions {
 		reader, _ := http.NewRequest("GET", "/", nil)
 		writer := &mock.ResponseWriter{}
