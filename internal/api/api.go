@@ -220,20 +220,20 @@ func (api *idler) Info(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 }
 
 func (api *idler) Reset(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+
+	logger := log.WithFields(log.Fields{"component": "api", "function": "Reset"})
+
 	openShiftAPI, openShiftBearerToken, err := api.getURLAndToken(r)
 	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
+		logger.Error(err)
+		writeResponse(w, http.StatusBadRequest, fmt.Sprintf("{\"error\": \"%q\"}", err))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	err = api.openShiftClient.Reset(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"))
 	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
+		logger.Error(err)
+		writeResponse(w, http.StatusInternalServerError, fmt.Sprintf("{\"error\": \"%q\"}", err))
 		return
 	}
 
@@ -268,7 +268,7 @@ func (api idler) isJenkinsUnIdled(openshiftURL, openshiftToken, namespace string
 func respondWithError(w http.ResponseWriter, status int, err error) {
 	log.Error(err)
 	w.WriteHeader(status)
-	w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
+	w.Write([]byte(fmt.Sprintf("{\"error\": \"%q\"}", err)))
 }
 
 type responseError struct {
