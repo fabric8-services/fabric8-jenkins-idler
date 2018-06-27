@@ -146,7 +146,7 @@ func (o openShift) Idle(apiURL string, bearerToken string, namespace string, ser
 }
 
 // Reset deletes a pod and start a new one
-func (o openShift) Reset(apiURL string, bearerToken string, namespace string) error {
+func (o *openShift) Reset(apiURL string, bearerToken string, namespace string) error {
 	logger.Infof("resetting pods in " + namespace)
 
 	req, err := o.reqAPI(apiURL, bearerToken, "GET", namespace, "pods", nil)
@@ -178,19 +178,12 @@ func (o openShift) Reset(apiURL string, bearerToken string, namespace string) er
 		if err != nil {
 			return err
 		}
-		_, err = o.do(req)
+
+		resp, err = o.do(req)
 		if err != nil {
 			return err
 		}
-		/*
-			defer bodyClose(resp)
-
-			status := &v1.PodStatus{}
-			err = json.NewDecoder(resp.Body).Decode(status)
-			if err != nil {
-				return err
-			}
-		*/
+		defer bodyClose(resp)
 	}
 	return nil
 }

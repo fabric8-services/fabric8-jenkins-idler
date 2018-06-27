@@ -44,7 +44,7 @@ func (c *OpenShiftClient) State(apiURL string, bearerToken string, namespace str
 }
 
 // Reset deletes a pod and start a new one
-func (c *OpenShiftClient) Reset(apiURL string, bearerToken string, namespace string) (err error) {
+func (c *OpenShiftClient) Reset(apiURL string, bearerToken string, namespace string) error {
 	if c.IdleError != "" {
 		return fmt.Errorf(c.IdleError)
 	}
