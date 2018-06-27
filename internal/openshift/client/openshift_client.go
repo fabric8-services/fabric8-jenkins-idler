@@ -14,7 +14,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 )
 
 var logger = log.WithFields(log.Fields{"component": "openshift-client"})
@@ -146,8 +146,8 @@ func (o openShift) Idle(apiURL string, bearerToken string, namespace string, ser
 }
 
 // Reset deletes a pod and start a new one
-func (o openShift) Reset(apiURL string, bearerToken string, namespace string) (err error) {
-	logger.Info("reseting pods in " + namespace)
+func (o openShift) Reset(apiURL string, bearerToken string, namespace string) error {
+	logger.Infof("resetting pods in " + namespace)
 
 	req, err := o.reqAPI(apiURL, bearerToken, "GET", namespace, "pods", nil)
 	if err != nil {
@@ -173,7 +173,7 @@ func (o openShift) Reset(apiURL string, bearerToken string, namespace string) (e
 			continue
 		}
 
-		log.Infof("Reseting the pod " + podName)
+		log.Infof("Reseting the pod %q", podName)
 		req, err := o.reqAPI(apiURL, bearerToken, "DELETE", namespace, "pods/"+podName, nil)
 		if err != nil {
 			return err
@@ -192,7 +192,7 @@ func (o openShift) Reset(apiURL string, bearerToken string, namespace string) (e
 			}
 		*/
 	}
-	return
+	return nil
 }
 
 // UnIdle scales up the jenkins pod in the given openShift namespace.
