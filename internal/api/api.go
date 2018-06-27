@@ -226,14 +226,16 @@ func (api *idler) Reset(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 	openShiftAPI, openShiftBearerToken, err := api.getURLAndToken(r)
 	if err != nil {
 		logger.Error(err)
-		writeResponse(w, http.StatusBadRequest, fmt.Sprintf("{\"error\": \"%q\"}", err))
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
 		return
 	}
 
 	err = api.openShiftClient.Reset(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"))
 	if err != nil {
 		logger.Error(err)
-		writeResponse(w, http.StatusInternalServerError, fmt.Sprintf("{\"error\": \"%q\"}", err))
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
 		return
 	}
 
@@ -268,7 +270,7 @@ func (api idler) isJenkinsUnIdled(openshiftURL, openshiftToken, namespace string
 func respondWithError(w http.ResponseWriter, status int, err error) {
 	log.Error(err)
 	w.WriteHeader(status)
-	w.Write([]byte(fmt.Sprintf("{\"error\": \"%q\"}", err)))
+	w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
 }
 
 type responseError struct {
