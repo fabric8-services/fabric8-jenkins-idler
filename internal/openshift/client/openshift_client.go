@@ -173,7 +173,7 @@ func (o *openShift) Reset(apiURL string, bearerToken string, namespace string) e
 			continue
 		}
 
-		log.Infof("Reseting the pod %q", podName)
+		log.Infof("Resetting the pod %q", podName)
 		req, err := o.reqAPI(apiURL, bearerToken, "DELETE", namespace, "pods/"+podName, nil)
 		if err != nil {
 			return err
