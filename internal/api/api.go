@@ -88,9 +88,7 @@ func NewIdlerAPI(userIdlers *openshift.UserIdlerMap, clusterView cluster.View, t
 func (api *idler) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	openShiftAPI, openShiftBearerToken, err := api.getURLAndToken(r)
 	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
+		respondWithError(w, http.StatusBadRequest, err)
 		return
 	}
 
@@ -100,10 +98,8 @@ func (api *idler) Idle(w http.ResponseWriter, r *http.Request, ps httprouter.Par
 		elapsedTime := time.Since(startTime).Seconds()
 
 		if err != nil {
-			log.Error(err)
 			Recorder.RecordReqDuration(service, "Idle", http.StatusInternalServerError, elapsedTime)
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
+			respondWithError(w, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -172,51 +168,59 @@ func (api *idler) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 func (api *idler) IsIdle(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	openShiftAPI, openShiftBearerToken, err := api.getURLAndToken(r)
 	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
+		respondWithError(w, http.StatusBadRequest, err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	state, err := api.openShiftClient.State(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"), "jenkins")
 	if err != nil {
-		log.Error(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
+		respondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	s := status{}
 	s.IsIdle = state < model.PodRunning
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(s)
+	writeResponse(w, http.StatusOK, s)
 }
 
-func (api *idler) ClusterDNSView(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	w.Header().Set("Content-Type", "application/json")
+func (api *idler) Status(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	response := &statusResponse{}
 
-	clusterDNSView := api.clusterView.GetDNSView()
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(clusterDNSView)
+	openshiftURL, openshiftToken, err := api.getURLAndToken(r)
+	if err != nil {
+		response.AppendError(tokenFetchFailed, "failed to obtain openshift token: "+err.Error())
+		writeResponse(w, http.StatusBadRequest, *response)
+		return
+	}
+
+	state, err := api.openShiftClient.State(
+		openshiftURL, openshiftToken,
+		ps.ByName("namespace"),
+		"jenkins",
+	)
+	if err != nil {
+		response.AppendError(openShiftClientError, "openshift client error: "+err.Error())
+		writeResponse(w, http.StatusInternalServerError, *response)
+		return
+	}
+
+	response.SetState(state)
+	writeResponse(w, http.StatusOK, *response)
 }
 
 func (api *idler) Info(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	w.Header().Set("Content-Type", "application/json")
 	namespace := ps.ByName("namespace")
 
 	userIdler, ok := api.userIdlers.Load(namespace)
 	if ok {
-		err := json.NewEncoder(w).Encode(userIdler.GetUser())
-
-		if err != nil {
-			log.Errorf("Could not serialize users: %s", err)
-			w.Write([]byte(fmt.Sprintf("{\"error\": \"Could not serialize users: %s\"}", err)))
-			w.WriteHeader(http.StatusInternalServerError)
-		}
+		writeResponse(w, http.StatusOK, userIdler.GetUser())
 	} else {
-		w.WriteHeader(http.StatusNotFound)
+		respondWithError(w, http.StatusNotFound, fmt.Errorf("Could not find queried namespace"))
 	}
+}
+
+func (api *idler) ClusterDNSView(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	writeResponse(w, http.StatusOK, api.clusterView.GetDNSView())
 }
 
 func (api *idler) Reset(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
@@ -271,6 +275,7 @@ func respondWithError(w http.ResponseWriter, status int, err error) {
 	log.Error(err)
 	w.WriteHeader(status)
 	w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
+	w.Header().Set("Content-Type", "application/json")
 }
 
 type responseError struct {
@@ -308,35 +313,15 @@ func (s *statusResponse) SetState(state model.PodState) *statusResponse {
 	return s
 }
 
-func (api *idler) Status(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	response := statusResponse{}
-
-	openshiftURL, openshiftToken, err := api.getURLAndToken(r)
-	if err != nil {
-		response.AppendError(tokenFetchFailed, "failed to obtain openshift token: "+err.Error())
-		writeResponse(w, http.StatusBadRequest, response)
-		return
-	}
-
-	state, err := api.openShiftClient.State(
-		openshiftURL, openshiftToken,
-		ps.ByName("namespace"),
-		"jenkins",
-	)
-	if err != nil {
-		response.AppendError(openShiftClientError, "openshift client error: "+err.Error())
-		writeResponse(w, http.StatusInternalServerError, response)
-		return
-	}
-
-	response.SetState(state)
-	writeResponse(w, http.StatusOK, response)
-}
-
 type any interface{}
 
 func writeResponse(w http.ResponseWriter, status int, response any) {
-	w.Header().Set("Content-Type", "application/json")
+	err := json.NewEncoder(w).Encode(response)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, fmt.Errorf("Could not serialize the response: %s", err))
+		return
+	}
+
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(response)
+	w.Header().Set("Content-Type", "application/json")
 }
