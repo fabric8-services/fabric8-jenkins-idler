@@ -1,13 +1,13 @@
-REGISTRY_URI = push.registry.devshift.net
+REGISTRY_URI = quay.io
 REGISTRY_NS = fabric8-services
 REGISTRY_IMAGE = fabric8-jenkins-idler
 
 ifeq ($(TARGET),rhel)
 	DOCKERFILE_DEPLOY := Dockerfile.deploy.rhel
-	REGISTRY_URL = ${REGISTRY_URI}/osio-prod/${REGISTRY_NS}/${REGISTRY_IMAGE}
+	REGISTRY_URL = ${REGISTRY_URI}/rhel-${REGISTRY_NS}-${REGISTRY_IMAGE}
 else
 	DOCKERFILE_DEPLOY := Dockerfile.deploy
-	REGISTRY_URL = ${REGISTRY_URI}/${REGISTRY_NS}/${REGISTRY_IMAGE}
+	REGISTRY_URL = ${REGISTRY_URI}/${REGISTRY_NS}-${REGISTRY_IMAGE}
 endif
 
 IMAGE_TAG ?= $(shell git rev-parse --short HEAD)
