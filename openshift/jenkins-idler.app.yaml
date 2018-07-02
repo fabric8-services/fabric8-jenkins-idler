@@ -125,7 +125,7 @@ objects:
     type: ClusterIP
 parameters:
 - name: IMAGE
-  value: registry.devshift.net/fabric8-services/fabric8-jenkins-idler
+  value: quay.io/openshiftio/rhel-fabric8-services-fabric8-jenkins-idler
   required: true
 - name: IMAGE_TAG
   value: latest
