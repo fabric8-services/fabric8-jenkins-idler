@@ -43,6 +43,14 @@ func (c *OpenShiftClient) State(apiURL string, bearerToken string, namespace str
 	return c.IdleState, nil
 }
 
+// Reset deletes a pod and start a new one
+func (c *OpenShiftClient) Reset(apiURL string, bearerToken string, namespace string) error {
+	if c.IdleError != "" {
+		return fmt.Errorf(c.IdleError)
+	}
+	return nil
+}
+
 // WhoAmI returns the name of the logged in user, aka the owner of the bearer token.
 func (c *OpenShiftClient) WhoAmI(apiURL string, bearerToken string) (string, error) {
 	if c.IdleError != "" {

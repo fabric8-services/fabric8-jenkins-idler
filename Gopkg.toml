@@ -18,6 +18,11 @@
   name = "github.com/stretchr/testify"
   version = "=v1.1.4"
 
+[[constraint]]
+  name = "k8s.io/api"
+  source = "github.com/openshift/kubernetes-api"
+  version = "kubernetes-1.10.2"
+
 [[override]]
   name = "github.com/satori/go.uuid"
   revision = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e"

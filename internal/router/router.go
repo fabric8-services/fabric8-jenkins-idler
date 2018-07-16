@@ -104,5 +104,8 @@ func CreateAPIRouter(api api.IdlerAPI) *httprouter.Router {
 	router.GET("/api/idler/cluster", api.ClusterDNSView)
 	router.GET("/api/idler/cluster/", api.ClusterDNSView)
 
+	router.POST("/api/idler/reset/:namespace", api.Reset)
+	router.POST("/api/idler/reset/:namespace/", api.Reset)
+
 	return router
 }
