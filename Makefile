@@ -22,7 +22,6 @@ LD_FLAGS := -X github.com/fabric8-services/fabric8-jenkins-idler/internal/versio
 AUTH_GEN_DIR=internal/auth/client
 
 # Misc
-START_COMMIT_MESSAGE_VALIDATION = f3cb0bf1fccf06c43298f4667757e774a89b1062
 .DEFAULT_GOAL := help
 
 # Check that given variables are set and all have non-empty values,
@@ -111,7 +110,16 @@ lint: ## Runs golint
 
 .PHONY: validate_commits
 validate_commits: tools ## Validates git commit messages
-	git-validation -q -run short-subject,message_regexp='^(Fix\s)?(Issue\s)?#[0-9]+\s+[A-Z0-9]+.*' -range $(START_COMMIT_MESSAGE_VALIDATION)...
+ifeq ($(origin TRAVIS_COMMIT_RANGE), undefined)
+	git-validation  \
+			-run short-subject,message_regexp='^(Revert\s*)?(Fix\s*)?(Issue\s*)?#[0-9]+ [A-Z]+.*' \
+			-range `git rev-parse master@{u}`...HEAD
+else
+	git-validation  \
+			-run short-subject,message_regexp='^(Revert\s*)?(Fix\s*)?(Issue\s*)?#[0-9]+ [A-Z]+.*' \
+			-range $$TRAVIS_COMMIT_RANGE
+
+endif
 
 .PHONY: clean
 clean: ## Deletes all build artifacts
