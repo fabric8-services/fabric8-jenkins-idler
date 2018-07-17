@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
+	"k8s.io/api/core/v1"
 )
 
 // OpenShiftClient is a client for OpenShift API
@@ -43,7 +44,7 @@ func (c *OpenShiftClient) State(apiURL string, bearerToken string, namespace str
 	return c.IdleState, nil
 }
 
-// Reset deletes a pod and start a new one
+// ResetNSPods deletes a pod and start a new one
 func (c *OpenShiftClient) Reset(apiURL string, bearerToken string, namespace string) error {
 	if c.IdleError != "" {
 		return fmt.Errorf(c.IdleError)
@@ -75,6 +76,18 @@ func (c *OpenShiftClient) WatchDeploymentConfigs(apiURL string, bearerToken stri
 		return fmt.Errorf(c.IdleError)
 	}
 	return nil
+}
+
+func (o *OpenShiftClient) ResetPod(apiURL string, bearerToken string, namespace string, podName string) error {
+	return nil
+}
+
+func (c *OpenShiftClient) ResetNSPods(apiURL string, bearerToken string, namespace string) error {
+	return nil
+}
+
+func (c *OpenShiftClient) PodState(apiURL string, bearerToken string, namespace string, selector string) (map[string] v1.PodStatus, error) {
+	return nil, nil
 }
 
 // ResetCounts resets calls made to the idler(idle/unidle) to 0.
