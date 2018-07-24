@@ -2,8 +2,10 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/mock"
@@ -147,4 +149,18 @@ func Test_Status_BadRequest_fail(t *testing.T) {
 	require.Equal(t, sr.Errors[0].Code, tokenFetchFailed, "Error must have a code")
 	require.Contains(t, sr.Errors[0].Description,
 		"failed to obtain openshift token", "Error must have a description")
+}
+
+func Test_writeFunctions(t *testing.T) {
+	w := httptest.NewRecorder()
+	testStatus := http.StatusBadRequest
+	writeResponse(w, testStatus, nil)
+	require.Equal(t, testStatus, w.Code, "in writeResponse, response was written before setting the HTTP status code")
+
+	w = httptest.NewRecorder()
+	testStatus = http.StatusInternalServerError
+	err := errors.New("Mock error")
+	respondWithError(w, testStatus, err)
+	require.Equal(t, testStatus, w.Code, "in respondWithError, response was written before setting the HTTP status code")
+
 }

@@ -273,9 +273,9 @@ func (api idler) isJenkinsUnIdled(openshiftURL, openshiftToken, namespace string
 
 func respondWithError(w http.ResponseWriter, status int, err error) {
 	log.Error(err)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	w.Write([]byte(fmt.Sprintf("{\"error\": \"%s\"}", err)))
-	w.Header().Set("Content-Type", "application/json")
 }
 
 type responseError struct {
@@ -316,12 +316,11 @@ func (s *statusResponse) SetState(state model.PodState) *statusResponse {
 type any interface{}
 
 func writeResponse(w http.ResponseWriter, status int, response any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
 	err := json.NewEncoder(w).Encode(response)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, fmt.Errorf("Could not serialize the response: %s", err))
 		return
 	}
-
-	w.WriteHeader(status)
-	w.Header().Set("Content-Type", "application/json")
 }
