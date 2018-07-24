@@ -8,12 +8,14 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/api"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift"
 	"github.com/julienschmidt/httprouter"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 )
 
 var routerLogger = log.WithFields(log.Fields{"component": "router"})
+var userIdlersData *openshift.UserIdlerMap
 
 const (
 	defaultHTTPServerPort = 8080
@@ -44,6 +46,20 @@ func NewRouterWithPort(router *httprouter.Router, port int) *Router {
 // AddMetrics add metrics handler to serve promotheus metrics
 func (r *Router) AddMetrics(router *httprouter.Router) {
 	router.Handler("GET", "/metrics", prometheus.Handler())
+}
+
+func deleteUserInfoInNamespace(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+
+	ns := ps.ByName("namespace")
+	userIdlersData.Delete(ns)
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// AddCleanData adds a route endpoint to remove all data from a given namespace
+func (r *Router) AddCleanData(router *httprouter.Router, userIdlers *openshift.UserIdlerMap) {
+	userIdlersData = userIdlers
+	router.DELETE("/users/:namespace", deleteUserInfoInNamespace)
 }
 
 // Start starts the HTTP router.

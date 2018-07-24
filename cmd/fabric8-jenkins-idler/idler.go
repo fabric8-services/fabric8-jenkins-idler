@@ -77,6 +77,7 @@ func (idler *Idler) startWorkers(ctx context.Context, wg *sync.WaitGroup, cancel
 		apirouter := router.CreateAPIRouter(idlerAPI)
 		router := router.NewRouter(apirouter)
 		router.AddMetrics(apirouter)
+		router.AddCleanData(apirouter, userIdlers)
 		router.Start(ctx, wg, cancel)
 	}()
 
