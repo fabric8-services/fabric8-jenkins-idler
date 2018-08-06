@@ -21,7 +21,7 @@ var logger = log.WithFields(log.Fields{"component": "user-idler"})
 // JenkinsServices is an array of all the services getting idled or unidled
 // they go along the main build detection logic of jenkins and don't have
 // any specific scenarios.
-var JenkinsServices = []string{"jenkins", "content-repository"}
+var JenkinsServices = []string{"jenkins"}
 
 const (
 	bufferSize             = 10
