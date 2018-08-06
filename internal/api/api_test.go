@@ -46,7 +46,7 @@ func Test_success(t *testing.T) {
 		function(writer, reader, params)
 
 		require.Equal(t, http.StatusOK, writer.WriterStatus, fmt.Sprintf("Bad Error Code: %d", writer.WriterStatus))
-		require.Equal(t, mosc.IdleCallCount, 2, fmt.Sprintf("Idle was not called for 2 times but %d", mosc.IdleCallCount))
+		require.Equal(t, mosc.IdleCallCount, 1, fmt.Sprintf("Idle was not called for 1 times but %d", mosc.IdleCallCount))
 	}
 }
 

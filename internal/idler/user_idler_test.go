@@ -126,7 +126,7 @@ func Test_number_of_idle_calls_are_capped(t *testing.T) {
 	openShiftClient.IdleState = model.PodRunning
 
 	config := &mock.Config{}
-	maxRetry := 10
+	maxRetry := 5
 	config.MaxRetries = maxRetry
 	features := mock.NewMockFeatureToggle([]string{"42"})
 	tenantService := &mock.TenantService{}
@@ -173,7 +173,7 @@ func Test_number_of_unidle_calls_are_capped(t *testing.T) {
 	openShiftClient.IdleState = model.PodIdled
 
 	config := &mock.Config{}
-	maxRetry := 10
+	maxRetry := 5
 	config.MaxRetries = maxRetry
 
 	features := mock.NewMockFeatureToggle([]string{"42"})
