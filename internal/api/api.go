@@ -188,7 +188,7 @@ func (api *idler) Status(w http.ResponseWriter, r *http.Request, ps httprouter.P
 
 	openshiftURL, openshiftToken, err := api.getURLAndToken(r)
 	if err != nil {
-		response.AppendError(tokenFetchFailed, "failed to obtain openshift token for "+r.URL.String()+" : "+err.Error())
+		response.AppendError(tokenFetchFailed, "failed to obtain openshift token: "+err.Error())
 		writeResponse(w, http.StatusBadRequest, *response)
 		return
 	}
@@ -258,7 +258,7 @@ func (api *idler) getURLAndToken(r *http.Request) (string, string, error) {
 	if ok {
 		return openShiftAPIURL, bearerToken, nil
 	}
-	return "", "", fmt.Errorf("Unknown or invalid OpenShift API URL")
+	return "", "", fmt.Errorf("Unknown or invalid OpenShift API URL: %s", openShiftAPIURL)
 }
 
 func (api idler) isJenkinsUnIdled(openshiftURL, openshiftToken, namespace string) (bool, error) {
