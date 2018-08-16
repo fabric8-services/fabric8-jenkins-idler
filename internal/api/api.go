@@ -188,7 +188,7 @@ func (api *idler) Status(w http.ResponseWriter, r *http.Request, ps httprouter.P
 
 	openshiftURL, openshiftToken, err := api.getURLAndToken(r)
 	if err != nil {
-		response.AppendError(tokenFetchFailed, "failed to obtain openshift token: "+err.Error())
+		response.AppendError(tokenFetchFailed, "failed to obtain openshift token for "+r.URL.String()+" : "+err.Error())
 		writeResponse(w, http.StatusBadRequest, *response)
 		return
 	}
