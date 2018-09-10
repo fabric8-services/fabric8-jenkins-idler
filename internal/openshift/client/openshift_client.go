@@ -300,7 +300,7 @@ func (o openShift) WatchBuilds(apiURL string, bearerToken string, buildType stri
 			if err != nil {
 				// openShift sometimes ends the stream, break to create new request.
 				if err.Error() == "EOF" || err.Error() == "unexpected EOF" {
-					logger.Info("Got error ", err, " but continuing..")
+					logger.Debug("Got error ", err, " but continuing..")
 					break
 				}
 			}
