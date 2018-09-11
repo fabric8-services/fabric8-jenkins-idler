@@ -2,7 +2,13 @@ package cluster
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
+	"regexp"
+
+	"strings"
+
+	"net/http"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/auth"
 	authClient "github.com/fabric8-services/fabric8-jenkins-idler/internal/auth/client"
@@ -11,7 +17,14 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/token"
 	goaclient "github.com/goadesign/goa/client"
 	"github.com/pkg/errors"
-	"strings"
+)
+
+const (
+	// ClusterSubstrAllowedRegexp :TEMPFIX: :chmouel:
+	// filter cluster url on name with a regexp until we have a proper way to do
+	// this see
+	// https://chat.openshift.io/developers/pl/j6ccecpebfr1zj4xxfu4cppm9y
+	ClusterSubstrAllowedRegexp = "(start|free)"
 )
 
 // Service the interface for the cluster service
@@ -52,6 +65,9 @@ func (s *clusterService) GetClusterView(ctx context.Context) (View, error) {
 					Type:  "Bearer"}}})
 
 	res, err := client.ShowClusters(ctx, authClient.ShowClustersPath())
+	if res.StatusCode != http.StatusOK {
+		err = fmt.Errorf("got status %s (%d) from %s", res.Status, res.StatusCode, s.authURL)
+	}
 	if err != nil {
 		return nil, errors.Wrapf(err, "error while doing the request")
 	}
@@ -72,6 +88,9 @@ func (s *clusterService) GetClusterView(ctx context.Context) (View, error) {
 
 	var clusterList []Cluster
 	for _, cluster := range clusters.Data {
+		if matched, _ := regexp.MatchString(ClusterSubstrAllowedRegexp, cluster.APIURL); !matched {
+			continue
+		}
 		// resolve/obtain the cluster token
 		clusterUser, clusterToken, err := s.resolveToken(ctx, cluster.APIURL, s.serviceToken, false, s.decode) // can't use "forcePull=true" to validate the `tenant service account` token since it's encrypted on auth
 		if err != nil {
