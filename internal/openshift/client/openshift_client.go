@@ -210,7 +210,7 @@ func (o *openShift) UnIdle(apiURL string, bearerToken string, namespace string, 
 	if err != nil {
 		return
 	}
-	resp, err := o.client.Do(req)
+	resp, err := o.do(req)
 	if err != nil {
 		return
 	}
@@ -289,6 +289,10 @@ func (o openShift) WatchBuilds(apiURL string, bearerToken string, buildType stri
 		}
 
 		resp, err := c.Do(req)
+		if resp.StatusCode != http.StatusOK {
+			logger.Errorf("got status %s (%d) from %s", resp.Status, resp.StatusCode, req.URL)
+			continue
+		}
 		if err != nil {
 			logger.Errorf("Request failed: %s", err)
 			continue
@@ -300,7 +304,7 @@ func (o openShift) WatchBuilds(apiURL string, bearerToken string, buildType stri
 			if err != nil {
 				// openShift sometimes ends the stream, break to create new request.
 				if err.Error() == "EOF" || err.Error() == "unexpected EOF" {
-					logger.Debug("Got error ", err, " but continuing..")
+					logger.Info("Got error ", err, " but continuing..")
 					break
 				}
 			}
@@ -352,6 +356,10 @@ func (o openShift) WatchDeploymentConfigs(apiURL string, bearerToken string, nam
 		v.Add("labelSelector", "app=jenkins")
 		req.URL.RawQuery = v.Encode()
 		resp, err := c.Do(req)
+		if resp.StatusCode != http.StatusOK {
+			logger.Errorf("got status %s (%d) from %s", resp.Status, resp.StatusCode, req.URL)
+			continue
+		}
 		if err != nil {
 			logger.Errorf("Request failed: %s", err)
 			continue
@@ -362,10 +370,9 @@ func (o openShift) WatchDeploymentConfigs(apiURL string, bearerToken string, nam
 			line, err := reader.ReadBytes('\n')
 			if err != nil {
 				if err.Error() == "EOF" || err.Error() == "unexpected EOF" {
-					logger.Info("Got error ", err, " but continuing..")
+					logger.Debug("Got error ", err, " but continuing..")
 					break
 				}
-				fmt.Printf("It's broken %+v", err)
 			}
 
 			o := model.DCObject{}
@@ -493,7 +500,7 @@ func (o *openShift) do(req *http.Request) (resp *http.Response, err error) {
 	if err != nil {
 		return
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		err = fmt.Errorf("got status %s (%d) from %s", resp.Status, resp.StatusCode, req.URL)
 	}
 
