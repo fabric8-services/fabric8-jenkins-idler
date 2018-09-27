@@ -1,6 +1,8 @@
 package util
 
 import (
+	"math/rand"
+	"strconv"
 	"strings"
 )
 
@@ -22,4 +24,9 @@ func Contains(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// RandomString returns random string of length len
+func RandomString(len int) string {
+	return strconv.Itoa(rand.Intn(1000))
 }

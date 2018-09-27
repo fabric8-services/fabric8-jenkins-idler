@@ -13,6 +13,7 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 const (
@@ -103,9 +104,7 @@ func (c *controllerImpl) HandleBuild(o model.Object) error {
 	})
 
 	evalConditions := false
-
-	if c.isActive(&o.Object) {
-
+	if isActive(o) {
 		lastActive := user.ActiveBuild
 		if lastActive.Status.Phase != o.Object.Status.Phase ||
 			lastActive.Metadata.Name != o.Object.Metadata.Name {
@@ -131,7 +130,7 @@ func (c *controllerImpl) HandleBuild(o model.Object) error {
 	// So we need to clean up the Active build ref.
 	if user.ActiveBuild.Metadata.Name == user.DoneBuild.Metadata.Name {
 		log.Infof("Active and Done builds are the same (%s), cleaning active builds", user.ActiveBuild.Metadata.Name)
-		user.ActiveBuild = model.Build{Status: model.Status{Phase: "New"}}
+		user.ActiveBuild = model.Build{}
 		evalConditions = true
 		log.Infof("Will send user %q to Idler due to transition of active build to a done build", user.Name)
 	}
@@ -199,8 +198,8 @@ func (c *controllerImpl) userIdlerForNamespace(namespace string) *idler.UserIdle
 }
 
 // isActive returns true if build phase suggests a build is active, false otherwise.
-func (c *controllerImpl) isActive(b *model.Build) bool {
-	return model.Phases[b.Status.Phase] == 1
+func isActive(b model.Object) bool {
+	return model.Phases[b.Object.Status.Phase] == 1 && watch.EventType(b.Type) != watch.Deleted
 }
 
 func sendUserToIdler(idler *idler.UserIdler, user model.User) {

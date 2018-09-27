@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/common"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
 
 	"context"
 	"io"
@@ -46,12 +47,82 @@ func Test_handle_build(t *testing.T) {
 			Metadata: model.Metadata{
 				Namespace: "test-namespace",
 			},
+			Status: model.Status{
+				Phase: "Running",
+			},
 		},
 		Type: "MODIFIED",
 	}
 
+	// List of build phases here
+	// https://github.com/openshift/origin/blob/1017d1d8ca3611267e3993742a2c4fb06f65e449/pkg/build/apis/build/types.go#L403
+	// List of event types over here
+	// https://github.com/kubernetes/kubernetes/blob/f9acfd8e384488d2216b18196152dcb7b3cc92d8/pkg/watch/json/types.go#L33
+
+	// Active builds
+	testWithPhaseChange(t, obj, "New", "ADDED")
+	testWithPhaseChange(t, obj, "Pending", "MODIFIED")
+	testWithPhaseChange(t, obj, "Running", "MODIFIED")
+
+	// Done builds
+	testWithPhaseChange(t, obj, "Complete", "MODIFIED")
+	testWithPhaseChange(t, obj, "Failed", "MODIFIED")
+	testWithPhaseChange(t, obj, "Cancelled", "MODIFIED")
+	testWithPhaseChange(t, obj, "Error", "ERROR")
+	testWithPhaseChange(t, obj, "Error", "DELETED")
+
+	// Above all are independent events which don't occur in reality
+	// In real situations builds will transition from one state to the other
+	testWithStateChange(t, obj)
+}
+
+func testWithStateChange(t *testing.T, obj model.Object) {
+	obj.Type = "MODIFIED"
+	obj.Object.Status.Phase = "Running"
+	obj.Object.Metadata.Name = "#1"
+
+	ci := controller.(*controllerImpl)
 	err := controller.HandleBuild(obj)
 	assert.NoError(t, err)
+
+	userIdler := ci.userIdlerForNamespace("test-namespace").GetChannel()
+	userBefore := <-userIdler
+	assert.True(t, userBefore.HasActiveBuilds())
+	assert.Equal(t, obj.Object.Status.Phase, userBefore.ActiveBuild.Status.Phase)
+
+	obj.Object.Status.Phase = "Complete"
+
+	err = controller.HandleBuild(obj)
+	assert.NoError(t, err)
+
+	userAfter := <-userIdler
+	assert.False(t, userAfter.HasActiveBuilds())
+	assert.Equal(t, obj.Object.Status.Phase, userAfter.DoneBuild.Status.Phase)
+
+	// The build that was previously active has now been moved to done
+	assert.Equal(t, userBefore.ActiveBuild.Metadata.Name, userAfter.DoneBuild.Metadata.Name)
+}
+
+func testWithPhaseChange(t *testing.T, obj model.Object, phase string, eventType string) {
+	obj.Type = eventType
+	obj.Object.Status.Phase = phase
+	obj.Object.Metadata.Name = util.RandomString(8)
+
+	ci := controller.(*controllerImpl)
+	err := controller.HandleBuild(obj)
+	assert.NoError(t, err)
+
+	userIdler := ci.userIdlerForNamespace("test-namespace")
+	userAfter := <-userIdler.GetChannel()
+
+	if isActive(obj) {
+		assert.True(t, userAfter.HasActiveBuilds())
+		assert.Equal(t, obj.Object.Status.Phase, userAfter.ActiveBuild.Status.Phase)
+	} else {
+		assert.False(t, userAfter.HasActiveBuilds())
+		assert.Equal(t, obj.Object.Status.Phase, userAfter.DoneBuild.Status.Phase)
+	}
+
 }
 
 func TestHandleBuildChannelLength(t *testing.T) {
