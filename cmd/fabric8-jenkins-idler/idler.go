@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
@@ -29,13 +30,20 @@ var idlerLogger = log.WithFields(log.Fields{"component": "idler"})
 
 // Idler is responsible to create and control the various concurrent processes needed to implement the Jenkins idling
 // feature. An Idler instance creates two goroutines for watching all builds respectively deployment config changes of
-// the whole cluster. To do this it needs an access openShift access token which allows the Idler to do so (see Data.GetOpenShiftToken).
+// the whole cluster. To do this it needs an access openshift access token which allows the Idler to do so (see Data.GetOpenShiftToken).
 // A third go routine is used to serve a HTTP REST API.
 type Idler struct {
 	featureService toggles.Features
 	tenantService  tenant.Service
 	clusterView    cluster.View
 	config         configuration.Configuration
+}
+
+// struct used to pass in cancelable task
+type task struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     *sync.WaitGroup
 }
 
 // NewIdler creates a new instance of Idler. The configuration as well as feature toggle handler needs to be passed.
@@ -50,25 +58,26 @@ func NewIdler(features toggles.Features, tenantService tenant.Service, clusterVi
 
 // Run starts the various goroutines of the Idler. To cleanly shutdown the SIGTERM signal should be send to the process.
 func (idler *Idler) Run() {
-	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	idler.startWorkers(ctx, &wg, cancel, idler.config.GetDebugMode())
+	var wg sync.WaitGroup
+	t := &task{ctx, cancel, &wg}
+	setupSignalChannel(t)
 
-	setupSignalChannel(cancel)
+	idler.startWorkers(t, idler.config.GetDebugMode())
 	wg.Wait()
 	idlerLogger.Info("Idler successfully shut down.")
 }
 
-func (idler *Idler) startWorkers(ctx context.Context, wg *sync.WaitGroup, cancel context.CancelFunc, addProfiler bool) {
+func (idler *Idler) startWorkers(t *task, addProfiler bool) {
 	idlerLogger.Info("Starting all Idler workers")
 
 	// Create synchronized map for UserIdler instances
 	userIdlers := openshift.NewUserIdlerMap()
 
 	// Start the controllers to monitor the OpenShift clusters
-	idler.startOpenShiftControllers(ctx, wg, cancel, userIdlers)
+	idler.watchOpenshiftEvents(t, userIdlers)
 
 	// Start API router
 	go func() {
@@ -77,87 +86,91 @@ func (idler *Idler) startWorkers(ctx context.Context, wg *sync.WaitGroup, cancel
 		apirouter := router.CreateAPIRouter(idlerAPI)
 		router := router.NewRouter(apirouter)
 		router.AddMetrics(apirouter)
-		router.Start(ctx, wg, cancel)
+		router.Start(t.ctx, t.wg, t.cancel)
 	}()
 
 	if addProfiler {
 		go func() {
 			idlerLogger.Infof("Starting profiler on port %d", profilerPort)
 			router := router.NewRouterWithPort(httprouter.New(), profilerPort)
-			router.Start(ctx, wg, cancel)
+			router.Start(t.ctx, t.wg, t.cancel)
 		}()
 	}
 }
 
-func (idler *Idler) startOpenShiftControllers(ctx context.Context, wg *sync.WaitGroup, cancel context.CancelFunc, userIdlers *openshift.UserIdlerMap) {
-	openShiftClient := client.NewOpenShift()
+func (idler *Idler) watchOpenshiftEvents(t *task, userIdlers *openshift.UserIdlerMap) {
+	oc := client.NewOpenShift()
 
-	for _, openShiftCluster := range idler.clusterView.GetClusters() {
+	for _, c := range idler.clusterView.GetClusters() {
 		// Create Controller
-		controller := openshift.NewController(
-			ctx,
-			openShiftCluster.APIURL,
-			openShiftCluster.Token,
+		ctrl := openshift.NewController(
+			t.ctx,
+			c.APIURL,
+			c.Token,
 			userIdlers,
 			idler.tenantService,
 			idler.featureService,
 			idler.config,
-			wg,
-			cancel,
+			t.wg,
+			t.cancel,
 		)
 
-		wg.Add(1)
-		go func(cluster cluster.Cluster) {
-			defer wg.Done()
-			go func() {
-				idlerLogger.Info("Starting to watch openShift deployment configuration changes.")
-				if err := openShiftClient.WatchDeploymentConfigs(cluster.APIURL, cluster.Token, "-jenkins", controller.HandleDeploymentConfig); err != nil {
-					cancel()
-					return
-				}
-			}()
-
-			for {
-				select {
-				case <-ctx.Done():
-					idlerLogger.Infof("Stopping to watch openShift deployment configuration changes.")
-					cancel()
-					return
-				}
-			}
-		}(openShiftCluster)
-
-		wg.Add(1)
-		go func(cluster cluster.Cluster) {
-			defer wg.Done()
-			go func() {
-				idlerLogger.Info("Starting to watch openShift build configuration changes.")
-				if err := openShiftClient.WatchBuilds(cluster.APIURL, cluster.Token, "JenkinsPipeline", controller.HandleBuild); err != nil {
-					cancel()
-					return
-				}
-			}()
-
-			for {
-				select {
-				case <-ctx.Done():
-					idlerLogger.Infof("Stopping to watch openShift build configuration changes.")
-					cancel()
-					return
-				}
-			}
-		}(openShiftCluster)
+		t.wg.Add(2)
+		go idler.watchDC(t, oc, c, ctrl.HandleDeploymentConfig)
+		go idler.watchBC(t, oc, c, ctrl.HandleBuild)
 	}
 }
 
+type dcHandler func(model.DCObject) error
+type bcHandler func(model.Object) error
+
+func (idler *Idler) watchDC(t *task, oc client.OpenShiftClient, c cluster.Cluster, handler dcHandler) {
+	defer t.wg.Done()
+	go func() {
+		idlerLogger.Info("Starting to watch openshift deployment configuration changes.")
+		err := oc.WatchDeploymentConfigs(c.APIURL, c.Token, "-jenkins", handler)
+		if err != nil {
+			t.cancel()
+		}
+	}()
+
+	<-t.ctx.Done()
+	idlerLogger.Infof("Stopping to watch openshift deployment configuration changes.")
+	t.cancel()
+}
+
+func (idler *Idler) watchBC(t *task, oc client.OpenShiftClient, c cluster.Cluster, handler bcHandler) {
+	defer t.wg.Done()
+	go func() {
+		idlerLogger.Info("Starting to watch openshift build configuration changes.")
+		err := oc.WatchBuilds(c.APIURL, c.Token, "JenkinsPipeline", handler)
+		if err != nil {
+			t.cancel()
+		}
+	}()
+
+	<-t.ctx.Done()
+	idlerLogger.Infof("Stopping to watch openshift build configuration changes.")
+	t.cancel()
+}
+
 // setupSignalChannel registers a listener for Unix signals for a ordered shutdown
-func setupSignalChannel(cancel context.CancelFunc) {
+func setupSignalChannel(t *task) {
+	t.wg.Add(1)
+
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM)
-
 	go func() {
-		<-sigChan
-		idlerLogger.Info("Received SIGTERM signal. Initiating shutdown.")
-		cancel()
+		defer func() {
+			t.cancel()
+			t.wg.Done()
+		}()
+
+		select {
+		case <-sigChan:
+			idlerLogger.Info("Received SIGTERM signal. Initiating shutdown.")
+		case <-t.ctx.Done():
+			idlerLogger.Info("Context got cancelled. Initiating shutdown.")
+		}
 	}()
 }
