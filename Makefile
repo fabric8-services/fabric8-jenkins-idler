@@ -43,6 +43,10 @@ all: tools build test fmtcheck vet lint validate_commits image ## Compiles binar
 build: vendor $(AUTH_GEN_DIR)/*.go ## Builds the binary into $GOPATH/bin
 	go install -ldflags="$(LD_FLAGS)" ./cmd/fabric8-jenkins-idler
 
+debug: vendor $(AUTH_GEN_DIR)/*.go ## Builds the binary into $GOPATH/bin
+	go build -race -ldflags="$(LD_FLAGS)" ./cmd/fabric8-jenkins-idler
+	dlv debug ./cmd/fabric8-jenkins-idler
+
 $(BUILD_DIR):
 	@mkdir $(BUILD_DIR)
 
@@ -71,6 +75,7 @@ tools.timestamp:
 	go get -u github.com/goadesign/goa/goagen
 	go get -u github.com/haya14busa/goverage
 	go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+	go get -u github.com/derekparker/delve/cmd/dlv
 	@touch tools.timestamp
 
 vendor: tools.timestamp $(AUTH_GEN_DIR)/*.go ## Runs dep to vendor project dependencies
