@@ -43,7 +43,7 @@ all: tools build test fmtcheck vet lint validate_commits image ## Compiles binar
 build: vendor $(AUTH_GEN_DIR)/*.go ## Builds the binary into $GOPATH/bin
 	go install -ldflags="$(LD_FLAGS)" ./cmd/fabric8-jenkins-idler
 
-debug: vendor $(AUTH_GEN_DIR)/*.go ## Builds the binary into $GOPATH/bin
+debug: vendor $(AUTH_GEN_DIR)/*.go ## Build and runs binary in debugger
 	go build -race -ldflags="$(LD_FLAGS)" ./cmd/fabric8-jenkins-idler
 	dlv debug ./cmd/fabric8-jenkins-idler
 
