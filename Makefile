@@ -70,6 +70,7 @@ tools.timestamp:
 	go get -u github.com/vbatts/git-validation/...
 	go get -u github.com/goadesign/goa/goagen
 	go get -u github.com/haya14busa/goverage
+	go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 	@touch tools.timestamp
 
 vendor: tools.timestamp $(AUTH_GEN_DIR)/*.go ## Runs dep to vendor project dependencies
