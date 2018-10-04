@@ -17,12 +17,15 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/metric"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/api/core/v1"
 )
 
 const (
 	// OpenShiftAPIParam is the parameter name under which the OpenShift cluster API URL is passed using
 	// Idle, UnIdle and IsIdle.
 	OpenShiftAPIParam = "openshift_api_url"
+	PodResetRetryLimit = 5
+	PodRetryInterval = 60
 )
 
 var (
@@ -57,7 +60,7 @@ type IdlerAPI interface {
 	// ClusterDNSView writes a JSON representation of the current cluster state to the response writer.
 	ClusterDNSView(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 
-	// Reset deletes a pod and starts a new one
+	// ResetNSPods deletes a pod and starts a new one
 	Reset(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 }
 
@@ -147,10 +150,8 @@ func (api *idler) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 		return
 	}
 
-	// unidle now
 	for _, service := range pidler.JenkinsServices {
 		startTime := time.Now()
-
 		err = api.openShiftClient.UnIdle(openshiftURL, openshiftToken, ns, service)
 		elapsedTime := time.Since(startTime).Seconds()
 		if err != nil {
@@ -158,7 +159,8 @@ func (api *idler) UnIdle(w http.ResponseWriter, r *http.Request, ps httprouter.P
 			respondWithError(w, http.StatusInternalServerError, err)
 			return
 		}
-
+		// tries best to undle the pod
+		go resetServicePods(api.openShiftClient, openshiftURL, openshiftToken, ns, service, 0);
 		Recorder.RecordReqDuration(service, "UnIdle", http.StatusOK, elapsedTime)
 	}
 
@@ -225,7 +227,7 @@ func (api *idler) ClusterDNSView(w http.ResponseWriter, r *http.Request, ps http
 
 func (api *idler) Reset(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	logger := log.WithFields(log.Fields{"component": "api", "function": "Reset"})
+	logger := log.WithFields(log.Fields{"component": "api", "function": "ResetNSPods"})
 
 	openShiftAPI, openShiftBearerToken, err := api.getURLAndToken(r)
 	if err != nil {
@@ -235,7 +237,7 @@ func (api *idler) Reset(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 		return
 	}
 
-	err = api.openShiftClient.Reset(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"))
+	err = api.openShiftClient.ResetNSPods(openShiftAPI, openShiftBearerToken, ps.ByName("namespace"))
 	if err != nil {
 		logger.Error(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -323,4 +325,99 @@ func writeResponse(w http.ResponseWriter, status int, response any) {
 		respondWithError(w, http.StatusInternalServerError, fmt.Errorf("Could not serialize the response: %s", err))
 		return
 	}
+}
+
+/*could be better to move it to some other file*/
+func resetServicePods(client client.OpenShiftClient, url string, token string, ns string, service string, retry int) bool {
+
+	initiating := false
+	resetOccurred := false
+
+	if retry >= PodResetRetryLimit {
+		log.Errorf("failed to reset the %s service in namespace %s", service, ns)
+		return false
+	}
+
+	time.Sleep(PodRetryInterval * time.Second)
+
+	states, err := client.PodState(url, token, ns, service);
+	if err != nil {
+		log.Error(err)
+		return false
+	}
+
+	for n, s := range states {
+		if podInitiating(s) {
+			initiating = true;
+			break;
+		}
+
+		if (failedToInitiatePod(s)) {
+			resetOccurred = true
+			error := client.ResetPod(url, token, ns, n)
+			if error != nil {
+				log.Warningf("failed to delete pod %s", n)
+			}
+			break;
+		}
+	}
+
+	if initiating {
+		return resetServicePods(client, url, token, ns, service, retry)
+	} else if resetOccurred {
+		retry++
+		return resetServicePods(client, url, token, ns, service, retry)
+	} else {
+		return true
+	}
+}
+
+func podInitiating(status v1.PodStatus) bool {
+	return status.Phase == "Pending" && initiatingContainers(status)
+}
+
+func initiatingContainers(status v1.PodStatus) bool {
+
+	for _, cs := range status.ContainerStatuses {
+		if cs.State.Waiting != nil || cs.State.Running == nil {
+			return true
+		}
+ 	}
+
+	for _, ics := range status.InitContainerStatuses {
+		if ics.State.Waiting != nil || ics.State.Running == nil {
+			return true
+		}
+	}
+
+	return false
+}
+
+func failedToInitiatePod(status v1.PodStatus) bool {
+	return status.Phase == "Failed" || status.Phase == "Pending" && containersFailed(status)
+}
+
+func containersFailed(status v1.PodStatus) bool {
+
+	for _, cs := range status.ContainerStatuses {
+		currentState := cs.State
+		lastState    := cs.LastTerminationState
+
+		if currentState.Terminated != nil && currentState.Terminated.Reason == "Error" && cs.RestartCount >= 1 ||
+			lastState.Terminated != nil && lastState.Terminated.Reason == "Error" && cs.RestartCount >= 1 {
+			return true
+		}
+	}
+
+	for _, ics := range status.InitContainerStatuses {
+		currentState := ics.State
+		lastState    := ics.LastTerminationState
+
+		if currentState.Terminated != nil && currentState.Terminated.Reason == "Error" && ics.RestartCount >= 1 ||
+			lastState.Terminated != nil && lastState.Terminated.Reason == "Error" && ics.RestartCount >= 1 {
+			return true
+		}
+	}
+
+	return false
 }

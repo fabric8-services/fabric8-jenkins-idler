@@ -28,7 +28,9 @@ type OpenShiftClient interface {
 	WhoAmI(apiURL string, bearerToken string) (string, error)
 	WatchBuilds(apiURL string, bearerToken string, buildType string, callback func(model.Object) error) error
 	WatchDeploymentConfigs(apiURL string, bearerToken string, namespaceSuffix string, callback func(model.DCObject) error) error
-	Reset(apiURL string, bearerToken string, namespace string) error
+	ResetPod(apiURL string, bearerToken string, namespace string, podName string) error
+	ResetNSPods(apiURL string, bearerToken string, namespace string) error
+	PodState(apiURL string, bearerToken string, namespace string, selector string) (map[string]v1.PodStatus, error)
 }
 
 type user struct {
@@ -145,10 +147,10 @@ func (o openShift) Idle(apiURL string, bearerToken string, namespace string, ser
 	return
 }
 
-// Reset deletes a pod and start a new one
-func (o *openShift) Reset(apiURL string, bearerToken string, namespace string) error {
-	logger.Infof("resetting pods in " + namespace)
+// ResetPod deletes a pod and start a new one
+func (o *openShift) ResetPod(apiURL string, bearerToken string, namespace string, podName string) error {
 
+/*
 	req, err := o.reqAPI(apiURL, bearerToken, "GET", namespace, "pods", nil)
 	if err != nil {
 		return err
@@ -167,24 +169,60 @@ func (o *openShift) Reset(apiURL string, bearerToken string, namespace string) e
 	}
 
 	for _, element := range podList.Items {
-
-		podName := element.GetName()
+*/
 		if strings.Contains(podName, "deploy") {
-			continue
+			return nil;
 		}
 
-		log.Infof("Resetting the pod %q", podName)
+		log.Infof("resetting pod %q in %q", podName, namespace)
 		req, err := o.reqAPI(apiURL, bearerToken, "DELETE", namespace, "pods/"+podName, nil)
 		if err != nil {
 			return err
 		}
 
-		resp, err = o.do(req)
+		resp, err := o.do(req)
 		if err != nil {
 			return err
 		}
 		defer bodyClose(resp)
+
+
+		return nil
+}
+
+// ResetNSPods deletes a pod and start a new one
+func (o *openShift) ResetNSPods(apiURL string, bearerToken string, namespace string) error {
+
+	req, err := o.reqAPI(apiURL, bearerToken, "GET", namespace, "pods", nil)
+	if err != nil {
+		return err
 	}
+
+	resp, err := o.do(req)
+	if err != nil {
+		return err
+	}
+
+	defer bodyClose(resp)
+
+	podList := &v1.PodList{}
+	err = json.NewDecoder(resp.Body).Decode(podList)
+	if err != nil {
+		return err
+	}
+
+	for _, element := range podList.Items {
+		podName := element.Name
+		if strings.Contains(podName, "deploy") {
+			return nil;
+		}
+
+		err = o.ResetPod(apiURL, bearerToken, namespace, podName)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -520,6 +558,35 @@ func (o *openShift) patch(req *http.Request) (b []byte, err error) {
 	defer bodyClose(resp)
 	b, err = ioutil.ReadAll(resp.Body)
 	return
+}
+
+func (o *openShift) PodState(apiURL string, bearerToken string, namespace string, selector string) (map[string]v1.PodStatus, error) {
+	status :=  make(map[string]v1.PodStatus)
+
+	selector = fmt.Sprintf("%s=%s", "deploymentconfig",selector)
+	req, err := o.reqOAPI(apiURL, bearerToken, "GET", namespace, "pods?labelSelector="+selector, nil)
+	if err != nil {
+		return status, err
+	}
+
+	resp, err := o.do(req)
+	if err != nil {
+		return status, err
+	}
+
+	defer bodyClose(resp)
+
+	podList := &v1.PodList{}
+	err = json.NewDecoder(resp.Body).Decode(podList)
+	if err != nil {
+		return status, err
+	}
+
+	for _, pod := range podList.Items {
+		status[pod.Name] = pod.Status
+	}
+
+	return status, nil;
 }
 
 func bodyClose(resp *http.Response) {
