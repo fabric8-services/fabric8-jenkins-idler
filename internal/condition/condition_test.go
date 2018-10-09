@@ -1,11 +1,13 @@
 package condition
 
 import (
+	"io/ioutil"
+	"testing"
+
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"testing"
 )
 
 type TrueCondition struct {
@@ -41,7 +43,7 @@ func Test_all_conditions_true(t *testing.T) {
 	conditions.Add("true-2", &TrueCondition{})
 	conditions.Add("true-3", &TrueCondition{})
 
-	eval, err := conditions.Eval(nil)
+	eval, err := conditions.Eval(model.NewUser("id", "name"))
 
 	assert.NoError(t, err.ToError(), "No error expected.")
 	assert.True(t, eval, "Should evaluate to true.")
@@ -53,7 +55,7 @@ func Test_all_conditions_false(t *testing.T) {
 	conditions.Add("false-2", &FalseCondition{})
 	conditions.Add("false-3", &FalseCondition{})
 
-	eval, err := conditions.Eval(nil)
+	eval, err := conditions.Eval(model.NewUser("id", "name"))
 
 	assert.NoError(t, err.ToError(), "No error expected.")
 	assert.False(t, eval, "Should evaluate to false.")
@@ -65,7 +67,7 @@ func Test_mixed_conditions(t *testing.T) {
 	conditions.Add("true-2", &TrueCondition{})
 	conditions.Add("false-1", &FalseCondition{})
 
-	eval, err := conditions.Eval(nil)
+	eval, err := conditions.Eval(model.NewUser("id", "name"))
 
 	assert.NoError(t, err.ToError(), "No error expected.")
 	assert.False(t, eval, "Should evaluate to false.")
@@ -78,7 +80,7 @@ func Test_error_conditions(t *testing.T) {
 	conditions.Add("true-2", &TrueCondition{})
 	conditions.Add("error", NewErrorCondition("buh"))
 
-	eval, err := conditions.Eval(nil)
+	eval, err := conditions.Eval(model.NewUser("id", "name"))
 
 	assert.Error(t, err.ToError(), "No error expected.")
 	assert.Equal(t, "buh", err.ToError().Error(), "Unexpected error message.")

@@ -11,10 +11,9 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/idler"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -23,7 +22,7 @@ const (
 	jenkinsNamespaceSuffix = "-jenkins"
 )
 
-var logger = log.WithFields(log.Fields{"component": "controller"})
+var logger = logrus.WithFields(logrus.Fields{"component": "controller"})
 
 // Controller defines the interface for watching the openShift cluster for changes.
 type Controller interface {
@@ -34,34 +33,41 @@ type Controller interface {
 // controllerImpl watches a single OpenShift cluster for Build and Deployment Config changes. This struct needs to be
 // safe for concurrent use.
 type controllerImpl struct {
-	openShiftAPIURL      string
-	openShiftBearerToken string
-	userIdlers           *UserIdlerMap
-	openShiftClient      client.OpenShiftClient
-	tenantService        tenant.Service
-	features             toggles.Features
-	config               configuration.Configuration
-	wg                   *sync.WaitGroup
-	ctx                  context.Context
-	cancel               context.CancelFunc
-	unknownUsers         *UnknownUsersMap
+	openshiftURL  string
+	osBearerToken string
+	userIdlers    *UserIdlerMap
+	tenantService tenant.Service
+	features      toggles.Features
+	config        configuration.Configuration
+	wg            *sync.WaitGroup
+	ctx           context.Context
+	cancel        context.CancelFunc
+	unknownUsers  *UnknownUsersMap
 }
 
 // NewController creates an instance of controllerImpl.
-func NewController(ctx context.Context, openShiftAPI string, openShiftBearerToken string, userIdlers *UserIdlerMap, t tenant.Service, features toggles.Features, config configuration.Configuration, wg *sync.WaitGroup, cancel context.CancelFunc) Controller {
-	logger.WithField("cluster", openShiftAPI).Info("Creating new controller instance")
+func NewController(
+	ctx context.Context,
+	openshiftURL string, osBearerToken string,
+	userIdlers *UserIdlerMap,
+	t tenant.Service,
+	features toggles.Features,
+	config configuration.Configuration,
+	wg *sync.WaitGroup, cancel context.CancelFunc) Controller {
+
+	logger.WithField("cluster", openshiftURL).Info("Creating new controller instance")
+
 	controller := controllerImpl{
-		openShiftAPIURL:      openShiftAPI,
-		openShiftBearerToken: openShiftBearerToken,
-		userIdlers:           userIdlers,
-		openShiftClient:      client.NewOpenShift(),
-		tenantService:        t,
-		features:             features,
-		config:               config,
-		wg:                   wg,
-		ctx:                  ctx,
-		cancel:               cancel,
-		unknownUsers:         NewUnknownUsersMap(),
+		openshiftURL:  openshiftURL,
+		osBearerToken: osBearerToken,
+		userIdlers:    userIdlers,
+		tenantService: t,
+		features:      features,
+		config:        config,
+		wg:            wg,
+		ctx:           ctx,
+		cancel:        cancel,
+		unknownUsers:  NewUnknownUsersMap(),
 	}
 
 	return &controller
@@ -73,50 +79,73 @@ func NewController(ctx context.Context, openShiftAPI string, openShiftBearerToke
 // just does couple comparisons and returns.
 func (c *controllerImpl) HandleBuild(o model.Object) error {
 	ns := o.Object.Metadata.Namespace
+
+	log := logger.WithFields(logrus.Fields{
+		"ns":        ns,
+		"event":     "build",
+		"openshift": c.openshiftURL,
+	})
+
 	ok, err := c.createIfNotExist(ns)
 	if err != nil {
+		log.Errorf("Creating user-idler record failed: %s", err)
 		return err
 	}
 
 	if !ok {
-		// We can have a situation where a single OpenShift cluster is used by prod as well as prod-preview
-		// For now we see in this case events from tenants of both clusters which means in some cases
-		// we won't get tenant information
-		// See also https://github.com/fabric8-services/fabric8-jenkins-idler/issues/155
+		// We can have a situation where a single OpenShift cluster is used by prod
+		// as well as prod-preview. We see events from tenants of both clusters
+		// which means in some cases we won't get tenant information
+		// See: https://github.com/fabric8-services/fabric8-jenkins-idler/issues/155
+		log.Errorf("No user info found for namespace %q", ns)
 		return nil
 	}
 
-	sendUserToIdler := false
 	userIdler := c.userIdlerForNamespace(ns)
 	user := userIdler.GetUser()
+
+	log = log.WithFields(logrus.Fields{
+		"id":   user.ID,
+		"name": user.Name,
+	})
+
+	evalConditions := false
+
 	if c.isActive(&o.Object) {
+
 		lastActive := user.ActiveBuild
-		if lastActive.Status.Phase != o.Object.Status.Phase || lastActive.Metadata.Name != o.Object.Metadata.Name {
+		if lastActive.Status.Phase != o.Object.Status.Phase ||
+			lastActive.Metadata.Name != o.Object.Metadata.Name {
+
 			user.ActiveBuild = o.Object
-			log.Infof("Will send user %v to idler due to active build", user.Name)
-			sendUserToIdler = true
+			evalConditions = true
+			log.Infof("Will send user %q to Idler due to active build", user.Name)
 		}
 	} else {
+
 		lastDone := user.DoneBuild
-		if lastDone.Status.Phase != o.Object.Status.Phase || lastDone.Metadata.Name != o.Object.Metadata.Name {
+		if lastDone.Status.Phase != o.Object.Status.Phase ||
+			lastDone.Metadata.Name != o.Object.Metadata.Name {
+
 			user.DoneBuild = o.Object
-			log.Infof("Will send user %v to idler due to done build", user.Name)
-			sendUserToIdler = true
+			evalConditions = true
+			log.Infof("Will send user %q to Idler due to done build", user.Name)
 		}
 	}
 
-	// If we have same build name (space name + build number) in Active and Done build reference, it means last event was transition of an Active build into
-	// Done build, we need to clean up the Active build ref.
+	// If we have same build name (space name + build number) in Active and Done
+	// it means last event was transition of an Active build into Done build
+	// So we need to clean up the Active build ref.
 	if user.ActiveBuild.Metadata.Name == user.DoneBuild.Metadata.Name {
-		logger.WithFields(log.Fields{"ns": ns}).Infof("Active and Done builds are the same (%s), cleaning active builds", user.ActiveBuild.Metadata.Name)
+		log.Infof("Active and Done builds are the same (%s), cleaning active builds", user.ActiveBuild.Metadata.Name)
 		user.ActiveBuild = model.Build{Status: model.Status{Phase: "New"}}
-		log.Infof("Will send user %v to idler due to transition of active build to a done build", user.Name)
-		sendUserToIdler = true
+		evalConditions = true
+		log.Infof("Will send user %q to Idler due to transition of active build to a done build", user.Name)
 	}
 
-	if sendUserToIdler {
-		log.Infof("Sending user %v to idler from a Build event", user.Name)
-		c.sendUserToIdler(userIdler, user)
+	if evalConditions {
+		log.Infof("Sending user %q to Idler from a Build event", user.Name)
+		sendUserToIdler(userIdler, user)
 	}
 
 	return nil
@@ -128,8 +157,16 @@ func (c *controllerImpl) HandleBuild(o model.Object) error {
 // of ConfigChange or manual intervention.
 func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 	ns := dc.Object.Metadata.Namespace[:len(dc.Object.Metadata.Namespace)-len(jenkinsNamespaceSuffix)]
+
+	log := logger.WithFields(logrus.Fields{
+		"event":     "dc",
+		"openshift": c.openshiftURL,
+		"ns":        ns,
+	})
+
 	ok, err := c.createIfNotExist(ns)
 	if err != nil {
+		log.Errorf("Creating user-idler record failed: %s", err)
 		return err
 	}
 
@@ -138,26 +175,34 @@ func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 		// For now we see in this case events from tenants of both clusters which means in some cases
 		// we won't get tenant information
 		// See also https://github.com/fabric8-services/fabric8-jenkins-idler/issues/155
+		log.Errorf("No user info found for namespace %q", ns)
 		return nil
 	}
 
 	userIdler := c.userIdlerForNamespace(ns)
 	user := userIdler.GetUser()
-	sendUserToIdler := false
 
+	log = log.WithFields(logrus.Fields{
+		"id":   user.ID,
+		"name": user.Name,
+	})
+
+	evalConditions := false
 	condition, err := dc.Object.Status.GetByType(availableCond)
 	if err != nil {
-		log.Infof("Available condition not present (%s) in the list of conditions - SKIPPING", err)
+		log.Errorf("Available condition not present (%s) in the list of conditions - SKIPPING", err)
 		// stop processing since the pod isn't available yet
 		return nil
 	}
 
 	// TODO Verify if we need Generation vs. ObservedGeneration
 	// This is either a new version of DC or we existing version waiting to come up.
-	if (dc.Object.Metadata.Generation != dc.Object.Status.ObservedGeneration && dc.Object.Spec.Replicas > 0) || dc.Object.Status.UnavailableReplicas > 0 {
+	if (dc.Object.Metadata.Generation != dc.Object.Status.ObservedGeneration && dc.Object.Spec.Replicas > 0) ||
+		dc.Object.Status.UnavailableReplicas > 0 {
+
 		user.JenkinsLastUpdate = time.Now().UTC()
-		log.Infof("Will send user %v to idler due to a new version of DC or an existing version is coming up", user.Name)
-		sendUserToIdler = true
+		evalConditions = true
+		log.Infof("Will send user %v to Idler due to a new version of DC or an existing version is coming up", user.Name)
 	}
 
 	// Also check if the event means that Jenkins just started (OS AvailableCondition.Status == true) and update time.
@@ -168,13 +213,13 @@ func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 
 	if status == true {
 		user.JenkinsLastUpdate = condition.LastUpdateTime
-		log.Infof("Will send user %v to idler because Jenkins was just started", user.Name)
-		sendUserToIdler = true
+		evalConditions = true
+		log.Infof("Will send user %v to Idler because Jenkins was just started", user.Name)
 	}
 
-	if sendUserToIdler {
-		log.Infof("Sending user %v to idler from a Deployment Config event", user.Name)
-		c.sendUserToIdler(userIdler, user)
+	if evalConditions {
+		log.Infof("Sending user %v to Idler due a Deployment Config event", user.Name)
+		sendUserToIdler(userIdler, user)
 	}
 
 	return nil
@@ -182,18 +227,21 @@ func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 
 // createIfNotExist checks existence of a user in the map, initialise if it does not exist.
 func (c *controllerImpl) createIfNotExist(ns string) (bool, error) {
-	if _, exist := c.unknownUsers.Load(ns); exist {
-		logger.WithField("ns", ns).Debug("Namespace listed in unknown users list")
-		return false, nil
-	}
 
+	log := logger.WithField("ns", ns)
 	if _, exist := c.userIdlers.Load(ns); exist {
-		logger.WithField("ns", ns).Debug("User idler found in cache")
+		log.Debug("User idler found in cache")
 		return true, nil
 	}
 
-	logger.WithField("ns", ns).Debug("Creating user idler")
-	ti, err := c.tenantService.GetTenantInfoByNamespace(c.openShiftAPIURL, ns)
+	if _, exist := c.unknownUsers.Load(ns); exist {
+		log.Debugf("namespace %s listed in unknown users list", ns)
+		return false, nil
+	}
+
+	log.Infof("creating user-idler for cluster %s", c.openshiftURL)
+
+	ti, err := c.tenantService.GetTenantInfoByNamespace(c.openshiftURL, ns)
 	if err != nil {
 		return false, err
 	}
@@ -201,14 +249,20 @@ func (c *controllerImpl) createIfNotExist(ns string) (bool, error) {
 	if ti.Meta.TotalCount > 1 {
 		return false, fmt.Errorf("could not add new user - Tenant service returned multiple items: %d", ti.Meta.TotalCount)
 	} else if len(ti.Data) == 0 {
+		log.Warnf("adding namespace: %s to unknown users list namespace", ns)
 		c.unknownUsers.Store(ns, nil)
 		return false, nil
 	}
 
-	newUser := model.NewUser(ti.Data[0].ID, ns)
-	userIdler := idler.NewUserIdler(newUser, c.openShiftAPIURL, c.openShiftBearerToken, c.config, c.features, c.tenantService)
+	userID := model.NewUser(ti.Data[0].ID, ns)
+	userIdler := idler.NewUserIdler(
+		userID, c.openshiftURL, c.osBearerToken,
+		c.config, c.features, c.tenantService)
 	c.userIdlers.Store(ns, userIdler)
-	userIdler.Run(c.ctx, c.wg, c.cancel, time.Duration(c.config.GetCheckInterval())*time.Minute, time.Duration(c.config.GetMaxRetriesQuietInterval())*time.Minute)
+
+	userIdler.Run(c.ctx, c.wg, c.cancel,
+		time.Duration(c.config.GetCheckInterval())*time.Minute,
+		time.Duration(c.config.GetMaxRetriesQuietInterval())*time.Minute)
 	return true, nil
 }
 
@@ -222,10 +276,11 @@ func (c *controllerImpl) isActive(b *model.Build) bool {
 	return model.Phases[b.Status.Phase] == 1
 }
 
-func (c *controllerImpl) sendUserToIdler(idler *idler.UserIdler, user model.User) {
+func sendUserToIdler(idler *idler.UserIdler, user model.User) {
 	select {
 	case idler.GetChannel() <- user:
 	case <-time.After(channelSendTimeout * time.Second):
-		logger.WithField("ns", user.Name).Warn("Unable to send user to channel. Discarding event.")
+		logger.WithField("ns", user.Name).Warn(
+			"Unable to send user to channel. Discarding event.")
 	}
 }
