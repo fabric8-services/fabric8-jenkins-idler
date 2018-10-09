@@ -45,7 +45,7 @@ func (c *Conditions) Eval(o interface{}) (bool, util.MultiError) {
 		condStates[name] = r
 	}
 
-	log.Debugf("Conditions: %t = %s", result, c.conditionMapToString(condStates))
+	log.Infof("Conditions: %t = %s", result, c.conditionMapToString(condStates))
 	return result, errors
 }
 
@@ -57,7 +57,7 @@ func (c *Conditions) Add(name string, condition Condition) {
 func (c *Conditions) conditionMapToString(conditions map[string]bool) string {
 	var result []string
 	for key, value := range conditions {
-		result = append(result, fmt.Sprintf("%s(%t)", key, value))
+		result = append(result, fmt.Sprintf("%s=%t", key, value))
 	}
-	return strings.Join(result, " ")
+	return strings.Join(result, " | ")
 }

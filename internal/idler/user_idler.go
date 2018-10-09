@@ -16,7 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var logger = log.WithFields(log.Fields{"component": "user-idler"})
+var logger = log.WithField("component", "user-idler")
 
 // JenkinsServices is an array of all the services getting idled or unidled
 // they go along the main build detection logic of jenkins and don't have
@@ -60,7 +60,7 @@ func NewUserIdler(
 
 	logEntry := log.WithFields(log.Fields{
 		"component": "user-idler",
-		"username":  user.Name,
+		"name":      user.Name,
 		"id":        user.ID,
 	})
 	logEntry.Info("UserIdler created.")
@@ -100,35 +100,48 @@ func (idler *UserIdler) GetChannel() chan model.User {
 // checkIdle verifies the state of conditions and decides if we should idle/unidle
 // and performs the required action if needed.
 func (idler *UserIdler) checkIdle() error {
-	eval, errors := idler.Conditions.Eval(idler.user)
+
+	enabled, err := idler.isIdlerEnabled()
+	if err != nil {
+		idler.logger.Errorf("Failed to check if idler is enabled for user: %s", err)
+		return err
+	}
+
+	if !enabled {
+		idler.logger.Warnf("idler disabled for user %s - skipping", idler.user.Name)
+		return nil
+	}
+
+	idler.logger.Infof("Evaluating conditions for user %s", idler.user.Name)
+
+	shouldIdle, errors := idler.Conditions.Eval(idler.user)
 	if !errors.Empty() {
+		idler.logger.Errorf("Failed to evaluate conditions for %s", idler.user.Name)
 		return errors.ToError()
 	}
 
-	idler.logger.WithField("eval", eval).Debug("Check idle state")
-	if eval {
-		enabled, err := idler.isIdlerEnabled()
-		if err != nil {
-			return err
-		}
-		if enabled {
-			err := idler.doIdle()
-			// TODO: find a better way to update IdleStatus inside doIdle()
-			idler.user.IdleStatus = model.NewIdleStatus(err)
-		}
+	idler.logger.WithField("idle-jenkins", shouldIdle).Infof("Check idle state %s", idler.user.ID)
+
+	if shouldIdle {
+		err := idler.doIdle()
+		// TODO: find a better way to update IdleStatus inside doIdle()
+		idler.user.IdleStatus = model.NewIdleStatus(err)
 	} else {
 		err := idler.doUnIdle()
 		// TODO: find a better way to update IdleStatus inside doUnIdle()
 		idler.user.IdleStatus = model.NewUnidleStatus(err)
 	}
-
 	return nil
 }
 
 // Run runs/starts the Idler
 // It checks if Jenkins is idle at every checkIdle duration.
 func (idler *UserIdler) Run(ctx context.Context, wg *sync.WaitGroup, cancel context.CancelFunc, checkIdle time.Duration, maxRetriesQuietInterval time.Duration) {
-	idler.logger.WithFields(log.Fields{"checkIdle": fmt.Sprintf("%.0fm", checkIdle.Minutes()), "maxRetriesQuietInterval": fmt.Sprintf("%.0fm", maxRetriesQuietInterval.Minutes())}).Info("UserIdler started.")
+	idler.logger.WithFields(log.Fields{
+		"checkIdle":               fmt.Sprintf("%.0fm", checkIdle.Minutes()),
+		"maxRetriesQuietInterval": fmt.Sprintf("%.0fm", maxRetriesQuietInterval.Minutes()),
+	}).Info("UserIdler started.")
+
 	wg.Add(1)
 	go func() {
 		ticker := time.Tick(maxRetriesQuietInterval)
@@ -168,7 +181,7 @@ func (idler *UserIdler) Run(ctx context.Context, wg *sync.WaitGroup, cancel cont
 
 func (idler *UserIdler) doIdle() error {
 	if idler.idleAttempts >= idler.maxRetries {
-		idler.logger.Warn("Skipping idle request since max retry count has been reached.")
+		idler.logger.Warn("Skipping idle request since max retry count %d has reached.", idler.maxRetries)
 		return nil
 	}
 
@@ -287,7 +300,9 @@ func createWatchConditions(proxyURL string, idleAfter int, idleLongBuild int, lo
 	conditions := condition.NewConditions()
 
 	// Add a Build condition.
-	conditions.Add("build", condition.NewBuildCondition(time.Duration(idleAfter)*time.Minute, time.Duration(idleLongBuild)*time.Hour))
+	conditions.Add("build", condition.NewBuildCondition(
+		time.Duration(idleAfter)*time.Minute,
+		time.Duration(idleLongBuild)*time.Hour))
 
 	// Add a DeploymentConfig condition.
 	conditions.Add("DC", condition.NewDCCondition(time.Duration(idleAfter)*time.Minute))
