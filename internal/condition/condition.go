@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // Condition defines a single Eval method which returns true or false.
@@ -29,9 +30,21 @@ func NewConditions() Conditions {
 // Eval evaluates a list of Conditions for a given object. It returns false if
 // any of the conditions evaluates to false, otherwise true.
 func (c *Conditions) Eval(o interface{}) (bool, util.MultiError) {
-	result := true
 	errors := util.MultiError{}
 
+	u, ok := o.(model.User)
+	if !ok {
+		errors.Collect(fmt.Errorf("%T is not of type User", o))
+		return false, errors
+	}
+
+	log := logrus.WithFields(logrus.Fields{
+		"id":        u.ID,
+		"name":      u.Name,
+		"component": "condition",
+	})
+
+	result := true
 	condStates := make(map[string]bool)
 	for name, ci := range c.conditions {
 		r, err := ci.Eval(o)
@@ -45,7 +58,7 @@ func (c *Conditions) Eval(o interface{}) (bool, util.MultiError) {
 		condStates[name] = r
 	}
 
-	log.Debugf("Conditions: %t = %s", result, c.conditionMapToString(condStates))
+	log.Infof("conditions/idle: %t = %s", result, c.conditionMapToString(condStates))
 	return result, errors
 }
 
@@ -57,7 +70,7 @@ func (c *Conditions) Add(name string, condition Condition) {
 func (c *Conditions) conditionMapToString(conditions map[string]bool) string {
 	var result []string
 	for key, value := range conditions {
-		result = append(result, fmt.Sprintf("%s(%t)", key, value))
+		result = append(result, fmt.Sprintf("%s=%t", key, value))
 	}
-	return strings.Join(result, " ")
+	return strings.Join(result, " | ")
 }

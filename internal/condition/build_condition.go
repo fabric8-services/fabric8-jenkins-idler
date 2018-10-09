@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
+	"github.com/sirupsen/logrus"
 )
 
 // BuildCondition covers builds a user has/had running.
@@ -28,26 +29,52 @@ func (c *BuildCondition) Eval(object interface{}) (bool, error) {
 		return false, fmt.Errorf("%T is not of type User", object)
 	}
 
+	log := logrus.WithFields(logrus.Fields{
+		"id":        u.ID,
+		"name":      u.Name,
+		"component": "build-condition",
+	})
+
 	if u.HasActiveBuilds() {
 		// if we have activebuild being active over x time then see it as
 		// expired or they would be lingering forever (i.e: approval process pipelines)
-		if u.ActiveBuild.Status.StartTimestamp.Time.Add(c.idleLongBuild).Before(time.Now()) {
+		startTime := u.ActiveBuild.Status.StartTimestamp.Time
+		if startTime.Add(c.idleLongBuild).Before(time.Now()) {
+			log.WithField("action", "idle").Infof(
+				"active build started at %v has exceeded timeout %v",
+				startTime, c.idleLongBuild)
 			return true, nil
 		}
 
-		if u.ActiveBuild.Status.Phase == "New" && u.ActiveBuild.Status.StartTimestamp.Time.Add(time.Second*5).After(u.ActiveBuild.Status.CompletionTimestamp.Time) {
+		completionTime := u.ActiveBuild.Status.CompletionTimestamp.Time
+		if u.ActiveBuild.Status.Phase == "New" &&
+			startTime.Add(time.Second*5).After(completionTime) {
+			log.WithField("action", "idle").Infof(
+				"active build started at %v has gone past completion time %v",
+				startTime, completionTime)
 			return true, nil
 		}
 
+		log.WithField("action", "unidle").Infof(
+			"active build started at %v seems to be in progress", startTime)
 		return false, nil
 	}
 
 	if !u.HasBuilds() {
+		log.WithField("action", "idle").Infof("user has no builds")
 		return true, nil
 	}
 
-	if u.DoneBuild.Status.CompletionTimestamp.Time.Add(c.idleAfter).Before(time.Now()) {
+	completionTime := u.DoneBuild.Status.CompletionTimestamp.Time
+	if completionTime.Add(c.idleAfter).Before(time.Now()) {
+		log.WithField("action", "idle").Infof(
+			"%v has elapsed after last done-build at %v ",
+			c.idleAfter, completionTime)
 		return true, nil
 	}
+
+	log.WithField("action", "unidle").Infof(
+		"%v has not yet elapsed after last done-build at %v ",
+		c.idleAfter, completionTime)
 	return false, nil
 }
