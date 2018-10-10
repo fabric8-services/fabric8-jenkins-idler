@@ -190,7 +190,7 @@ func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 	evalConditions := false
 	condition, err := dc.Object.Status.GetByType(availableCond)
 	if err != nil {
-		log.Errorf("Available condition not present (%s) in the list of conditions - SKIPPING", err)
+		log.Errorf("%v - Available condition not present (%s) in the list of conditions - SKIPPING", user.Name, err)
 		// stop processing since the pod isn't available yet
 		return nil
 	}
