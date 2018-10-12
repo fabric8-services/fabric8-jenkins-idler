@@ -1,10 +1,11 @@
 package openshift
 
 import (
+	"math/rand"
+	"strconv"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/testutils/common"
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
 
 	"context"
 	"io"
@@ -106,7 +107,7 @@ func testWithStateChange(t *testing.T, obj model.Object) {
 func testWithPhaseChange(t *testing.T, obj model.Object, phase string, eventType string) {
 	obj.Type = eventType
 	obj.Object.Status.Phase = phase
-	obj.Object.Metadata.Name = util.RandomString(8)
+	obj.Object.Metadata.Name = strconv.Itoa(rand.Intn(1000))
 
 	ci := controller.(*controllerImpl)
 	err := controller.HandleBuild(obj)
