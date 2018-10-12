@@ -27,7 +27,9 @@ type OpenShiftClient interface {
 	State(apiURL string, bearerToken string, namespace string, service string) (model.PodState, error)
 	WhoAmI(apiURL string, bearerToken string) (string, error)
 	WatchBuilds(apiURL string, bearerToken string, buildType string, callback func(model.Object) error) error
+	WatchNamespaceBuilds(apiURL string, bearerToken string, buildType, namespace string, callback func(model.Object) error) error
 	WatchDeploymentConfigs(apiURL string, bearerToken string, namespaceSuffix string, callback func(model.DCObject) error) error
+	WatchNamespaceDeploymentConfigs(apiURL string, bearerToken string, namespace, namespaceSuffix string, callback func(model.DCObject) error) error
 	Reset(apiURL string, bearerToken string, namespace string) error
 }
 
@@ -287,55 +289,76 @@ func (o openShift) WatchBuilds(apiURL string, bearerToken string, buildType stri
 		if err != nil {
 			logger.Fatal(err)
 		}
+		doBuildEvent(c, req, buildType, callback)
+	}
+}
 
-		resp, err := c.Do(req)
-		if resp != nil && resp.StatusCode != http.StatusOK {
-			logger.Errorf("got status %s (%d) from %s", resp.Status, resp.StatusCode, req.URL)
-			continue
-		}
+// WatchNamespaceBuilds consumes stream of build events from openShift and calls callback to process them.
+func (o openShift) WatchNamespaceBuilds(apiURL string, bearerToken string, buildType, namespace string, callback func(model.Object) error) error {
+	// Use a HTTP client with disabled timeout.
+	c := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConnsPerHost: 20,
+		},
+		Timeout: time.Duration(0) * time.Second,
+	}
+	for {
+		req, err := o.reqOAPIWatch(apiURL, bearerToken, "GET", namespace, "builds", nil)
 		if err != nil {
-			logger.Errorf("Request failed: %s", err)
-			continue
+			logger.Fatal(err)
 		}
+		doBuildEvent(c, req, buildType, callback)
+	}
+}
 
-		reader := bufio.NewReader(resp.Body)
-		for {
-			line, err := reader.ReadBytes('\n')
-			if err != nil {
-				// openShift sometimes ends the stream, break to create new request.
-				if err.Error() == "EOF" || err.Error() == "unexpected EOF" {
-					logger.Info("Got error ", err, " but continuing..")
-					break
-				}
-			}
+func doBuildEvent(c *http.Client, req *http.Request, buildType string, callback func(model.Object) error) {
+	resp, err := c.Do(req)
+	if resp != nil && resp.StatusCode != http.StatusOK {
+		logger.Errorf("got status %s (%d) from %s", resp.Status, resp.StatusCode, req.URL)
+		return
+	}
+	if err != nil {
+		logger.Errorf("Request failed: %s", err)
+		return
+	}
 
-			o := model.Object{}
-
-			err = json.Unmarshal(line, &o)
-			if err != nil {
-				// This happens with oc CLI tool as well from time to time, take care of it and create new request.
-				if strings.HasPrefix(string(line), "This request caused apisever to panic") {
-					logger.WithField("error", string(line)).Warning("Communication with server failed")
-					break
-				}
-				logger.Errorf("Failed to Unmarshal: %s", err)
+	reader := bufio.NewReader(resp.Body)
+	for {
+		line, err := reader.ReadBytes('\n')
+		if err != nil {
+			// openShift sometimes ends the stream, break to create new request.
+			if err.Error() == "EOF" || err.Error() == "unexpected EOF" {
+				logger.Info("Got error ", err, " but continuing..")
 				break
 			}
-
-			// Verify a build has a type we care about.
-			if o.Object.Spec.Strategy.Type != buildType {
-				logger.WithField("namespace", o.Object.Metadata.Namespace).Debugf("Skipping build %s (type: %s)", o.Object.Metadata.Name, o.Object.Spec.Strategy.Type)
-				continue
-			}
-			logger.WithFields(log.Fields{"namespace": o.Object.Metadata.Namespace, "data": o}).Debug("Handling Build change event")
-			err = callback(o)
-			if err != nil {
-				logger.Errorf("Error from callback: %s", err)
-				continue
-			}
 		}
-		logger.Debug("Fell out of loop for Build")
+
+		o := model.Object{}
+
+		err = json.Unmarshal(line, &o)
+		if err != nil {
+			// This happens with oc CLI tool as well from time to time, take care of it and create new request.
+			if strings.HasPrefix(string(line), "This request caused apisever to panic") {
+				logger.WithField("error", string(line)).Warning("Communication with server failed")
+				break
+			}
+			logger.Errorf("Failed to Unmarshal: %s", err)
+			break
+		}
+
+		// Verify a build has a type we care about.
+		if o.Object.Spec.Strategy.Type != buildType {
+			logger.WithField("namespace", o.Object.Metadata.Namespace).Debugf("Skipping build %s (type: %s)", o.Object.Metadata.Name, o.Object.Spec.Strategy.Type)
+			continue
+		}
+		logger.WithFields(log.Fields{"namespace": o.Object.Metadata.Namespace, "data": o}).Debug("Handling Build change event")
+		err = callback(o)
+		if err != nil {
+			logger.Errorf("Error from callback: %s", err)
+			continue
+		}
 	}
+	logger.Debug("Fell out of loop for Build")
 }
 
 // WatchDeploymentConfigs consumes stream of DeploymentConfig events from openShift and calls callback to process them.
@@ -355,53 +378,79 @@ func (o openShift) WatchDeploymentConfigs(apiURL string, bearerToken string, nam
 		v := req.URL.Query()
 		v.Add("labelSelector", "app=jenkins")
 		req.URL.RawQuery = v.Encode()
-		resp, err := c.Do(req)
-		if resp != nil && resp.StatusCode != http.StatusOK {
-			logger.Errorf("got status %s (%d) from %s", resp.Status, resp.StatusCode, req.URL)
-			continue
-		}
+		doDeploymentEvent(c, req, namespaceSuffix, callback)
+	}
+}
+
+// WatchNamespaceDeploymentConfigs consumes stream of DeploymentConfig events from openShift and calls callback to process them.
+func (o openShift) WatchNamespaceDeploymentConfigs(apiURL string, bearerToken string, namespace, namespaceSuffix string, callback func(model.DCObject) error) error {
+	// Use a HTTP client with disabled timeout.
+	c := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConnsPerHost: 20,
+		},
+		Timeout: time.Duration(0) * time.Second,
+	}
+	for {
+		req, err := o.reqOAPIWatch(apiURL, bearerToken, "GET", namespace, "deploymentconfigs", nil)
 		if err != nil {
-			logger.Errorf("Request failed: %s", err)
-			continue
+			logger.Fatal(err)
 		}
+		v := req.URL.Query()
+		v.Add("labelSelector", "app=jenkins")
+		req.URL.RawQuery = v.Encode()
+		doDeploymentEvent(c, req, namespaceSuffix, callback)
 
-		reader := bufio.NewReader(resp.Body)
-		for {
-			line, err := reader.ReadBytes('\n')
-			if err != nil {
-				if err.Error() == "EOF" || err.Error() == "unexpected EOF" {
-					logger.Info("Got error ", err, " but continuing..")
-					break
-				}
-			}
+	}
+}
 
-			o := model.DCObject{}
+func doDeploymentEvent(c *http.Client, req *http.Request, namespaceSuffix string, callback func(model.DCObject) error) {
+	resp, err := c.Do(req)
+	if resp != nil && resp.StatusCode != http.StatusOK {
+		logger.Errorf("got status %s (%d) from %s", resp.Status, resp.StatusCode, req.URL)
+		return
+	}
+	if err != nil {
+		logger.Errorf("Request failed: %s", err)
+		return
+	}
 
-			err = json.Unmarshal(line, &o)
-			if err != nil {
-				if strings.HasPrefix(string(line), "This request caused apisever to panic") {
-					logger.WithField("error", string(line)).Warning("Communication with server failed")
-					break
-				}
-				logger.Errorf("Failed to Unmarshal: %s", err)
+	reader := bufio.NewReader(resp.Body)
+	for {
+		line, err := reader.ReadBytes('\n')
+		if err != nil {
+			if err.Error() == "EOF" || err.Error() == "unexpected EOF" {
+				logger.Info("Got error ", err, " but continuing..")
 				break
 			}
-
-			// Filter for a given suffix.
-			if !strings.HasSuffix(o.Object.Metadata.Namespace, namespaceSuffix) {
-				logger.WithField("namespace", o.Object.Metadata.Namespace).Debug("Skipping DC change event")
-				continue
-			}
-
-			logger.WithFields(log.Fields{"namespace": o.Object.Metadata.Namespace, "data": o}).Debug("Handling DC change event")
-			err = callback(o)
-			if err != nil {
-				logger.Errorf("Error from DC callback: %s", err)
-				continue
-			}
 		}
-		logger.Debug("Fell out of loop for watching DC")
+
+		o := model.DCObject{}
+
+		err = json.Unmarshal(line, &o)
+		if err != nil {
+			if strings.HasPrefix(string(line), "This request caused apisever to panic") {
+				logger.WithField("error", string(line)).Warning("Communication with server failed")
+				break
+			}
+			logger.Errorf("Failed to Unmarshal: %s", err)
+			break
+		}
+
+		// Filter for a given suffix.
+		if !strings.HasSuffix(o.Object.Metadata.Namespace, namespaceSuffix) {
+			logger.WithField("namespace", o.Object.Metadata.Namespace).Debug("Skipping DC change event")
+			continue
+		}
+
+		logger.WithFields(log.Fields{"namespace": o.Object.Metadata.Namespace, "data": o}).Debug("Handling DC change event")
+		err = callback(o)
+		if err != nil {
+			logger.Errorf("Error from DC callback: %s", err)
+			continue
+		}
 	}
+	logger.Debug("Fell out of loop for watching DC")
 }
 
 func (o openShift) WhoAmI(apiURL string, bearerToken string) (string, error) {
