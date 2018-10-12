@@ -38,7 +38,7 @@ __check_defined = \
       $(error Undefined $1$(if $2, ($2))))
 
 .PHONY: all
-all: tools build test fmtcheck vet lint validate_commits image ## Compiles binary and runs format and style checks
+all: tools build test fmtcheck vet lint image ## Compiles binary and runs format and style checks
 
 build: vendor $(AUTH_GEN_DIR)/*.go ## Builds the binary into $GOPATH/bin
 	go install -ldflags="$(LD_FLAGS)" ./cmd/fabric8-jenkins-idler
@@ -67,7 +67,6 @@ tools: tools.timestamp
 tools.timestamp:
 	go get -u github.com/golang/dep/cmd/dep
 	go get -u github.com/golang/lint/golint || true
-	go get -u github.com/vbatts/git-validation/...
 	go get -u github.com/goadesign/goa/goagen
 	go get -u github.com/haya14busa/goverage
 	@touch tools.timestamp
@@ -107,19 +106,6 @@ lint: ## Runs golint
 		echo "$$out"; \
 		exit 1; \
 	fi
-
-.PHONY: validate_commits
-validate_commits: tools ## Validates git commit messages
-ifeq ($(origin TRAVIS_COMMIT_RANGE), undefined)
-	git-validation  \
-			-run short-subject,message_regexp='^(Revert\s*)?(Fix\s*)?(Issue\s*)?#[0-9]+ [A-Z]+.*' \
-			-range `git rev-parse master@{u}`...HEAD
-else
-	git-validation  \
-			-run short-subject,message_regexp='^(Revert\s*)?(Fix\s*)?(Issue\s*)?#[0-9]+ [A-Z]+.*' \
-			-range $$TRAVIS_COMMIT_RANGE
-
-endif
 
 .PHONY: clean
 clean: ## Deletes all build artifacts
