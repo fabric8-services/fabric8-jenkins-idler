@@ -44,7 +44,7 @@ cd $PCP_LOG_DIR
 
 # We can log in plaintext to stdout also, even though WIT uses
 # JSON.  pmcd is not chatty and only speaks up during errors.
-exec /usr/libexec/pcp/bin/pmcd -l /dev/force-logging-to-stderr -f -A -H $PCP_HOSTNAME
+exec /usr/libexec/pcp/bin/pmcd -l - -f -A -H $PCP_HOSTNAME
 ) &
 sleep 5 # give time for pmcd's startup messages, so it doesn't intermix with WIT's
 
