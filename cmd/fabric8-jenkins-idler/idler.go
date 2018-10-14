@@ -115,29 +115,12 @@ func (idler *Idler) watchOpenshiftEvents(t *task, userIdlers *openshift.UserIdle
 			t.cancel,
 		)
 
-		t.wg.Add(2)
-		go idler.watchDC(t, oc, c, ctrl.HandleDeploymentConfig)
+		t.wg.Add(1)
 		go idler.watchBC(t, oc, c, ctrl.HandleBuild)
 	}
 }
 
-type dcHandler func(model.DCObject) error
 type bcHandler func(model.Object) error
-
-func (idler *Idler) watchDC(t *task, oc client.OpenShiftClient, c cluster.Cluster, handler dcHandler) {
-	defer t.wg.Done()
-	go func() {
-		idlerLogger.Info("Starting to watch openshift deployment configuration changes.")
-		err := oc.WatchDeploymentConfigs(c.APIURL, c.Token, "-jenkins", handler)
-		if err != nil {
-			t.cancel()
-		}
-	}()
-
-	<-t.ctx.Done()
-	idlerLogger.Infof("Stopping to watch openshift deployment configuration changes.")
-	t.cancel()
-}
 
 func (idler *Idler) watchBC(t *task, oc client.OpenShiftClient, c cluster.Cluster, handler bcHandler) {
 	defer t.wg.Done()
