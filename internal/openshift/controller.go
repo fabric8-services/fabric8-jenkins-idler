@@ -2,7 +2,6 @@ package openshift
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"context"
@@ -27,11 +26,10 @@ var logger = logrus.WithFields(logrus.Fields{"component": "controller"})
 // Controller defines the interface for watching the openShift cluster for changes.
 type Controller interface {
 	HandleBuild(o model.Object) error
-	HandleDeploymentConfig(dc model.DCObject) error
 }
 
-// controllerImpl watches a single OpenShift cluster for Build and Deployment Config changes. This struct needs to be
-// safe for concurrent use.
+// controllerImpl watches a single OpenShift cluster for Build changes.
+// This struct needs to be safe for concurrent use.
 type controllerImpl struct {
 	openshiftURL  string
 	osBearerToken string
@@ -93,11 +91,6 @@ func (c *controllerImpl) HandleBuild(o model.Object) error {
 	}
 
 	if !ok {
-		// We can have a situation where a single OpenShift cluster is used by prod
-		// as well as prod-preview. We see events from tenants of both clusters
-		// which means in some cases we won't get tenant information
-		// See: https://github.com/fabric8-services/fabric8-jenkins-idler/issues/155
-		log.Errorf("No user info found for namespace %q", ns)
 		return nil
 	}
 
@@ -151,92 +144,18 @@ func (c *controllerImpl) HandleBuild(o model.Object) error {
 	return nil
 }
 
-// HandleDeploymentConfig processes new DC event collected from openShift and updates
-// user structure with info about the changes in DC. NOTE: This is important for cases
-// like reset tenantService and update tenantService when DC is updated and Jenkins starts because
-// of ConfigChange or manual intervention.
-func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
-	ns := dc.Object.Metadata.Namespace[:len(dc.Object.Metadata.Namespace)-len(jenkinsNamespaceSuffix)]
-
-	log := logger.WithFields(logrus.Fields{
-		"event":     "dc",
-		"openshift": c.openshiftURL,
-		"ns":        ns,
-	})
-
-	ok, err := c.createIfNotExist(ns)
-	if err != nil {
-		log.Errorf("Creating user-idler record failed: %s", err)
-		return err
-	}
-
-	if !ok {
-		// We can have a situation where a single OpenShift cluster is used by prod as well as prod-preview
-		// For now we see in this case events from tenants of both clusters which means in some cases
-		// we won't get tenant information
-		// See also https://github.com/fabric8-services/fabric8-jenkins-idler/issues/155
-		log.Errorf("No user info found for namespace %q", ns)
-		return nil
-	}
-
-	userIdler := c.userIdlerForNamespace(ns)
-	user := userIdler.GetUser()
-
-	log = log.WithFields(logrus.Fields{
-		"id":   user.ID,
-		"name": user.Name,
-	})
-
-	evalConditions := false
-	condition, err := dc.Object.Status.GetByType(availableCond)
-	if err != nil {
-		log.Errorf("Available condition not present (%s) in the list of conditions - SKIPPING", err)
-		// stop processing since the pod isn't available yet
-		return nil
-	}
-
-	// TODO Verify if we need Generation vs. ObservedGeneration
-	// This is either a new version of DC or we existing version waiting to come up.
-	if (dc.Object.Metadata.Generation != dc.Object.Status.ObservedGeneration && dc.Object.Spec.Replicas > 0) ||
-		dc.Object.Status.UnavailableReplicas > 0 {
-
-		user.JenkinsLastUpdate = time.Now().UTC()
-		evalConditions = true
-		log.Infof("Will send user %v to Idler due to a new version of DC or an existing version is coming up", user.Name)
-	}
-
-	// Also check if the event means that Jenkins just started (OS AvailableCondition.Status == true) and update time.
-	status, err := strconv.ParseBool(condition.Status)
-	if err != nil {
-		return err
-	}
-
-	if status == true {
-		user.JenkinsLastUpdate = condition.LastUpdateTime
-		evalConditions = true
-		log.Infof("Will send user %v to Idler because Jenkins was just started", user.Name)
-	}
-
-	if evalConditions {
-		log.Infof("Sending user %v to Idler due a Deployment Config event", user.Name)
-		sendUserToIdler(userIdler, user)
-	}
-
-	return nil
-}
-
 // createIfNotExist checks existence of a user in the map, initialise if it does not exist.
 func (c *controllerImpl) createIfNotExist(ns string) (bool, error) {
 
 	log := logger.WithField("ns", ns)
-	if _, exist := c.userIdlers.Load(ns); exist {
-		log.Debug("User idler found in cache")
-		return true, nil
-	}
-
 	if _, exist := c.unknownUsers.Load(ns); exist {
 		log.Debugf("namespace %s listed in unknown users list", ns)
 		return false, nil
+	}
+
+	if _, exist := c.userIdlers.Load(ns); exist {
+		log.Debug("User idler found in cache")
+		return true, nil
 	}
 
 	log.Infof("creating user-idler for cluster %s", c.openshiftURL)
@@ -249,7 +168,15 @@ func (c *controllerImpl) createIfNotExist(ns string) (bool, error) {
 	if ti.Meta.TotalCount > 1 {
 		return false, fmt.Errorf("could not add new user - Tenant service returned multiple items: %d", ti.Meta.TotalCount)
 	} else if len(ti.Data) == 0 {
-		log.Warnf("adding namespace: %s to unknown users list namespace", ns)
+
+		// We can have a situation where a single OpenShift cluster is used by prod
+		// as well as prod-preview and tenant service we connect to would only have
+		// details about prod or prod-preview but we see events from tenants of both
+		// prod and prod-preview which means in some cases we won't get tenant information
+		// See: https://github.com/fabric8-services/fabric8-jenkins-idler/issues/155
+
+		log.Debugf("No user info found for namespace %q", ns)
+		log.Debugf("adding namespace: %s to unknown users list namespace", ns)
 		c.unknownUsers.Store(ns, nil)
 		return false, nil
 	}
