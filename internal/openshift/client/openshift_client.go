@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"k8s.io/api/core/v1"
 )
 
-var logger = log.WithFields(log.Fields{"component": "openshift-client"})
+var logger = logrus.WithField("component", "openshift-client")
 
 // OpenShiftClient defines a stateless openShift client used to control namespace services in the specified cluster as well as
 // monitoring a given cluster for events.
@@ -63,7 +63,8 @@ func NewOpenShiftWithClient(client *http.Client) OpenShiftClient {
 
 // Idle scales down the jenkins pod in the given openShift namespace.
 func (o openShift) Idle(apiURL string, bearerToken string, namespace string, service string) (err error) {
-	logger.Info("Idling " + service + " in " + namespace)
+	log := logger.WithField("ns", namespace)
+	log.Info("Idling service %s in namespace %s", service, namespace)
 
 	idleAt, err := time.Now().UTC().MarshalText()
 	if err != nil {
@@ -147,7 +148,8 @@ func (o openShift) Idle(apiURL string, bearerToken string, namespace string, ser
 
 // Reset deletes a pod and start a new one
 func (o *openShift) Reset(apiURL string, bearerToken string, namespace string) error {
-	logger.Infof("resetting pods in " + namespace)
+	log := logger.WithField("ns", namespace)
+	log.Info("resetting pods in " + namespace)
 
 	req, err := o.reqAPI(apiURL, bearerToken, "GET", namespace, "pods", nil)
 	if err != nil {
@@ -173,7 +175,7 @@ func (o *openShift) Reset(apiURL string, bearerToken string, namespace string) e
 			continue
 		}
 
-		log.Infof("Resetting the pod %q", podName)
+		log.Infof("Resetting pod %q", podName)
 		req, err := o.reqAPI(apiURL, bearerToken, "DELETE", namespace, "pods/"+podName, nil)
 		if err != nil {
 			return err
@@ -190,7 +192,8 @@ func (o *openShift) Reset(apiURL string, bearerToken string, namespace string) e
 
 // UnIdle scales up the jenkins pod in the given openShift namespace.
 func (o *openShift) UnIdle(apiURL string, bearerToken string, namespace string, service string) (err error) {
-	logger.Info("Un-idling ", service, " in ", namespace)
+	log := logger.WithField("ns", namespace)
+	log.Infof("Un-idling %s in %s", service, namespace)
 	// Scale up
 	s := model.Scale{
 		Kind:       "Scale",
@@ -228,7 +231,7 @@ func (o *openShift) UnIdle(apiURL string, bearerToken string, namespace string, 
 		return errors.New("could not scale the service")
 	}
 
-	logger.Infof("Scaled service %v to %v", service, ns.Spec.Replicas)
+	log.Infof("Scaled service %v to %v", service, ns.Spec.Replicas)
 	return
 }
 
@@ -275,6 +278,8 @@ func (o openShift) getScheme(tls bool) string {
 
 // WatchBuilds consumes stream of build events from openShift and calls callback to process them.
 func (o openShift) WatchBuilds(apiURL string, bearerToken string, buildType string, callback func(model.Object) error) error {
+	logger.Infof("Watching builds of type %s on cluster %s", buildType, apiURL)
+
 	// Use a HTTP client with disabled timeout.
 	c := &http.Client{
 		Transport: &http.Transport{
@@ -322,15 +327,16 @@ func (o openShift) WatchBuilds(apiURL string, bearerToken string, buildType stri
 				break
 			}
 
+			log := logger.WithField("ns", o.Object.Metadata.Namespace)
 			// Verify a build has a type we care about.
 			if o.Object.Spec.Strategy.Type != buildType {
-				logger.WithField("namespace", o.Object.Metadata.Namespace).Debugf("Skipping build %s (type: %s)", o.Object.Metadata.Name, o.Object.Spec.Strategy.Type)
+				log.Debugf("Skipping build %s (type: %s)", o.Object.Metadata.Name, o.Object.Spec.Strategy.Type)
 				continue
 			}
-			logger.WithFields(log.Fields{"namespace": o.Object.Metadata.Namespace, "data": o}).Debug("Handling Build change event")
+			log.Debug("Handling Build change event")
 			err = callback(o)
 			if err != nil {
-				logger.Errorf("Error from callback: %s", err)
+				log.Errorf("Error from callback: %s", err)
 				continue
 			}
 		}
@@ -393,7 +399,7 @@ func (o openShift) WatchDeploymentConfigs(apiURL string, bearerToken string, nam
 				continue
 			}
 
-			logger.WithFields(log.Fields{"namespace": o.Object.Metadata.Namespace, "data": o}).Debug("Handling DC change event")
+			logger.WithFields(logrus.Fields{"namespace": o.Object.Metadata.Namespace, "data": o}).Debug("Handling DC change event")
 			err = callback(o)
 			if err != nil {
 				logger.Errorf("Error from DC callback: %s", err)
