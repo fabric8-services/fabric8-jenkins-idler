@@ -27,7 +27,7 @@ Usage: ${0##*/} [start|stop|env|unset]
 This script is used to run the Jenkins Idler on localhost.
 
 As a prerequisite your OpenShift access token for dsaas-preview must be exported as DSAAS_PREVIEW_TOKEN.
-You can get this token by logging in to https://console.rh-idev.openshift.com/ and select the
+You can get this token by logging in to https://console.dsaas-stg.openshift.com/ and select the
 "Command Line Tools" option. You do need edit permissions for dsaas-preview in order to port-forward.
 
 You also need to export JC_FIXED_UUIDS to limit the users which get affected by this running instance.
@@ -197,7 +197,7 @@ setTokens() {
 login() {
     [ -z "${DSAAS_PREVIEW_TOKEN}" ] && echo "DSAAS_PREVIEW_TOKEN needs to be exported." && exit 1
 
-    loc login https://api.rh-idev.openshift.com -n dsaas-preview --token=${DSAAS_PREVIEW_TOKEN} >/dev/null
+    loc login https://api.dsaas-stg.openshift.com -n dsaas-preview --token=${DSAAS_PREVIEW_TOKEN} >/dev/null
 }
 
 ###############################################################################
