@@ -304,5 +304,14 @@ func createWatchConditions(proxyURL string, idleAfter int, idleLongBuild int, lo
 		time.Duration(idleAfter)*time.Minute,
 		time.Duration(idleLongBuild)*time.Hour))
 
+	// Add a DeploymentConfig condition.
+	conditions.Add("DC", condition.NewDCCondition(time.Duration(idleAfter)*time.Minute))
+
+	// If we have access to Proxy, add User condition.
+	if len(proxyURL) > 0 {
+		logEntry.Debug("Adding 'user' condition")
+		conditions.Add("user", condition.NewUserCondition(proxyURL, time.Duration(idleAfter)*time.Minute))
+	}
+
 	return &conditions
 }
