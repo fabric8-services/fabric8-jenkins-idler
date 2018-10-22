@@ -2,13 +2,14 @@ package model
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_String(t *testing.T) {
 	user := User{ID: "42"}
-	userAsString := user.String()
+	userAsString := user.StateDump()
 
 	assert.Equal(t, userAsString, "HasBuilds:false HasActiveBuilds:false JenkinsLastUpdate:01 Jan 01 00:00 UTC", "Unexpected string format")
 }

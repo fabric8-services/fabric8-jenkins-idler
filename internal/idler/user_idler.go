@@ -2,10 +2,9 @@ package idler
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
-
-	"fmt"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/condition"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
@@ -13,10 +12,10 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
-	log "github.com/sirupsen/logrus"
+	logrus "github.com/sirupsen/logrus"
 )
 
-var logger = log.WithField("component", "user-idler")
+var logger = logrus.WithField("component", "user-idler")
 
 // JenkinsServices is an array of all the services getting idled or unidled
 // they go along the main build detection logic of jenkins and don't have
@@ -41,7 +40,7 @@ type UserIdler struct {
 	idleAttempts         int
 	unIdleAttempts       int
 	Conditions           *condition.Conditions
-	logger               *log.Entry
+	logger               *logrus.Entry
 	userChan             chan model.User
 	user                 model.User
 	config               configuration.Configuration
@@ -58,10 +57,10 @@ func NewUserIdler(
 	features toggles.Features,
 	tenantService tenant.Service) *UserIdler {
 
-	logEntry := log.WithFields(log.Fields{
-		"component": "user-idler",
-		"name":      user.Name,
-		"id":        user.ID,
+	logEntry := logger.WithFields(logrus.Fields{
+		"name": user.Name,
+		"ns":   user.Name + jenkinsNamespaceSuffix,
+		"id":   user.ID,
 	})
 	logEntry.Info("UserIdler created.")
 
@@ -114,20 +113,27 @@ func (idler *UserIdler) checkIdle() error {
 
 	idler.logger.Infof("Evaluating conditions for user %s", idler.user.Name)
 
-	shouldIdle, errors := idler.Conditions.Eval(idler.user)
+	action, errors := idler.Conditions.Eval(idler.user)
 	if !errors.Empty() {
 		idler.logger.Errorf("Failed to evaluate conditions for %s", idler.user.Name)
 		return errors.ToError()
 	}
 
-	idler.logger.WithField("idle-jenkins", shouldIdle).Infof("Check idle state %s", idler.user.ID)
+	log := idler.logger.WithField("action", action)
+	log.Infof("jenkins idle conditions eval result: %v", action)
 
-	if shouldIdle {
-		err := idler.doIdle()
+	if action == condition.Idle {
+		if err := idler.doIdle(); err != nil {
+			log.Errorf("Idling jenkins failed:  %s", err)
+			return err
+		}
 		// TODO: find a better way to update IdleStatus inside doIdle()
 		idler.user.IdleStatus = model.NewIdleStatus(err)
-	} else {
-		err := idler.doUnIdle()
+	} else if action == condition.UnIdle {
+		if err := idler.doUnIdle(); err != nil {
+			log.Errorf("Idling jenkins failed:  %s", err)
+			return err
+		}
 		// TODO: find a better way to update IdleStatus inside doUnIdle()
 		idler.user.IdleStatus = model.NewUnidleStatus(err)
 	}
@@ -135,17 +141,20 @@ func (idler *UserIdler) checkIdle() error {
 }
 
 // Run runs/starts the Idler
-// It checks if Jenkins is idle at every checkIdle duration.
-func (idler *UserIdler) Run(ctx context.Context, wg *sync.WaitGroup, cancel context.CancelFunc, checkIdle time.Duration, maxRetriesQuietInterval time.Duration) {
-	idler.logger.WithFields(log.Fields{
-		"checkIdle":               fmt.Sprintf("%.0fm", checkIdle.Minutes()),
+// It checks if Jenkins is idle at every interval duration.
+func (idler *UserIdler) Run(
+	ctx context.Context, wg *sync.WaitGroup, cancel context.CancelFunc,
+	interval time.Duration, maxRetriesQuietInterval time.Duration) {
+
+	idler.logger.WithFields(logrus.Fields{
+		"interval":                fmt.Sprintf("%.0fm", interval.Minutes()),
 		"maxRetriesQuietInterval": fmt.Sprintf("%.0fm", maxRetriesQuietInterval.Minutes()),
 	}).Info("UserIdler started.")
 
 	wg.Add(1)
 	go func() {
 		ticker := time.Tick(maxRetriesQuietInterval)
-		timer := time.After(checkIdle)
+		timer := time.After(interval)
 		defer wg.Done()
 		for {
 			select {
@@ -154,22 +163,25 @@ func (idler *UserIdler) Run(ctx context.Context, wg *sync.WaitGroup, cancel cont
 				cancel()
 				return
 			case idler.user = <-idler.userChan:
-				idler.logger.WithField("state", idler.user.String()).Debug("Received user data.")
+				idler.logger.WithField("state", idler.user.StateDump()).Debug("Received user data.")
 
 				err := idler.checkIdle()
 				if err != nil {
-					idler.logger.WithField("error", err.Error()).Warn("Error during idle check.")
+					idler.logger.WithField("error", err.Error()).Warnf("Error during idle check: %s", err)
 				}
 				// Resetting the timer
-				timer = time.After(checkIdle)
+				timer = time.After(interval)
 			case <-timer:
-				// Timer handles the case where there are no OpenShift events received for the user for the checkIdle
-				// duration. This ensures checkIdle will be called regularly.
-				idler.logger.WithField("state", idler.user.String()).Info("Time based idle check.")
+				// Timer handles the case where there are no OpenShift events received
+				// for the user for the checkIdle duration.
+				// This ensures checkIdle will be called regularly.
+
+				idler.logger.WithField("state", idler.user.StateDump()).Info("Time based idle check.")
 				err := idler.checkIdle()
 				if err != nil {
 					idler.logger.WithField("error", err.Error()).Warn("Error during idle check.")
 				}
+
 			case <-ticker:
 				// Using ticker for the resetting of counters to ensure it occurs
 				idler.logger.Debug("Resetting retry counters.")
@@ -180,6 +192,7 @@ func (idler *UserIdler) Run(ctx context.Context, wg *sync.WaitGroup, cancel cont
 }
 
 func (idler *UserIdler) doIdle() error {
+
 	if idler.idleAttempts >= idler.maxRetries {
 		idler.logger.Warn("Skipping idle request since max retry count %d has reached.", idler.maxRetries)
 		return nil
@@ -187,24 +200,36 @@ func (idler *UserIdler) doIdle() error {
 
 	state, err := idler.getJenkinsState()
 	if err != nil {
+		idler.logger.Errorf("failed to get status of jenkins: %s", err)
 		return err
 	}
 
-	if state > model.PodIdled {
-		idler.incrementIdleAttempts()
-		for _, service := range JenkinsServices {
+	if state <= model.PodIdled {
+		idler.logger.Infof("not idling pod since it is already in state %s", state)
+		return nil
+	}
 
-			// Let's add some more reasons, we probably want to
-			reasonString := fmt.Sprintf("DoneBuild BuildName:%s Last:%s", idler.user.DoneBuild.Metadata.Name, idler.user.DoneBuild.Status.StartTimestamp.Time)
-			if idler.user.ActiveBuild.Metadata.Name != "" {
-				reasonString = fmt.Sprintf("ActiveBuild BuildName:%s Last:%s", idler.user.ActiveBuild.Metadata.Name, idler.user.ActiveBuild.Status.StartTimestamp.Time)
-			}
-			idler.logger.WithField("attempt", fmt.Sprintf("(%d/%d)", idler.idleAttempts, idler.maxRetries)).Info("About to idle " + service + ", Reason: " + reasonString)
-			err := idler.openShiftClient.Idle(idler.openShiftAPI, idler.openShiftBearerToken, idler.user.Name+jenkinsNamespaceSuffix, service)
-			if err != nil {
-				return err
-			}
+	idler.logger.Infof("Idling services, attempts: %d/%d", idler.idleAttempts, idler.maxRetries)
+
+	idler.incrementIdleAttempts()
+	for _, service := range JenkinsServices {
+
+		log := idler.logger.WithField(
+			"attempt", fmt.Sprintf("(%d/%d)", idler.idleAttempts, idler.maxRetries))
+		// Let's add some more reasons, we probably want to
+		reason := fmt.Sprintf("DoneBuild BuildName:%s Last:%s", idler.user.DoneBuild.Metadata.Name, idler.user.DoneBuild.Status.StartTimestamp.Time)
+		if idler.user.ActiveBuild.Metadata.Name != "" {
+			reason = fmt.Sprintf("ActiveBuild BuildName:%s Last:%s", idler.user.ActiveBuild.Metadata.Name, idler.user.ActiveBuild.Status.StartTimestamp.Time)
 		}
+
+		log.Infof("About to idle %s, reason %s", service, reason)
+
+		err := idler.openShiftClient.Idle(idler.openShiftAPI, idler.openShiftBearerToken, idler.user.Name+jenkinsNamespaceSuffix, service)
+		if err != nil {
+			log.Error("Idling of %s returned error:  %s ", service, err)
+			return err
+		}
+		log.Infof("sucessfully idled %s", service)
 	}
 	return nil
 }
@@ -225,9 +250,12 @@ func (idler *UserIdler) doUnIdle() error {
 	state, err := idler.getJenkinsState()
 	if err != nil {
 		return err
+
 	}
-	idler.logger.Infof("Current Jenkins' pod's state is %v", state)
+
+	idler.logger.Infof("Current Jenkins' pod's state is %s", state)
 	if state != model.PodIdled {
+		idler.logger.Infof("not unidling pod since it is already in state %s", state)
 		return nil
 	}
 
@@ -235,7 +263,8 @@ func (idler *UserIdler) doUnIdle() error {
 	clusterFull, err := idler.tenantService.HasReachedMaxCapacity(idler.openShiftAPI, ns)
 	if err != nil {
 		return err
-	} else if clusterFull {
+	}
+	if clusterFull {
 		err := fmt.Errorf("Maximum Resource limit reached on %s for %s", idler.openShiftAPI, ns)
 		return err
 	}
@@ -256,7 +285,18 @@ func (idler *UserIdler) doUnIdle() error {
 		}
 		idler.logger.Infof("Successfully un-idled service %v in namespace %v (un-idle attempt: %v)", service, ns, idler.unIdleAttempts)
 	}
+
+	// NOTE: sometimes bc events get fired/handled before a DC event and the
+	// JenkinsLastUpdate time may not be set and the next build event may evaluate
+	// to Idle, and if this isn't set, dc conditions would not evaluate to "UnIdle"
+	// there by idling jenkins even though a build is in progress
+	if idler.user.JenkinsLastUpdate.IsZero() {
+		idler.user.JenkinsLastUpdate = time.Now().UTC()
+		idler.logger.Infof("Resetting LastUpdate time to now  %v", idler.user.JenkinsLastUpdate)
+
+	}
 	return nil
+
 }
 
 func (idler *UserIdler) isIdlerEnabled() (bool, error) {
@@ -265,12 +305,15 @@ func (idler *UserIdler) isIdlerEnabled() (bool, error) {
 		return false, err
 	}
 
+	log := idler.logger.WithFields(logrus.Fields{
+		"user": idler.user.Name, "uuid": idler.user.ID,
+	})
 	if enabled {
-		logger.WithFields(log.Fields{"user": idler.user.Name, "uuid": idler.user.ID}).Debug("Idler enabled.")
+		log.Debug("Idler enabled.")
 		return true, nil
 	}
 
-	logger.WithFields(log.Fields{"user": idler.user.Name, "uuid": idler.user.ID}).Debug("Idler not enabled.")
+	log.Debug("Idler not enabled.")
 	return false, nil
 }
 
@@ -296,20 +339,19 @@ func (idler *UserIdler) resetCounters() {
 	idler.unIdleAttempts = 0
 }
 
-func createWatchConditions(proxyURL string, idleAfter int, idleLongBuild int, logEntry *log.Entry) *condition.Conditions {
+func createWatchConditions(proxyURL string, idleAfter int, idleLongBuild int, log *logrus.Entry) *condition.Conditions {
 	conditions := condition.NewConditions()
+
+	conditions.Add("dc", condition.NewDCCondition(time.Duration(idleAfter)*time.Minute))
 
 	// Add a Build condition.
 	conditions.Add("build", condition.NewBuildCondition(
 		time.Duration(idleAfter)*time.Minute,
 		time.Duration(idleLongBuild)*time.Hour))
 
-	// Add a DeploymentConfig condition.
-	conditions.Add("DC", condition.NewDCCondition(time.Duration(idleAfter)*time.Minute))
-
 	// If we have access to Proxy, add User condition.
 	if len(proxyURL) > 0 {
-		logEntry.Debug("Adding 'user' condition")
+		log.Info("Adding 'user' condition")
 		conditions.Add("user", condition.NewUserCondition(proxyURL, time.Duration(idleAfter)*time.Minute))
 	}
 

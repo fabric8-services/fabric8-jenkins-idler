@@ -15,15 +15,15 @@ func Test_non_user_creates_error(t *testing.T) {
 	assert.Error(t, err, "Passing non User instances to Eval should return an error.")
 }
 
-func Test_eval_returns_true_if_there_are_no_builds(t *testing.T) {
+func Test_eval_idle_if_there_are_no_builds(t *testing.T) {
 	user := model.NewUser("123", "foo")
 	condition := NewBuildCondition(time.Duration(5)*time.Minute, time.Duration(5)*time.Minute)
-	condValue, err := condition.Eval(user)
+	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.True(t, condValue, "Condition should evaluate to true.")
+	assert.Equal(t, Action(Idle), result, "Condition should evaluate to Idle.")
 }
 
-func Test_eval_return_false_when_active_build_exists(t *testing.T) {
+func Test_eval_unidle_when_active_build_exists(t *testing.T) {
 	user := model.NewUser("123", "foo")
 	user.ActiveBuild = model.Build{
 		Metadata: model.Metadata{
@@ -34,12 +34,12 @@ func Test_eval_return_false_when_active_build_exists(t *testing.T) {
 		},
 	}
 	condition := NewBuildCondition(time.Duration(5)*time.Minute, time.Duration(5)*time.Minute)
-	condValue, err := condition.Eval(user)
+	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.False(t, condValue, "Condition should evaluate to false.")
+	assert.Equal(t, Action(UnIdle), result, "Condition should evaluate to UnIdle.")
 }
 
-func Test_eval_return_true_when_activebuild_is_old(t *testing.T) {
+func Test_eval_idle_when_activebuild_is_old(t *testing.T) {
 	oldTime, _ := time.Parse(
 		time.RFC3339,
 		"1979-04-16T16:30:41+00:00")
@@ -53,9 +53,9 @@ func Test_eval_return_true_when_activebuild_is_old(t *testing.T) {
 		},
 	}
 	condition := NewBuildCondition(time.Duration(5)*time.Minute, time.Duration(10)*time.Hour)
-	condValue, err := condition.Eval(user)
+	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.True(t, condValue, "Condition should evaluate to true.")
+	assert.Equal(t, Action(Idle), result, "Condition should evaluate to Idle.")
 }
 
 func Test_eval_completion_before_idletime_expires(t *testing.T) {
@@ -69,9 +69,9 @@ func Test_eval_completion_before_idletime_expires(t *testing.T) {
 		},
 	}
 	condition := NewBuildCondition(time.Duration(5)*time.Minute, time.Duration(5)*time.Minute)
-	condValue, err := condition.Eval(user)
+	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.False(t, condValue, "Condition should evaluate to false.")
+	assert.Equal(t, Action(NoAction), result, "Condition should evaluate to UnIdle.")
 }
 
 func Test_eval_completion_after_idletime_expires(t *testing.T) {
@@ -88,10 +88,10 @@ func Test_eval_completion_after_idletime_expires(t *testing.T) {
 			CompletionTimestamp: model.BuildTime{Time: oldTime},
 		},
 	}
-	condition := NewBuildCondition(time.Duration(5)*time.Minute, time.Duration(5)*time.Minute)
-	condValue, err := condition.Eval(user)
+	condition := NewBuildCondition(5*time.Minute, 5*time.Minute)
+	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.True(t, condValue, "Condition should evaluate to false.")
+	assert.Equal(t, Action(Idle), result, "Condition should evaluate to Idle.")
 }
 
 func Test_eval_ignore_pesky_jenkins_sync_plugin(t *testing.T) {
@@ -109,7 +109,7 @@ func Test_eval_ignore_pesky_jenkins_sync_plugin(t *testing.T) {
 		},
 	}
 	condition := NewBuildCondition(time.Duration(5)*time.Minute, time.Duration(10)*time.Hour)
-	condValue, err := condition.Eval(user)
+	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.True(t, condValue, "Condition should evaluate to true.")
+	assert.Equal(t, Action(Idle), result, "Condition should evaluate to Idle.")
 }

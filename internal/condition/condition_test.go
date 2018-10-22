@@ -10,18 +10,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type TrueCondition struct {
+type IdleCondition struct {
 }
 
-func (c *TrueCondition) Eval(object interface{}) (bool, error) {
-	return true, nil
+func (c *IdleCondition) Eval(object interface{}) (Action, error) {
+	return Idle, nil
 }
 
-type FalseCondition struct {
+type UnIdleCondition struct {
 }
 
-func (c *FalseCondition) Eval(object interface{}) (bool, error) {
-	return false, nil
+func (c *UnIdleCondition) Eval(object interface{}) (Action, error) {
+	return UnIdle, nil
 }
 
 type ErrorCondition struct {
@@ -33,56 +33,56 @@ func NewErrorCondition(msg string) Condition {
 	return b
 }
 
-func (c *ErrorCondition) Eval(object interface{}) (bool, error) {
-	return false, errors.New(c.msg)
+func (c *ErrorCondition) Eval(object interface{}) (Action, error) {
+	return NoAction, errors.New(c.msg)
 }
 
-func Test_all_conditions_true(t *testing.T) {
+func Test_all_conditions_idle(t *testing.T) {
 	conditions := NewConditions()
-	conditions.Add("true-1", &TrueCondition{})
-	conditions.Add("true-2", &TrueCondition{})
-	conditions.Add("true-3", &TrueCondition{})
+	conditions.Add("idle-1", &IdleCondition{})
+	conditions.Add("idle-2", &IdleCondition{})
+	conditions.Add("idle-3", &IdleCondition{})
 
-	eval, err := conditions.Eval(model.NewUser("id", "name"))
+	result, err := conditions.Eval(model.NewUser("id", "name"))
 
 	assert.NoError(t, err.ToError(), "No error expected.")
-	assert.True(t, eval, "Should evaluate to true.")
+	assert.Equal(t, Action(Idle), result, "Should evaluate to Idle.")
 }
 
-func Test_all_conditions_false(t *testing.T) {
+func Test_all_conditions_unidle(t *testing.T) {
 	conditions := NewConditions()
-	conditions.Add("false-1", &FalseCondition{})
-	conditions.Add("false-2", &FalseCondition{})
-	conditions.Add("false-3", &FalseCondition{})
+	conditions.Add("unidle-1", &UnIdleCondition{})
+	conditions.Add("unidle-2", &UnIdleCondition{})
+	conditions.Add("unidle-3", &UnIdleCondition{})
 
-	eval, err := conditions.Eval(model.NewUser("id", "name"))
+	result, err := conditions.Eval(model.NewUser("id", "name"))
 
 	assert.NoError(t, err.ToError(), "No error expected.")
-	assert.False(t, eval, "Should evaluate to false.")
+	assert.Equal(t, Action(UnIdle), result, "Should evaluate to unidle")
 }
 
 func Test_mixed_conditions(t *testing.T) {
 	conditions := NewConditions()
-	conditions.Add("true-1", &TrueCondition{})
-	conditions.Add("true-2", &TrueCondition{})
-	conditions.Add("false-1", &FalseCondition{})
+	conditions.Add("idle-1", &IdleCondition{})
+	conditions.Add("unidle-1", &UnIdleCondition{})
+	conditions.Add("idle-2", &IdleCondition{})
 
-	eval, err := conditions.Eval(model.NewUser("id", "name"))
+	result, err := conditions.Eval(model.NewUser("id", "name"))
 
 	assert.NoError(t, err.ToError(), "No error expected.")
-	assert.False(t, eval, "Should evaluate to false.")
+	assert.Equal(t, Action(UnIdle), result, "Should evaluate to UnIdle.")
 }
 
 func Test_error_conditions(t *testing.T) {
 	log.SetOutput(ioutil.Discard)
 	conditions := NewConditions()
-	conditions.Add("true-1", &TrueCondition{})
-	conditions.Add("true-2", &TrueCondition{})
+	conditions.Add("idle-1", &IdleCondition{})
+	conditions.Add("idle-2", &IdleCondition{})
 	conditions.Add("error", NewErrorCondition("buh"))
 
-	eval, err := conditions.Eval(model.NewUser("id", "name"))
+	result, err := conditions.Eval(model.NewUser("id", "name"))
 
 	assert.Error(t, err.ToError(), "No error expected.")
 	assert.Equal(t, "buh", err.ToError().Error(), "Unexpected error message.")
-	assert.False(t, eval, "Should evaluate to false.")
+	assert.Equal(t, Action(Idle), result, "Should evaluate to false.")
 }

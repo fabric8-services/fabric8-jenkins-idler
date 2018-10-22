@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
-var logger = log.WithFields(log.Fields{"component": "user-condition"})
+var logger = logrus.WithFields(logrus.Fields{"component": "user-condition"})
 
 // ProxyResponse represents response provided by the Jenkins Proxy for a particular user.
 type ProxyResponse struct {
@@ -39,28 +39,53 @@ func NewUserCondition(proxyURL string, idleAfter time.Duration) Condition {
 
 // Eval returns true if there are no buffered request, the last forwarded request occurred more than UserCondition.idleAfter
 // minutes ago and the user accessed the Jenkins UI more than UserCondition.idleAfter minutes ago.
-func (c *UserCondition) Eval(object interface{}) (bool, error) {
-	b, ok := object.(model.User)
+func (c *UserCondition) Eval(object interface{}) (Action, error) {
+	u, ok := object.(model.User)
 	if !ok {
-		return false, fmt.Errorf("%s is not of type User", object)
+		return NoAction, fmt.Errorf("%T is not of type User", object)
 	}
 
-	proxyResponse, err := c.getProxyResponse(b.Name)
+	log := logger.WithFields(logrus.Fields{
+		"id":        u.ID,
+		"name":      u.Name,
+		"component": "user-condition",
+	})
+
+	proxyResponse, err := c.getProxyResponse(u.Name)
 	if err != nil {
-		return false, err
+		log.WithField("action", "none").Errorf("proxy returned error: %s", err)
+		return NoAction, err
 	}
 
 	if proxyResponse.Requests > 0 {
-		return false, nil
+		log.WithField("action", "unidle").Infof(
+			"proxy is still serving requests %d", proxyResponse.Requests)
+		return UnIdle, nil
 	}
 
-	tu := time.Unix(proxyResponse.LastVisit, 0)
-	tr := time.Unix(proxyResponse.LastRequest, 0)
-	if tu.Add(c.idleAfter).Before(time.Now()) && tr.Add(c.idleAfter).Before(time.Now()) {
-		return true, nil
+	lv := time.Unix(proxyResponse.LastVisit, 0)
+	visitIdleTime := lv.Add(c.idleAfter)
+
+	lr := time.Unix(proxyResponse.LastRequest, 0)
+	reqIdleTime := lr.Add(c.idleAfter)
+
+	now := time.Now().UTC()
+
+	log.WithField("check", "proxy:last-visit").Infof(
+		"check if %v has gone past last visit %v - %v, last request %v - %v ",
+		now, lv, visitIdleTime, lr, reqIdleTime)
+
+	if now.After(visitIdleTime) && now.After(reqIdleTime) {
+		log.WithField("action", "idle").Infof(
+			"%v (%v) has elapsed after last visit: %v last request: %v",
+			c.idleAfter, now, lv, lr)
+		return Idle, nil
 	}
 
-	return false, nil
+	log.WithField("action", "idle").Infof(
+		"%v (%v) has not elapsed after last visit: %v last request: %v",
+		c.idleAfter, now, lv, lr)
+	return UnIdle, nil
 }
 
 func (c *UserCondition) getProxyResponse(userName string) (*ProxyResponse, error) {

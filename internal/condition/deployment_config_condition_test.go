@@ -1,10 +1,11 @@
 package condition
 
 import (
-	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/fabric8-services/fabric8-jenkins-idler/internal/model"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_non_user_creates_error_in_build_condition(t *testing.T) {
@@ -14,20 +15,20 @@ func Test_non_user_creates_error_in_build_condition(t *testing.T) {
 	assert.Error(t, err, "Passing non User instances to Eval should return an error.")
 }
 
-func Test_eval_returns_true_for_deployment_config_condition_if_last_change_is_older_than_idle_time(t *testing.T) {
+func Test_eval_idle_for_deployment_config_condition_if_last_change_is_older_than_g_time(t *testing.T) {
 	user := model.NewUser("123", "foo")
 	user.JenkinsLastUpdate = time.Now().Add(-6 * time.Minute)
 	condition := NewDCCondition(time.Duration(5) * time.Minute)
-	condValue, err := condition.Eval(user)
+	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.True(t, condValue, "Condition should evaluate to true.")
+	assert.Equal(t, Action(Idle), result, "Condition should evaluate to Idle.")
 }
 
-func Test_eval_returns_false_for_deployment_config_condition_if_last_change_is_younger_than_idle_time(t *testing.T) {
+func Test_eval_unidle_for_deployment_config_condition_if_last_change_is_younger_than_g_time(t *testing.T) {
 	user := model.NewUser("123", "foo")
 	user.JenkinsLastUpdate = time.Now().Add(-4 * time.Minute)
 	condition := NewDCCondition(time.Duration(5) * time.Minute)
-	condValue, err := condition.Eval(user)
+	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.False(t, condValue, "Condition should evaluate to false.")
+	assert.Equal(t, Action(UnIdle), result, "Condition should evaluate to UnIdle")
 }

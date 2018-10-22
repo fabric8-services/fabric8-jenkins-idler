@@ -21,10 +21,10 @@ func NewDCCondition(idleAfter time.Duration) Condition {
 }
 
 // Eval returns true if the last deployment config change occurred for more than the configured idle after interval.
-func (c *DeploymentConfigCondition) Eval(object interface{}) (bool, error) {
+func (c *DeploymentConfigCondition) Eval(object interface{}) (Action, error) {
 	u, ok := object.(model.User)
 	if !ok {
-		return false, fmt.Errorf("%T is not of type User", object)
+		return NoAction, fmt.Errorf("%T is not of type User", object)
 	}
 
 	log := logrus.WithFields(logrus.Fields{
@@ -33,16 +33,24 @@ func (c *DeploymentConfigCondition) Eval(object interface{}) (bool, error) {
 		"component": "dc-condition",
 	})
 
-	if u.JenkinsLastUpdate.Add(c.idleAfter).Before(time.Now()) {
-		log.WithField("action", "idle").Infof(
-			"%v has elapsed after jenkins last update at %v",
-			c.idleAfter, u.JenkinsLastUpdate)
-		return true, nil
+	lastUpdated := u.JenkinsLastUpdate
+	if lastUpdated.IsZero() {
+		log.WithField("action", "none").Info(
+			"could not find when jenkins was last updated by idler, so taking no action")
+		return NoAction, nil
+	}
+
+	now := time.Now().UTC()
+	terminateTime := lastUpdated.Add(c.idleAfter)
+
+	if now.After(terminateTime) {
+		log.WithField("action", "idle").Infof("%v (%v) has elapsed after last update at %v",
+			c.idleAfter, terminateTime, lastUpdated)
+		return Idle, nil
 	}
 
 	log.WithField("action", "unidle").Infof(
-		"%v has not elapsed after jenkins last update at %v",
-		c.idleAfter, u.JenkinsLastUpdate)
-
-	return false, nil
+		"%v (%v) has not elapsed after jenkins last update at %v",
+		c.idleAfter, terminateTime, lastUpdated)
+	return UnIdle, nil
 }
