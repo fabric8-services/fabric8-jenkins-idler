@@ -64,7 +64,7 @@ func NewOpenShiftWithClient(client *http.Client) OpenShiftClient {
 // Idle scales down the jenkins pod in the given openShift namespace.
 func (o openShift) Idle(apiURL string, bearerToken string, namespace string, service string) (err error) {
 	log := logger.WithField("ns", namespace)
-	log.Info("Idling service %s in namespace %s", service, namespace)
+	log.Infof("Idling service %s in namespace %s", service, namespace)
 
 	idleAt, err := time.Now().UTC().MarshalText()
 	if err != nil {
@@ -82,16 +82,19 @@ func (o openShift) Idle(apiURL string, bearerToken string, namespace string, ser
 	}
 	body, err := json.Marshal(e)
 	if err != nil {
+		log.Errorf("failed to marshal body: %v", err)
 		return
 	}
 	br := ioutil.NopCloser(bytes.NewReader(body))
 
 	req, err := o.reqAPI(apiURL, bearerToken, "PATCH", namespace, fmt.Sprintf("endpoints/%s", service), br)
 	if err != nil {
+		log.Errorf("failed to create patch request %s: %v", service, err)
 		return
 	}
 	b, err := o.patch(req)
 	if err != nil {
+		log.Errorf("failed to patch service %s: %v", service, err)
 		return
 	}
 
@@ -327,13 +330,18 @@ func (o openShift) WatchBuilds(apiURL string, bearerToken string, buildType stri
 				break
 			}
 
-			log := logger.WithField("ns", o.Object.Metadata.Namespace)
+			log := logger.WithFields(logrus.Fields{
+				"data":     o,
+				"ns":       o.Object.Metadata.Namespace,
+				"strategy": o.Object.Spec.Strategy.Type,
+			})
+
 			// Verify a build has a type we care about.
 			if o.Object.Spec.Strategy.Type != buildType {
-				log.Debugf("Skipping build %s (type: %s)", o.Object.Metadata.Name, o.Object.Spec.Strategy.Type)
 				continue
 			}
-			log.Debug("Handling Build change event")
+
+			log.Info("Handling build event")
 			err = callback(o)
 			if err != nil {
 				log.Errorf("Error from callback: %s", err)
@@ -393,13 +401,18 @@ func (o openShift) WatchDeploymentConfigs(apiURL string, bearerToken string, nam
 				break
 			}
 
+			log := logger.WithFields(logrus.Fields{
+				"data": o,
+				"ns":   o.Object.Metadata.Namespace,
+			})
+
 			// Filter for a given suffix.
 			if !strings.HasSuffix(o.Object.Metadata.Namespace, namespaceSuffix) {
-				logger.WithField("namespace", o.Object.Metadata.Namespace).Debug("Skipping DC change event")
+				log.Debug("Skipping DC change event")
 				continue
 			}
 
-			logger.WithFields(logrus.Fields{"namespace": o.Object.Metadata.Namespace, "data": o}).Debug("Handling DC change event")
+			log.Info("Handling DC event")
 			err = callback(o)
 			if err != nil {
 				logger.Errorf("Error from DC callback: %s", err)

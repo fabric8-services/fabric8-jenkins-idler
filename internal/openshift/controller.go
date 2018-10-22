@@ -79,7 +79,6 @@ func NewController(
 // just does couple comparisons and returns.
 func (c *controllerImpl) HandleBuild(o model.Object) error {
 	ns := o.Object.Metadata.Namespace
-
 	log := logger.WithFields(logrus.Fields{
 		"ns":        ns,
 		"event":     "build",
@@ -93,11 +92,6 @@ func (c *controllerImpl) HandleBuild(o model.Object) error {
 	}
 
 	if !ok {
-		// We can have a situation where a single OpenShift cluster is used by prod
-		// as well as prod-preview. We see events from tenants of both clusters
-		// which means in some cases we won't get tenant information
-		// See: https://github.com/fabric8-services/fabric8-jenkins-idler/issues/155
-		log.Errorf("No user info found for namespace %q", ns)
 		return nil
 	}
 
@@ -119,7 +113,7 @@ func (c *controllerImpl) HandleBuild(o model.Object) error {
 
 			user.ActiveBuild = o.Object
 			evalConditions = true
-			log.Infof("Will send user %q to Idler due to active build", user.Name)
+			log.Infof("should evaluate conditions for %q due to active build", user.Name)
 		}
 	} else {
 
@@ -129,7 +123,7 @@ func (c *controllerImpl) HandleBuild(o model.Object) error {
 
 			user.DoneBuild = o.Object
 			evalConditions = true
-			log.Infof("Will send user %q to Idler due to done build", user.Name)
+			log.Infof("should evaluate conditions for %q due to completed build", user.Name)
 		}
 	}
 
@@ -140,11 +134,11 @@ func (c *controllerImpl) HandleBuild(o model.Object) error {
 		log.Infof("Active and Done builds are the same (%s), cleaning active builds", user.ActiveBuild.Metadata.Name)
 		user.ActiveBuild = model.Build{Status: model.Status{Phase: "New"}}
 		evalConditions = true
-		log.Infof("Will send user %q to Idler due to transition of active build to a done build", user.Name)
+		log.Infof("should evaluate conditions for %q due to transition of active to  done build", user.Name)
 	}
 
 	if evalConditions {
-		log.Infof("Sending user %q to Idler from a Build event", user.Name)
+		log.Infof("Sending user %q to user-idler for evaluating conditions", user.Name)
 		sendUserToIdler(userIdler, user)
 	}
 
@@ -171,14 +165,11 @@ func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 	}
 
 	if !ok {
-		// We can have a situation where a single OpenShift cluster is used by prod as well as prod-preview
-		// For now we see in this case events from tenants of both clusters which means in some cases
-		// we won't get tenant information
-		// See also https://github.com/fabric8-services/fabric8-jenkins-idler/issues/155
-		log.Errorf("No user info found for namespace %q", ns)
 		return nil
 	}
 
+	// ensure user-idler is created for user so that pod would be
+	// idled/unidled even if there aren't any build events
 	userIdler := c.userIdlerForNamespace(ns)
 	user := userIdler.GetUser()
 
@@ -187,41 +178,37 @@ func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 		"name": user.Name,
 	})
 
-	evalConditions := false
-	condition, err := dc.Object.Status.GetByType(availableCond)
+	availability, err := dc.Object.Status.GetByType(availableCond)
 	if err != nil {
-		log.Errorf("Available condition not present (%s) in the list of conditions - SKIPPING", err)
 		// stop processing since the pod isn't available yet
+		log.Errorf("available condition not present in the list of conditions - %s", err)
 		return nil
 	}
 
-	// TODO Verify if we need Generation vs. ObservedGeneration
+	// TODO(sthaha) Verify if we need Generation vs. ObservedGeneration
 	// This is either a new version of DC or we existing version waiting to come up.
+	// Log this so that we can use kibana logs to analyse if 'JenkinsLastUpdate'
+	// should have been updated when this happens
+	//
 	if (dc.Object.Metadata.Generation != dc.Object.Status.ObservedGeneration && dc.Object.Spec.Replicas > 0) ||
 		dc.Object.Status.UnavailableReplicas > 0 {
-
-		user.JenkinsLastUpdate = time.Now().UTC()
-		evalConditions = true
-		log.Infof("Will send user %v to Idler due to a new version of DC or an existing version is coming up", user.Name)
+		log.Warnf("Noticed that a new version of jenkins has been deployed for %s but not setting lastupdate time", user.Name)
 	}
 
 	// Also check if the event means that Jenkins just started (OS AvailableCondition.Status == true) and update time.
-	status, err := strconv.ParseBool(condition.Status)
+	available, err := strconv.ParseBool(availability.Status)
 	if err != nil {
+		log.Errorf("could not parse availale condition status - %s", err)
 		return err
 	}
 
-	if status == true {
-		user.JenkinsLastUpdate = condition.LastUpdateTime
-		evalConditions = true
-		log.Infof("Will send user %v to Idler because Jenkins was just started", user.Name)
+	if available {
+		log.Infof("setting user jenkins-last-update to %v based on available condition", availability.LastUpdateTime)
+		user.JenkinsLastUpdate = availability.LastUpdateTime
 	}
 
-	if evalConditions {
-		log.Infof("Sending user %v to Idler due a Deployment Config event", user.Name)
-		sendUserToIdler(userIdler, user)
-	}
-
+	log.Infof("evaluate conditions for %q due to dc event", user.Name)
+	sendUserToIdler(userIdler, user)
 	return nil
 }
 
@@ -254,9 +241,9 @@ func (c *controllerImpl) createIfNotExist(ns string) (bool, error) {
 		return false, nil
 	}
 
-	userID := model.NewUser(ti.Data[0].ID, ns)
+	user := model.NewUser(ti.Data[0].ID, ns)
 	userIdler := idler.NewUserIdler(
-		userID, c.openshiftURL, c.osBearerToken,
+		user, c.openshiftURL, c.osBearerToken,
 		c.config, c.features, c.tenantService)
 	c.userIdlers.Store(ns, userIdler)
 

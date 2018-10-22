@@ -97,6 +97,11 @@ func TestHandleBuildChannelLength(t *testing.T) {
 		ci := controller.(*controllerImpl)
 		userIdler := ci.userIdlerForNamespace(ns)
 
+		if userIdler == nil {
+			t.Errorf("expected user-idler to be created")
+			return
+		}
+
 		userChannel := userIdler.GetChannel()
 		if test.channelLength != len(userChannel) {
 			t.Errorf("Expected channel length to be %v, but got %v", test.channelLength, len(userChannel))
@@ -174,6 +179,12 @@ func TestHandleDeploymentConfigChannelLength(t *testing.T) {
 		ns := test.object.Object.Metadata.Namespace[:len(test.object.Object.Metadata.Namespace)-len(jenkinsNamespaceSuffix)]
 		ci := controller.(*controllerImpl)
 		userIdler := ci.userIdlerForNamespace(ns)
+
+		if userIdler == nil {
+			t.Errorf("Expected user-idler to be created")
+			return
+		}
+
 		userChannel := userIdler.GetChannel()
 		if test.channelLength != len(userChannel) {
 			t.Errorf("Expected channel length to be %v, but got %v", test.channelLength, len(userChannel))
