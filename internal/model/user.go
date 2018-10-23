@@ -94,6 +94,9 @@ func (u *User) HasBuilds() bool {
 	return u.HasActiveBuilds() || u.HasCompletedBuilds()
 }
 
-func (u *User) String() string {
-	return fmt.Sprintf("HasBuilds:%t HasActiveBuilds:%t JenkinsLastUpdate:%v", u.HasBuilds(), u.HasActiveBuilds(), u.JenkinsLastUpdate.Format(time.RFC822))
+// StateDump returns a String representing the internal states like
+// HasActiveBuilds, LastUpdate etc useful for debugging
+func (u *User) StateDump() string {
+	return fmt.Sprintf("HasBuilds:%t HasActiveBuilds:%t JenkinsLastUpdate:%v",
+		u.HasBuilds(), u.HasActiveBuilds(), u.JenkinsLastUpdate.Format(time.RFC822))
 }

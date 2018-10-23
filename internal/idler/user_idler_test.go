@@ -19,15 +19,15 @@ import (
 type ErrorCondition struct {
 }
 
-func (c *ErrorCondition) Eval(object interface{}) (bool, error) {
-	return false, errors.New("eval error")
+func (c *ErrorCondition) Eval(object interface{}) (condition.Action, error) {
+	return condition.NoAction, errors.New("eval error")
 }
 
 type UnIdleCondition struct {
 }
 
-func (c *UnIdleCondition) Eval(object interface{}) (bool, error) {
-	return false, nil
+func (c *UnIdleCondition) Eval(object interface{}) (condition.Action, error) {
+	return condition.UnIdle, nil
 }
 
 func Test_idle_check_skipped_if_feature_not_enabled(t *testing.T) {

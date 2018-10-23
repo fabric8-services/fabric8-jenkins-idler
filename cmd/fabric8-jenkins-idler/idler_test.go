@@ -56,6 +56,7 @@ func Test_graceful_shutdown(t *testing.T) {
 
 	logMessages := extractLogMessages(hook.AllEntries())
 	assert.Contains(t, logMessages, "Stopping to watch openshift build configuration changes.", "Idler shutdown completion should have been logged")
+	assert.Contains(t, logMessages, "Stopping to watch openshift deployment configuration changes.", "Idler shutdown completion should have been logged")
 	assert.Contains(t, logMessages, "Idler successfully shut down.", "Idler shutdown completion should have been logged")
 }
 

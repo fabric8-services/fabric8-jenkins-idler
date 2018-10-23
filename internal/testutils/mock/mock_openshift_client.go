@@ -68,6 +68,15 @@ func (c *OpenShiftClient) WatchBuilds(apiURL string, bearerToken string, buildTy
 	return nil
 }
 
+// WatchDeploymentConfigs mocks WatchDeploymentConfigs method of client.OpenShiftClient.
+// It always returns nil.
+func (c *OpenShiftClient) WatchDeploymentConfigs(apiURL string, bearerToken string, nsSuffix string, callback func(model.DCObject) error) error {
+	if c.IdleError != "" {
+		return fmt.Errorf(c.IdleError)
+	}
+	return nil
+}
+
 // ResetCounts resets calls made to the idler(idle/unidle) to 0.
 func (c *OpenShiftClient) ResetCounts() {
 	c.UnIdleCallCount = 0

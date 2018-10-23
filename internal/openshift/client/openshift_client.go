@@ -27,6 +27,7 @@ type OpenShiftClient interface {
 	State(apiURL string, bearerToken string, namespace string, service string) (model.PodState, error)
 	WhoAmI(apiURL string, bearerToken string) (string, error)
 	WatchBuilds(apiURL string, bearerToken string, buildType string, callback func(model.Object) error) error
+	WatchDeploymentConfigs(apiURL string, bearerToken string, namespaceSuffix string, callback func(model.DCObject) error) error
 	Reset(apiURL string, bearerToken string, namespace string) error
 }
 
@@ -63,7 +64,7 @@ func NewOpenShiftWithClient(client *http.Client) OpenShiftClient {
 // Idle scales down the jenkins pod in the given openShift namespace.
 func (o openShift) Idle(apiURL string, bearerToken string, namespace string, service string) (err error) {
 	log := logger.WithField("ns", namespace)
-	log.Info("Idling service %s in namespace %s", service, namespace)
+	log.Infof("Idling service %s in namespace %s", service, namespace)
 
 	idleAt, err := time.Now().UTC().MarshalText()
 	if err != nil {
@@ -81,16 +82,19 @@ func (o openShift) Idle(apiURL string, bearerToken string, namespace string, ser
 	}
 	body, err := json.Marshal(e)
 	if err != nil {
+		log.Errorf("failed to marshal body: %v", err)
 		return
 	}
 	br := ioutil.NopCloser(bytes.NewReader(body))
 
 	req, err := o.reqAPI(apiURL, bearerToken, "PATCH", namespace, fmt.Sprintf("endpoints/%s", service), br)
 	if err != nil {
+		log.Errorf("failed to create patch request %s: %v", service, err)
 		return
 	}
 	b, err := o.patch(req)
 	if err != nil {
+		log.Errorf("failed to patch service %s: %v", service, err)
 		return
 	}
 
@@ -326,13 +330,18 @@ func (o openShift) WatchBuilds(apiURL string, bearerToken string, buildType stri
 				break
 			}
 
-			log := logger.WithField("ns", o.Object.Metadata.Namespace)
+			log := logger.WithFields(logrus.Fields{
+				"data":     o,
+				"ns":       o.Object.Metadata.Namespace,
+				"strategy": o.Object.Spec.Strategy.Type,
+			})
+
 			// Verify a build has a type we care about.
 			if o.Object.Spec.Strategy.Type != buildType {
-				log.Debugf("Skipping build %s (type: %s)", o.Object.Metadata.Name, o.Object.Spec.Strategy.Type)
 				continue
 			}
-			log.Debug("Handling Build change event")
+
+			log.Info("Handling build event")
 			err = callback(o)
 			if err != nil {
 				log.Errorf("Error from callback: %s", err)
@@ -340,6 +349,77 @@ func (o openShift) WatchBuilds(apiURL string, bearerToken string, buildType stri
 			}
 		}
 		logger.Debug("Fell out of loop for Build")
+	}
+}
+
+// WatchDeploymentConfigs consumes stream of DeploymentConfig events from openShift and calls callback to process them.
+func (o openShift) WatchDeploymentConfigs(apiURL string, bearerToken string, namespaceSuffix string, callback func(model.DCObject) error) error {
+	// Use a HTTP client with disabled timeout.
+	c := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConnsPerHost: 20,
+		},
+		Timeout: time.Duration(0) * time.Second,
+	}
+	for {
+		req, err := o.reqOAPIWatch(apiURL, bearerToken, "GET", "", "deploymentconfigs", nil)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		v := req.URL.Query()
+		v.Add("labelSelector", "app=jenkins")
+		req.URL.RawQuery = v.Encode()
+		resp, err := c.Do(req)
+		if resp != nil && resp.StatusCode != http.StatusOK {
+			logger.Errorf("got status %s (%d) from %s", resp.Status, resp.StatusCode, req.URL)
+			continue
+		}
+		if err != nil {
+			logger.Errorf("Request failed: %s", err)
+			continue
+		}
+
+		reader := bufio.NewReader(resp.Body)
+		for {
+			line, err := reader.ReadBytes('\n')
+			if err != nil {
+				if err.Error() == "EOF" || err.Error() == "unexpected EOF" {
+					logger.Info("Got error ", err, " but continuing..")
+					break
+				}
+			}
+
+			o := model.DCObject{}
+
+			err = json.Unmarshal(line, &o)
+			if err != nil {
+				if strings.HasPrefix(string(line), "This request caused apisever to panic") {
+					logger.WithField("error", string(line)).Warning("Communication with server failed")
+					break
+				}
+				logger.Errorf("Failed to Unmarshal: %s", err)
+				break
+			}
+
+			log := logger.WithFields(logrus.Fields{
+				"data": o,
+				"ns":   o.Object.Metadata.Namespace,
+			})
+
+			// Filter for a given suffix.
+			if !strings.HasSuffix(o.Object.Metadata.Namespace, namespaceSuffix) {
+				log.Debug("Skipping DC change event")
+				continue
+			}
+
+			log.Info("Handling DC event")
+			err = callback(o)
+			if err != nil {
+				logger.Errorf("Error from DC callback: %s", err)
+				continue
+			}
+		}
+		logger.Debug("Fell out of loop for watching DC")
 	}
 }
 
