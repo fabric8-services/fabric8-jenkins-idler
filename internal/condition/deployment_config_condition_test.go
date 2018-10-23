@@ -21,7 +21,7 @@ func Test_eval_idle_for_deployment_config_condition_if_last_change_is_older_than
 	condition := NewDCCondition(time.Duration(5) * time.Minute)
 	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.Equal(t, Action(Idle), result, "Condition should evaluate to Idle.")
+	assert.Equal(t, Idle, result, "Condition should evaluate to Idle.")
 }
 
 func Test_eval_unidle_for_deployment_config_condition_if_last_change_is_younger_than_g_time(t *testing.T) {
@@ -30,5 +30,5 @@ func Test_eval_unidle_for_deployment_config_condition_if_last_change_is_younger_
 	condition := NewDCCondition(time.Duration(5) * time.Minute)
 	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.Equal(t, Action(UnIdle), result, "Condition should evaluate to UnIdle")
+	assert.Equal(t, UnIdle, result, "Condition should evaluate to UnIdle")
 }

@@ -46,7 +46,7 @@ func Test_all_conditions_idle(t *testing.T) {
 	result, err := conditions.Eval(model.NewUser("id", "name"))
 
 	assert.NoError(t, err.ToError(), "No error expected.")
-	assert.Equal(t, Action(Idle), result, "Should evaluate to Idle.")
+	assert.Equal(t, Idle, result, "Should evaluate to Idle.")
 }
 
 func Test_all_conditions_unidle(t *testing.T) {
@@ -58,7 +58,7 @@ func Test_all_conditions_unidle(t *testing.T) {
 	result, err := conditions.Eval(model.NewUser("id", "name"))
 
 	assert.NoError(t, err.ToError(), "No error expected.")
-	assert.Equal(t, Action(UnIdle), result, "Should evaluate to unidle")
+	assert.Equal(t, UnIdle, result, "Should evaluate to unidle")
 }
 
 func Test_mixed_conditions(t *testing.T) {
@@ -70,7 +70,7 @@ func Test_mixed_conditions(t *testing.T) {
 	result, err := conditions.Eval(model.NewUser("id", "name"))
 
 	assert.NoError(t, err.ToError(), "No error expected.")
-	assert.Equal(t, Action(UnIdle), result, "Should evaluate to UnIdle.")
+	assert.Equal(t, UnIdle, result, "Should evaluate to UnIdle.")
 }
 
 func Test_error_conditions(t *testing.T) {
@@ -84,5 +84,5 @@ func Test_error_conditions(t *testing.T) {
 
 	assert.Error(t, err.ToError(), "No error expected.")
 	assert.Equal(t, "buh", err.ToError().Error(), "Unexpected error message.")
-	assert.Equal(t, Action(Idle), result, "Should evaluate to false.")
+	assert.Equal(t, Idle, result, "Should evaluate to false.")
 }

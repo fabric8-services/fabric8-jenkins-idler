@@ -17,12 +17,12 @@ const (
 	// NoAction  an unknown state of the Pod. Used usually with Error.
 	NoAction Action = 0
 	// Idle represents the idled state of a Pod.
-	Idle = 1
+	Idle Action = 1
 	// UnIdle state is when Pods are about to start.
-	UnIdle = 2
+	UnIdle Action = 2
 
 	// unknownAction used internally for range check
-	unknownAction = 3
+	unknownAction Action = 3
 )
 
 func (a Action) String() string {

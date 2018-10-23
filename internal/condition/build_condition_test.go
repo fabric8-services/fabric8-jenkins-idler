@@ -20,7 +20,7 @@ func Test_eval_idle_if_there_are_no_builds(t *testing.T) {
 	condition := NewBuildCondition(time.Duration(5)*time.Minute, time.Duration(5)*time.Minute)
 	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.Equal(t, Action(Idle), result, "Condition should evaluate to Idle.")
+	assert.Equal(t, Idle, result, "Condition should evaluate to Idle.")
 }
 
 func Test_eval_unidle_when_active_build_exists(t *testing.T) {
@@ -36,7 +36,7 @@ func Test_eval_unidle_when_active_build_exists(t *testing.T) {
 	condition := NewBuildCondition(time.Duration(5)*time.Minute, time.Duration(5)*time.Minute)
 	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.Equal(t, Action(UnIdle), result, "Condition should evaluate to UnIdle.")
+	assert.Equal(t, UnIdle, result, "Condition should evaluate to UnIdle.")
 }
 
 func Test_eval_idle_when_activebuild_is_old(t *testing.T) {
@@ -55,7 +55,7 @@ func Test_eval_idle_when_activebuild_is_old(t *testing.T) {
 	condition := NewBuildCondition(time.Duration(5)*time.Minute, time.Duration(10)*time.Hour)
 	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.Equal(t, Action(Idle), result, "Condition should evaluate to Idle.")
+	assert.Equal(t, Idle, result, "Condition should evaluate to Idle.")
 }
 
 func Test_eval_completion_before_idletime_expires(t *testing.T) {
@@ -71,7 +71,7 @@ func Test_eval_completion_before_idletime_expires(t *testing.T) {
 	condition := NewBuildCondition(time.Duration(5)*time.Minute, time.Duration(5)*time.Minute)
 	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.Equal(t, Action(NoAction), result, "Condition should evaluate to UnIdle.")
+	assert.Equal(t, NoAction, result, "Condition should evaluate to UnIdle.")
 }
 
 func Test_eval_completion_after_idletime_expires(t *testing.T) {
@@ -91,7 +91,7 @@ func Test_eval_completion_after_idletime_expires(t *testing.T) {
 	condition := NewBuildCondition(5*time.Minute, 5*time.Minute)
 	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.Equal(t, Action(Idle), result, "Condition should evaluate to Idle.")
+	assert.Equal(t, Idle, result, "Condition should evaluate to Idle.")
 }
 
 func Test_eval_ignore_pesky_jenkins_sync_plugin(t *testing.T) {
@@ -111,5 +111,5 @@ func Test_eval_ignore_pesky_jenkins_sync_plugin(t *testing.T) {
 	condition := NewBuildCondition(time.Duration(5)*time.Minute, time.Duration(10)*time.Hour)
 	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.Equal(t, Action(Idle), result, "Condition should evaluate to Idle.")
+	assert.Equal(t, Idle, result, "Condition should evaluate to Idle.")
 }
