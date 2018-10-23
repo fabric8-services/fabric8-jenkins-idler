@@ -226,7 +226,7 @@ func (idler *UserIdler) doIdle() error {
 
 		err := idler.openShiftClient.Idle(idler.openShiftAPI, idler.openShiftBearerToken, idler.user.Name+jenkinsNamespaceSuffix, service)
 		if err != nil {
-			log.Error("Idling of %s returned error:  %s ", service, err)
+			log.Errorf("Idling of %s returned error:  %s", service, err)
 			return err
 		}
 		log.Infof("sucessfully idled %s", service)
