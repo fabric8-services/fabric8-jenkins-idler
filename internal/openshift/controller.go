@@ -2,6 +2,7 @@ package openshift
 
 import (
 	"fmt"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -242,14 +243,21 @@ func (c *controllerImpl) createIfNotExist(ns string) (bool, error) {
 	}
 
 	user := model.NewUser(ti.Data[0].ID, ns)
+
 	userIdler := idler.NewUserIdler(
 		user, c.openshiftURL, c.osBearerToken,
 		c.config, c.features, c.tenantService)
+
 	c.userIdlers.Store(ns, userIdler)
 
 	userIdler.Run(c.ctx, c.wg, c.cancel,
 		time.Duration(c.config.GetCheckInterval())*time.Minute,
 		time.Duration(c.config.GetMaxRetriesQuietInterval())*time.Minute)
+
+	log.WithFields(logrus.Fields{
+		"user_idler.count": c.userIdlers.Len(),
+		"go.routines":      runtime.NumGoroutine(),
+	}).Infof("created user-idler [%d] | cluster %s | ns: %s | gr: %d", c.openshiftURL, ns)
 	return true, nil
 }
 
