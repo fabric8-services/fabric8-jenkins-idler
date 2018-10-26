@@ -216,7 +216,11 @@ func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 // createIfNotExist checks existence of a user in the map, initialise if it does not exist.
 func (c *controllerImpl) createIfNotExist(ns string) (bool, error) {
 
-	log := logger.WithField("ns", ns)
+	log := logger.WithFields(logrus.Fields{
+		"ns":        ns,
+		"openshift": c.openshiftURL,
+	})
+
 	if _, exist := c.userIdlers.Load(ns); exist {
 		log.Debug("User idler found in cache")
 		return true, nil
