@@ -258,10 +258,14 @@ func (c *controllerImpl) createIfNotExist(ns string) (bool, error) {
 		time.Duration(c.config.GetCheckInterval())*time.Minute,
 		time.Duration(c.config.GetMaxRetriesQuietInterval())*time.Minute)
 
+	idlerCount := c.userIdlers.Len()
+	goRoutines := runtime.NumGoroutine()
+
 	log.WithFields(logrus.Fields{
-		"user_idler.count": c.userIdlers.Len(),
-		"go.routines":      runtime.NumGoroutine(),
-	}).Infof("created user-idler [%d] | cluster %s | ns: %s | gr: %d", c.openshiftURL, ns)
+		"user_idler.count": idlerCount,
+		"go.routines":      goRoutines,
+	}).Infof("created user-idler [%d] | cluster %s | ns: %s | gr: %d",
+		idlerCount, c.openshiftURL, ns, goRoutines)
 	return true, nil
 }
 
