@@ -34,6 +34,14 @@ func (m *UserIdlerMap) Delete(namespace string) {
 	m.Unlock()
 }
 
+// Len returns number of items in map
+func (m *UserIdlerMap) Len() int {
+	m.RLock()
+	l := len(m.internal)
+	m.RUnlock()
+	return l
+}
+
 // Store stores the user user idler with the given key.
 func (m *UserIdlerMap) Store(key string, i *idler.UserIdler) {
 	m.Lock()
