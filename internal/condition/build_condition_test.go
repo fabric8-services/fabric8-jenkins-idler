@@ -71,7 +71,7 @@ func Test_eval_completion_before_idletime_expires(t *testing.T) {
 	condition := NewBuildCondition(time.Duration(5)*time.Minute, time.Duration(5)*time.Minute)
 	result, err := condition.Eval(user)
 	assert.NoError(t, err)
-	assert.Equal(t, NoAction, result, "Condition should evaluate to UnIdle.")
+	assert.Equal(t, UnIdle, result, "Condition should evaluate to UnIdle.")
 }
 
 func Test_eval_completion_after_idletime_expires(t *testing.T) {
