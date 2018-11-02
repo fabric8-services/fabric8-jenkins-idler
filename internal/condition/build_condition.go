@@ -100,5 +100,5 @@ func (c *BuildCondition) Eval(object interface{}) (Action, error) {
 
 	log.WithField("action", "none").Infof(
 		"%v has not yet elapsed after last done-build at %v ", c.idleAfter, completionTime)
-	return NoAction, nil
+	return UnIdle, nil
 }
