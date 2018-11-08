@@ -50,3 +50,19 @@ func Test_len_mutli(t *testing.T) {
 	wg.Wait()
 	assert.Equal(t, n, m.Len(), "Len should return number of items")
 }
+
+// Checking store and delete
+func TestUserIdlerMap_StoreDelete(t *testing.T) {
+	m := NewUserIdlerMap()
+	assert.Equal(t, 0, m.Len(), "Empty map should return 0 len")
+	uidler := &idler.UserIdler{}
+	m.Store("foo", uidler)
+	result, ok := m.Load("foo")
+	assert.True(t, ok, "There should be an entry mapped")
+	assert.Equal(t, uidler, result, "result retrieved should be same")
+	m.Delete("foo")
+	idler, ok := m.Load("foo")
+	assert.False(t, ok, "There should be no entry mapped")
+	assert.Nil(t, idler, "No reference should be returned")
+
+}
