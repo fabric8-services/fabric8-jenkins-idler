@@ -55,13 +55,23 @@ func Test_len_mutli(t *testing.T) {
 func TestUserIdlerMap_StoreDelete(t *testing.T) {
 	m := NewUserIdlerMap()
 	assert.Equal(t, 0, m.Len(), "Empty map should return 0 len")
-	uidler := &idler.UserIdler{}
-	m.Store("foo", uidler)
-	result, ok := m.Load("foo")
+	uidlerA := &idler.UserIdler{}
+	uidlerB := &idler.UserIdler{}
+	uidlerC := &idler.UserIdler{}
+	m.Store("foo_a", uidlerA)
+	result, ok := m.Load("foo_a")
 	assert.True(t, ok, "There should be an entry mapped")
-	assert.Equal(t, uidler, result, "result retrieved should be same")
-	m.Delete("foo")
-	idler, ok := m.Load("foo")
+	assert.Equal(t, uidlerA, result, "result retrieved should be same")
+	m.Store("foo_b", uidlerB)
+	result, ok = m.Load("foo_b")
+	assert.True(t, ok, "There should be an entry mapped")
+	assert.Equal(t, uidlerB, result, "result retrieved should be same")
+	m.Store("foo_c", uidlerC)
+	result, ok = m.Load("foo_c")
+	assert.True(t, ok, "There should be an entry mapped")
+	assert.Equal(t, uidlerC, result, "result retrieved should be same")
+	m.Delete("foo_a")
+	idler, ok := m.Load("foo_a")
 	assert.False(t, ok, "There should be no entry mapped")
 	assert.Nil(t, idler, "No reference should be returned")
 

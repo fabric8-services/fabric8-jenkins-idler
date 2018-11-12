@@ -77,6 +77,10 @@ vendor: tools.timestamp $(AUTH_GEN_DIR)/*.go ## Runs dep to vendor project depen
 $(AUTH_GEN_DIR)/*.go:  ## Runs goagen to generate auth service client
 	goagen client -d github.com/fabric8-services/fabric8-auth/design --notool --out internal/auth --pkg client
 
+.PHONY: debug
+debug:	vendor $(AUTH_GEN_DIR)/*.go
+	go install -race -ldflags="$(LD_FLAGS)" ./cmd/fabric8-jenkins-idler
+
 .PHONY: test
 test: vendor ## Runs unit tests
 	@go test $(PACKAGES)

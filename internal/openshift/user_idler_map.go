@@ -23,8 +23,7 @@ func (m *UserIdlerMap) Load(namespace string) (*idler.UserIdler, bool) {
 	if !ok {
 		return nil, ok
 	}
-	result, ok := v.(*idler.UserIdler)
-	return result, ok
+	return v.(*idler.UserIdler), ok
 }
 
 // Delete deletes the entry for the specified namespace from the map.
