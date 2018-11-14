@@ -164,6 +164,12 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/spf13/pflag"
+  packages = ["."]
+  revision = "298182f68c66c05229eb03ac171abe6e309ee79a"
+  version = "v1.0.3"
+
+[[projects]]
   name = "github.com/stretchr/testify"
   packages = [
     "assert",
@@ -239,7 +245,6 @@
   version = "kubernetes-1.10.0"
 
 [[projects]]
-  branch = "master"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/resource",
@@ -264,11 +269,12 @@
     "pkg/watch",
     "third_party/forked/golang/reflect"
   ]
-  revision = "ed135c5b96450fd24e5e981c708114fbbd950697"
+  revision = "302974c03f7e50f16561ba237db776ab93594ef6"
+  version = "kubernetes-1.10.0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2f4f1ba91a7a9edaafa5bdeb25db2b6991c75cd3f9bcaee1d069aaafc4d263b3"
+  inputs-digest = "7b0cfa464697bc4884c18f29fdbd9e508824af682085aef599b9868b94fca5ac"
   solver-name = "gps-cdcl"
   solver-version = 1

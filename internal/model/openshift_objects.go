@@ -198,12 +198,13 @@ func (s DCStatus) GetByType(t string) (Condition, error) {
 }
 
 // Phases are points in the build lifecycle.
+// https://github.com/openshift/origin/blob/1017d1d8ca3611267e3993742a2c4fb06f65e449/pkg/build/apis/build/types.go#L403
 var Phases = map[string]int{
-	"Finished":  0,
-	"Complete":  0,
-	"Failed":    0,
-	"Cancelled": 0,
-	"Pending":   1,
 	"New":       1,
+	"Pending":   1,
 	"Running":   1,
+	"Failed":    0,
+	"Complete":  0,
+	"Error":     0,
+	"Cancelled": 0,
 }
