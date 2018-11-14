@@ -58,6 +58,9 @@ func TestUserIdlerMap_StoreDelete(t *testing.T) {
 	uidlerA := &idler.UserIdler{}
 	uidlerB := &idler.UserIdler{}
 	uidlerC := &idler.UserIdler{}
+
+	wg := &sync.WaitGroup{}
+	wg.Add(3)
 	go func() {
 		m.Store("foo_a", uidlerA)
 		result, ok := m.Load("foo_a")
@@ -67,6 +70,7 @@ func TestUserIdlerMap_StoreDelete(t *testing.T) {
 		idler, ok := m.Load("foo_a")
 		assert.False(t, ok, "There should be no entry mapped")
 		assert.Nil(t, idler, "No reference should be returned")
+		wg.Done()
 
 	}()
 	go func() {
@@ -74,11 +78,14 @@ func TestUserIdlerMap_StoreDelete(t *testing.T) {
 		result, ok := m.Load("foo_b")
 		assert.True(t, ok, "There should be an entry mapped")
 		assert.Equal(t, uidlerB, result, "result retrieved should be same")
+		wg.Done()
 	}()
 	go func() {
 		m.Store("foo_c", uidlerC)
 		result, ok := m.Load("foo_c")
 		assert.True(t, ok, "There should be an entry mapped")
 		assert.Equal(t, uidlerC, result, "result retrieved should be same")
+		wg.Done()
 	}()
+	wg.Wait()
 }
