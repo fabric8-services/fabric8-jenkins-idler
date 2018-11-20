@@ -1,50 +1,42 @@
 package openshift
 
 import (
-	"sync"
-
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/idler"
+	cmap "github.com/orcaman/concurrent-map"
 )
 
 // UserIdlerMap is a type-safe and concurrent map storing UserIdler instances keyed against the user namespace.
 type UserIdlerMap struct {
-	sync.RWMutex
-	internal map[string]*idler.UserIdler
+	internal cmap.ConcurrentMap
 }
 
 // NewUserIdlerMap creates a new instance of UnknownUsersMap.
 func NewUserIdlerMap() *UserIdlerMap {
 	return &UserIdlerMap{
-		internal: make(map[string]*idler.UserIdler),
+		internal: cmap.New(),
 	}
 }
 
 // Load returns a pointer to UnknownUsersMap keyed against the specified key.
 func (m *UserIdlerMap) Load(namespace string) (*idler.UserIdler, bool) {
-	m.RLock()
-	result, ok := m.internal[namespace]
-	m.RUnlock()
-	return result, ok
+	v, ok := m.internal.Get(namespace)
+	if !ok {
+		return nil, ok
+	}
+	return v.(*idler.UserIdler), ok
 }
 
 // Delete deletes the entry for the specified namespace from the map.
 func (m *UserIdlerMap) Delete(namespace string) {
-	m.Lock()
-	delete(m.internal, namespace)
-	m.Unlock()
+	m.internal.Remove(namespace)
 }
 
 // Len returns number of items in map
 func (m *UserIdlerMap) Len() int {
-	m.RLock()
-	l := len(m.internal)
-	m.RUnlock()
-	return l
+	return m.internal.Count()
 }
 
 // Store stores the user user idler with the given key.
-func (m *UserIdlerMap) Store(key string, i *idler.UserIdler) {
-	m.Lock()
-	m.internal[key] = i
-	m.Unlock()
+func (m *UserIdlerMap) Store(namespace string, i *idler.UserIdler) {
+	m.internal.Set(namespace, i)
 }
