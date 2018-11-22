@@ -96,10 +96,10 @@ objects:
           resources:
             requests:
               memory: "1Gi"
-              cpu: "1"
+              cpu: "40m"
             limits:
               memory: "2Gi"
-              cpu: "2"
+              cpu: "500m"
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         securityContext: {}
