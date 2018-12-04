@@ -19,7 +19,8 @@ function setup_build_environment() {
     # We need to disable selinux for now, XXX
     /usr/sbin/setenforce 0 || :
 
-    yum -y install docker make golang git
+    yum install epel-release --enablerepo=extras -y
+    yum -y install --enablerepo=epel-testing docker make golang git
     service docker start
 
     echo 'CICO: Build environment created.'
