@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"regexp"
 
 	"strings"
 
@@ -17,14 +16,6 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/token"
 	goaclient "github.com/goadesign/goa/client"
 	"github.com/pkg/errors"
-)
-
-const (
-	// ClusterSubstrAllowedRegexp :TEMPFIX: :chmouel:
-	// filter cluster url on name with a regexp until we have a proper way to do
-	// this see
-	// https://chat.openshift.io/developers/pl/j6ccecpebfr1zj4xxfu4cppm9y
-	ClusterSubstrAllowedRegexp = "(start|free)"
 )
 
 // Service the interface for the cluster service
@@ -88,7 +79,7 @@ func (s *clusterService) GetClusterView(ctx context.Context) (View, error) {
 
 	var clusterList []Cluster
 	for _, cluster := range clusters.Data {
-		if matched, _ := regexp.MatchString(ClusterSubstrAllowedRegexp, cluster.APIURL); !matched {
+		if cluster.Type != "OSO" {
 			continue
 		}
 		// resolve/obtain the cluster token
@@ -116,6 +107,7 @@ func (s *clusterService) GetClusterView(ctx context.Context) (View, error) {
 			LoggingURL: cluster.LoggingURL,
 			User:       clusterUser,
 			Token:      clusterToken,
+			Type:       cluster.Type,
 		})
 	}
 	return NewView(clusterList), nil

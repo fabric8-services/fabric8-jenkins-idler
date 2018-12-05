@@ -12,6 +12,7 @@ type Cluster struct {
 
 	User  string
 	Token string
+	Type  string
 }
 
 func (c Cluster) String() string {
