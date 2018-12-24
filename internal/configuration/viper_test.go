@@ -6,315 +6,106 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConfig_GetDebugMode(t *testing.T) {
 	os.Setenv(DebugMode, "false")
-	tests := []struct {
-		name string
-		want bool
-	}{
-		{
-			name: "Config Debug",
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, _ := New("")
-			if got := c.GetDebugMode(); got != tt.want {
-				t.Errorf("Config.GetDebugMode() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	c, _ := New("")
+	assert.Equal(t, c.GetDebugMode(), false, "Debug Mode should be false")
 }
 
 func TestConfig_GetProxyURL(t *testing.T) {
-	os.Setenv(ProxyURL, "https://proxy.openshift.io")
-	tests := []struct {
-		name string
-		want string
-	}{
-		{
-			name: "Test Get Proxy",
-			want: "https://proxy.openshift.io",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, _ := New("")
-			if got := c.GetProxyURL(); got != tt.want {
-				t.Errorf("Config.GetProxyURL() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	want := "https://proxy.openshift.io"
+	os.Setenv(ProxyURL, want)
+	c, _ := New("")
+	assert.Equal(t, want, c.GetProxyURL, "Proxy URL don't match")
 }
 
 func TestConfig_GetTenantURL(t *testing.T) {
-	os.Setenv(TenantURL, "https://tenent.openshift.io")
-	tests := []struct {
-		name string
-		want string
-	}{
-		{
-			name: "Test GetTenant",
-			want: "https://tenent.openshift.io",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, _ := New("")
-			if got := c.GetTenantURL(); got != tt.want {
-				t.Errorf("Config.GetTenantURL() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	want := "https://tenent.openshift.io"
+	os.Setenv(TenantURL, want)
+	c, _ := New("")
+	assert.Equal(t, want, c.GetTenantURL(), "Tenant URL")
 }
 
 func TestConfig_GetToggleURL(t *testing.T) {
-	os.Setenv(ToggleURL, "https://toggle.openshift.io")
-	tests := []struct {
-		name string
-		want string
-	}{
-		{
-			name: "Test GetToggle URL",
-			want: "https://toggle.openshift.io",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, _ := New("")
-			if got := c.GetToggleURL(); got != tt.want {
-				t.Errorf("Config.GetToggleURL() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	want := "https://toggle.openshift.io"
+	os.Setenv(ToggleURL, want)
+	c, _ := New("")
+	assert.Equal(t, c.GetToggleURL(), want, "Toggle URL Mismatch")
 }
 
 func TestConfig_GetAuthURL(t *testing.T) {
-	os.Setenv(AuthURL, "https://auth.openshift.io")
-	tests := []struct {
-		name string
-		want string
-	}{
-		{
-			name: "Test GetAuthURL",
-			want: "https://auth.openshift.io",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, _ := New("")
-			if got := c.GetAuthURL(); got != tt.want {
-				t.Errorf("Config.GetAuthURL() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	want := "https://auth.openshift.io"
+	os.Setenv(AuthURL, want)
+	c, _ := New("")
+	assert.Equal(t, c.GetAuthURL(), want, "Auth URL Mismatch")
 }
 
 func TestConfig_GetServiceAccountID(t *testing.T) {
-	os.Setenv(ServiceAccountID, "1234567")
-	tests := []struct {
-		name string
-		want string
-	}{
-		{
-			name: "Test GetServiceAccountID",
-			want: "1234567",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, _ := New("")
-			if got := c.GetServiceAccountID(); got != tt.want {
-				t.Errorf("Config.GetServiceAccountID() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	want := "1234567"
+	os.Setenv(ServiceAccountID, want)
+	c, _ := New("")
+	assert.Equal(t, c.GetServiceAccountID(), want, "Service Account ID Mismatch")
 }
 
 func TestConfig_GetServiceAccountSecret(t *testing.T) {
-	os.Setenv(ServiceAccountSecret, "secret")
-	tests := []struct {
-		name string
-		want string
-	}{
-		{
-			name: "Test GetServiceAccountSecret",
-			want: "secret",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, _ := New("")
-			if got := c.GetServiceAccountSecret(); got != tt.want {
-				t.Errorf("Config.GetServiceAccountSecret() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	want := "secretSvcAcnt"
+	os.Setenv(ServiceAccountSecret, want)
+	c, _ := New("")
+	assert.Equal(t, c.GetServiceAccountID(), want, "Service Account Secret Mismatch")
 }
 
 func TestConfig_GetAuthTokenKey(t *testing.T) {
-	os.Setenv(AuthTokenKey, "tokenkey")
-	tests := []struct {
-		name string
-		want string
-	}{
-		{
-			name: "Test GetAuthTokenKey",
-			want: "tokenkey",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, _ := New("")
-			if got := c.GetAuthTokenKey(); got != tt.want {
-				t.Errorf("Config.GetAuthTokenKey() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	want := "authtokenkey"
+	os.Setenv(AuthTokenKey, want)
+	c, _ := New("")
+	assert.Equal(t, c.GetAuthTokenKey(), want, "Auth Token Key Mismatch")
 }
 
 func TestConfig_GetAuthGrantType(t *testing.T) {
-	tests := []struct {
-		name string
-		want string
-	}{
-		{
-			name: "Test GetAuthGrantType",
-			want: "client_credentials",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, _ := New("")
-			if got := c.GetAuthGrantType(); got != tt.want {
-				t.Errorf("Config.GetAuthGrantType() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	want := "client_credentials"
+	c, _ := New("")
+	assert.Equal(t, c.GetAuthGrantType(), want, "Auth Grant Type Mismatch")
 }
 
 func TestConfig_GetIdleAfter(t *testing.T) {
-	tests := []struct {
-		name string
-		want int
-	}{
-		{
-			name: "Test GetIdleAfter",
-			want: defaultIdleAfter,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, _ := New("")
-			if got := c.GetIdleAfter(); got != tt.want {
-				t.Errorf("Config.GetIdleAfter() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	want := defaultIdleAfter
+	c, _ := New("")
+	assert.Equal(t, c.GetIdleAfter(), want, "Default Idle After Not Set")
 }
 
 func TestConfig_GetIdleLongBuild(t *testing.T) {
-	tests := []struct {
-		name string
-		want int
-	}{
-		{
-			name: "Test GetIdleLongBuild",
-			want: defaultIdleLongBuild,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, _ := New("")
-			if got := c.GetIdleLongBuild(); got != tt.want {
-				t.Errorf("Config.GetIdleLongBuild() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	want := defaultIdleLongBuild
+	c, _ := New("")
+	assert.Equal(t, c.GetIdleLongBuild(), want, "Idle Long Build")
 }
 
 func TestConfig_GetMaxRetries(t *testing.T) {
-	tests := []struct {
-		name string
-		want int
-	}{
-		{
-			name: "Test GetMaxRetries",
-			want: defaultMaxRetries,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, _ := New("")
-			if got := c.GetMaxRetries(); got != tt.want {
-				t.Errorf("Config.GetMaxRetries() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	want := defaultMaxRetries
+	c, _ := New("")
+	assert.Equal(t, c.GetMaxRetries(), want, "Max Retries failed")
 }
 
 func TestConfig_GetMaxRetriesQuietInterval(t *testing.T) {
-	tests := []struct {
-		name string
-		want int
-	}{
-		{
-			name: "Test GetMaxRetriesQuietInterval",
-			want: defaultMaxRetriesQuietInterval,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, _ := New("")
-			if got := c.GetMaxRetriesQuietInterval(); got != tt.want {
-				t.Errorf("Config.GetMaxRetriesQuietInterval() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	want := defaultMaxRetriesQuietInterval
+	c, _ := New("")
+	assert.Equal(t, c.GetMaxRetriesQuietInterval(),
+		want, "Get Max Retries Quiet Interval Mismatch")
 }
 
 func TestConfig_GetCheckInterval(t *testing.T) {
-	tests := []struct {
-		name string
-		want int
-	}{
-		{
-			name: "Test GetCheckInterval",
-			want: defaultCheckInterval,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, _ := New("")
-			if got := c.GetCheckInterval(); got != tt.want {
-				t.Errorf("Config.GetCheckInterval() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	want := defaultCheckInterval
+	c, _ := New("")
+	assert.Equal(t, c.GetCheckInterval(), want, "Check Interval Mismatch")
 }
 
 func TestConfig_GetFixedUuids(t *testing.T) {
 	os.Setenv(FixedUuids, "uuid1,uuid2,uuid3")
-	tests := []struct {
-		name string
-		want []string
-	}{
-		{
-			name: "Test GetFixedUuids",
-			want: []string{"uuid1", "uuid2", "uuid3"},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, _ := New("")
-			if got := c.GetFixedUuids(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Config.GetFixedUuids() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	want := []string{"uuid1", "uuid2", "uuid3"}
+	c, _ := New("")
+	assert.Equal(t, c.GetFixedUuids(), want, "FixedUUids Mismatch")
 }
 
 func TestConfig_Verify(t *testing.T) {
