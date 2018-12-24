@@ -3,6 +3,8 @@ package configuration
 import (
 	"os"
 	"reflect"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/util"
@@ -19,7 +21,7 @@ func TestConfig_GetProxyURL(t *testing.T) {
 	want := "https://proxy.openshift.io"
 	os.Setenv(ProxyURL, want)
 	c, _ := New("")
-	assert.Equal(t, want, c.GetProxyURL, "Proxy URL don't match")
+	assert.Equal(t, want, c.GetProxyURL(), "Proxy URL don't match")
 }
 
 func TestConfig_GetTenantURL(t *testing.T) {
@@ -47,14 +49,16 @@ func TestConfig_GetServiceAccountID(t *testing.T) {
 	want := "1234567"
 	os.Setenv(ServiceAccountID, want)
 	c, _ := New("")
-	assert.Equal(t, c.GetServiceAccountID(), want, "Service Account ID Mismatch")
+	assert.Equal(t, c.GetServiceAccountID(), want,
+		"Service Account ID Mismatch")
 }
 
 func TestConfig_GetServiceAccountSecret(t *testing.T) {
 	want := "secretSvcAcnt"
 	os.Setenv(ServiceAccountSecret, want)
 	c, _ := New("")
-	assert.Equal(t, c.GetServiceAccountID(), want, "Service Account Secret Mismatch")
+	assert.Equal(t, c.GetServiceAccountSecret(), want,
+		"Service Account Secret Mismatch")
 }
 
 func TestConfig_GetAuthTokenKey(t *testing.T) {
@@ -118,23 +122,10 @@ func TestConfig_Verify(t *testing.T) {
 	os.Setenv(TenantURL, "https://tenent.openshift.io")
 	os.Setenv(ProxyURL, "https://proxy.openshift.io")
 
-	tests := []struct {
-		name string
-		want util.MultiError
-	}{
-		{
-			name: "Test Config Verify",
-			want: util.MultiError{},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, _ := New("")
-			if got := c.Verify(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Config.Verify() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	want := util.MultiError{}
+
+	c, _ := New("")
+	assert.Equal(t, c.Verify(), want, "Config Verification Failed")
 }
 
 func TestNew(t *testing.T) {
@@ -166,4 +157,27 @@ func TestNew(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestConfig_String(t *testing.T) {
+	os.Clearenv()
+	os.Setenv(AuthTokenKey, "tokenkey")
+	os.Setenv(ServiceAccountSecret, "secret")
+	os.Setenv(ServiceAccountID, "1234567")
+	os.Setenv(AuthURL, "https://auth.openshift.io")
+	os.Setenv(ToggleURL, "https://toggle.openshift.io")
+	os.Setenv(TenantURL, "https://tenent.openshift.io")
+	os.Setenv(ProxyURL, "https://proxy.openshift.io")
+
+	c, _ := New("")
+	assert.True(t, strings.Contains(c.String(), "jc_idle_after:"+strconv.Itoa(defaultIdleAfter)), "IdlerAfter Config String doesn't match")
+	assert.True(t, strings.Contains(c.String(),
+		"jc_max_retries_quiet_interval:"+
+			strconv.Itoa(defaultMaxRetriesQuietInterval)),
+		"Max retries Config String doesn't match")
+	assert.True(t, strings.Contains(c.String(), "jc_auth_token_key:***"),
+		"Auth Token key isn't ***")
+	assert.True(t, strings.Contains(c.String(),
+		"jc_service_account_secret:***"),
+		"Service Account Secret isn't ***")
 }
