@@ -246,6 +246,7 @@ func (c *controllerImpl) createIfNotExist(ns string) (bool, error) {
 		return false, nil
 	}
 
+	log.Infof("tenant info from tenant-service %v", ti)
 	user := model.NewUser(ti.Data[0].ID, ns)
 
 	userIdler := idler.NewUserIdler(
