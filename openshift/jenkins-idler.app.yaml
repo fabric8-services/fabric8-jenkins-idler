@@ -46,7 +46,7 @@ objects:
           - name: JC_TOGGLE_API_URL
             value: "http://f8toggles/api"
           - name: JC_LOG_LEVEL
-            value: "warning"
+            value: "info"
           - name: GODEBUG
             value: "gctrace=0"
           - name: JC_AUTH_URL
