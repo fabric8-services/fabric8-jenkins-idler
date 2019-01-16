@@ -136,7 +136,7 @@ func (c *Config) GetIdleAfter() int {
 	return c.v.GetInt(IdleAfter)
 }
 
-// GetIdleLongbuild returns the number of minutes before Jenkins is idled as set via default, config file, or environment variable.
+// GetIdleLongBuild returns the number of minutes before Jenkins is idled as set via default, config file, or environment variable.
 func (c *Config) GetIdleLongBuild() int {
 	return c.v.GetInt(IdleLongBuild)
 }
