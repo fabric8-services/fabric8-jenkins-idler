@@ -131,7 +131,7 @@ func (idler *UserIdler) checkIdle() error {
 		idler.user.IdleStatus = model.NewIdleStatus(err)
 	} else if action == condition.UnIdle {
 		if err := idler.doUnIdle(); err != nil {
-			log.Errorf("Idling jenkins failed:  %s", err)
+			log.Errorf("UnIdling jenkins failed:  %s", err)
 			return err
 		}
 		// TODO: find a better way to update IdleStatus inside doUnIdle()
