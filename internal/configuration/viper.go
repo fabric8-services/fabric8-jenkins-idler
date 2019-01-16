@@ -164,7 +164,20 @@ func (c *Config) GetFixedUuids() []string {
 
 // String returns string representation of configuration
 func (c *Config) String() string {
-	return fmt.Sprintf("%v", c.v.AllSettings())
+	all := c.v.AllSettings()
+	for k := range all {
+		// don't echo tokens or secret
+		if strings.Contains(k, "TOKEN") ||
+			strings.Contains(k, "token") {
+			all[k] = "***"
+		}
+
+		if strings.Contains(k, "SECRET") ||
+			strings.Contains(k, "secret") {
+			all[k] = "***"
+		}
+	}
+	return fmt.Sprintf("%v", all)
 }
 
 // Verify checks whether all needed config options are set.
