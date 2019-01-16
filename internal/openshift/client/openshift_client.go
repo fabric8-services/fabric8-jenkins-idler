@@ -297,12 +297,14 @@ func (o openShift) WatchBuilds(apiURL string, bearerToken string, buildType stri
 		}
 
 		resp, err := c.Do(req)
-		if resp != nil && resp.StatusCode != http.StatusOK {
-			logger.Errorf("got status %s (%d) from %s", resp.Status, resp.StatusCode, req.URL)
-			continue
-		}
 		if err != nil {
 			logger.Errorf("Request failed: %s", err)
+			continue
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			logger.Errorf("got status %s (%d) from %s", resp.Status, resp.StatusCode, req.URL)
+			resp.Body.Close()
 			continue
 		}
 
@@ -341,7 +343,7 @@ func (o openShift) WatchBuilds(apiURL string, bearerToken string, buildType stri
 				continue
 			}
 
-			log.Info("Handling build event")
+			log.Debug("Handling Build event")
 			err = callback(o)
 			if err != nil {
 				log.Errorf("Error from callback: %s", err)
@@ -370,12 +372,15 @@ func (o openShift) WatchDeploymentConfigs(apiURL string, bearerToken string, nam
 		v.Add("labelSelector", "app=jenkins")
 		req.URL.RawQuery = v.Encode()
 		resp, err := c.Do(req)
-		if resp != nil && resp.StatusCode != http.StatusOK {
-			logger.Errorf("got status %s (%d) from %s", resp.Status, resp.StatusCode, req.URL)
-			continue
-		}
+
 		if err != nil {
 			logger.Errorf("Request failed: %s", err)
+			continue
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			logger.Errorf("got status %s (%d) from %s", resp.Status, resp.StatusCode, req.URL)
+			resp.Body.Close()
 			continue
 		}
 
@@ -412,7 +417,7 @@ func (o openShift) WatchDeploymentConfigs(apiURL string, bearerToken string, nam
 				continue
 			}
 
-			log.Info("Handling DC event")
+			log.Debug("Handling DC event")
 			err = callback(o)
 			if err != nil {
 				logger.Errorf("Error from DC callback: %s", err)
