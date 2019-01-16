@@ -110,7 +110,7 @@ func (c *Config) GetAuthURL() string {
 	return c.v.GetString(AuthURL)
 }
 
-// GetServiceAccountId returns the service account id for the Auth service. Used to identify the Idler to the Auth service
+// GetServiceAccountID returns the service account id for the Auth service. Used to identify the Idler to the Auth service
 func (c *Config) GetServiceAccountID() string {
 	return c.v.GetString(ServiceAccountID)
 }
