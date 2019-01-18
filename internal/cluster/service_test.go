@@ -206,6 +206,35 @@ func Test_clusterService_GetClusterView(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 		},
+		{
+			name: "Cluster Service OSD No Err",
+			fields: fields{
+				resolveToken: func(ctx context.Context, target, token string, forcePull bool, decode token.Decode) (username, accessToken string, err error) {
+					return "test", "test", nil
+				},
+			},
+			preqFunc: func() {
+				res := &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       ioutil.NopCloser(bytes.NewReader([]byte("test"))),
+				}
+
+				client.EXPECT().ShowClusters(ctx,
+					authClient.ShowClustersPath()).Return(res, nil)
+				clusters := authClient.ClusterList{
+					Data: []*authClient.ClusterData{
+						{
+							APIURL: "http://apiurl",
+							Type:   "OSD",
+						},
+					},
+				}
+
+				client.EXPECT().DecodeClusterList(res).Return(&clusters, nil)
+			},
+			want:    &clusterView{},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
