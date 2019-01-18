@@ -11,10 +11,6 @@ import (
 	goaclient "github.com/goadesign/goa/client"
 )
 
-type clientImpl struct {
-	client authclient.Client
-}
-
 // NewClient returns a new auth client
 func NewClient(authURL, token string, options ...configuration.HTTPClientOption) (*authclient.Client, error) {
 	u, err := url.Parse(authURL)
@@ -47,9 +43,13 @@ func (d *doer) Do(ctx context.Context, req *http.Request) (*http.Response, error
 	return d.target.Do(ctx, req)
 }
 
+type ValidateAuth interface {
+	DecodeJSONAPIErrors(resp *http.Response) (*authclient.JSONAPIErrors, error)
+}
+
 // ValidateResponse function when given client and response checks if the
 // response has any errors by also looking at the status code
-func ValidateResponse(c *authclient.Client, res *http.Response) error {
+func ValidateResponse(c ValidateAuth, res *http.Response) error {
 	if res.StatusCode == http.StatusNotFound {
 		return fmt.Errorf("resource not found")
 	} else if res.StatusCode != http.StatusOK {

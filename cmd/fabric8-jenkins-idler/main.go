@@ -4,8 +4,10 @@ import (
 	"os"
 
 	"context"
+
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/cluster"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/configuration"
+	openShiftClient "github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/toggles"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/token"
@@ -101,12 +103,17 @@ func osioToken(config configuration.Configuration) string {
 
 func clusterView(osioToken string, config configuration.Configuration) cluster.View {
 	resolveToken := token.NewResolve(config.GetAuthURL())
-	clusterService := cluster.NewService(
+	clusterService, err := cluster.NewService(
 		config.GetAuthURL(),
 		osioToken,
 		resolveToken,
 		token.NewPGPDecrypter(config.GetAuthTokenKey()),
+		openShiftClient.NewOpenShift(),
 	)
+	if err != nil {
+		// Fatal with exit program
+		mainLogger.WithField("err", err).Fatal("Unable to create cluster service")
+	}
 	clusterView, err := clusterService.GetClusterView(context.Background())
 	if err != nil {
 		// Fatal with exit program
