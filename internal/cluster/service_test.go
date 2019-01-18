@@ -52,21 +52,26 @@ func Test_clusterService_GetClusterView(t *testing.T) {
 					authClient.ShowClustersPath()).Return(res, nil)
 				clusters := authClient.ClusterList{
 					Data: []*authClient.ClusterData{
-						&authClient.ClusterData{
+						{
 							APIURL: "http://apiurl",
-							Type:   "OSO"}}}
+							Type:   "OSO",
+						},
+					},
+				}
 
 				client.EXPECT().DecodeClusterList(res).Return(&clusters, nil)
 
 				ocClient.EXPECT().WhoAmI("http://apiurl", "test").Return("", nil)
 			},
 			want: &clusterView{clusters: []Cluster{
-				Cluster{
+				{
 
 					APIURL: "http://apiurl",
 					User:   "test",
 					Token:  "test",
-					Type:   "OSO"}}},
+					Type:   "OSO",
+				},
+			}},
 			wantErr: false,
 		},
 		{
@@ -186,9 +191,12 @@ func Test_clusterService_GetClusterView(t *testing.T) {
 					authClient.ShowClustersPath()).Return(res, nil)
 				clusters := authClient.ClusterList{
 					Data: []*authClient.ClusterData{
-						&authClient.ClusterData{
+						{
 							APIURL: "http://apiurl",
-							Type:   "OSO"}}}
+							Type:   "OSO",
+						},
+					},
+				}
 
 				client.EXPECT().DecodeClusterList(res).Return(&clusters, nil)
 
