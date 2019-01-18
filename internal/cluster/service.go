@@ -27,7 +27,7 @@ type Service interface {
 }
 
 // NewService creates a Resolver that rely on the Auth service to retrieve tokens
-func NewService(authURL string, serviceToken string, resolveToken token.Resolve,
+func NewService(authURL, serviceToken string, resolveToken token.Resolve,
 	decode token.Decode, ocClient openShiftClient.OpenShiftClient,
 	options ...configuration.HTTPClientOption) (Service, error) {
 

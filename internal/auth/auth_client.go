@@ -43,6 +43,8 @@ func (d *doer) Do(ctx context.Context, req *http.Request) (*http.Response, error
 	return d.target.Do(ctx, req)
 }
 
+// ValidateAuth implements DecodeJSONAPIErrors needed to extract error in the
+// response from the client
 type ValidateAuth interface {
 	DecodeJSONAPIErrors(resp *http.Response) (*authclient.JSONAPIErrors, error)
 }
