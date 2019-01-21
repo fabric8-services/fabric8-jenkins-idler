@@ -110,7 +110,7 @@ func (c *Config) GetAuthURL() string {
 	return c.v.GetString(authURL)
 }
 
-// GetServiceAccountId returns the service account id for the Auth service. Used to identify the Idler to the Auth service
+// GetServiceAccountID returns the service account id for the Auth service. Used to identify the Idler to the Auth service
 func (c *Config) GetServiceAccountID() string {
 	return c.v.GetString(serviceAccountID)
 }
@@ -136,7 +136,7 @@ func (c *Config) GetIdleAfter() int {
 	return c.v.GetInt(idleAfter)
 }
 
-// GetIdleLongbuild returns the number of minutes before Jenkins is idled as set via default, config file, or environment variable.
+// GetIdleLongBuild returns the number of minutes before Jenkins is idled as set via default, config file, or environment variable.
 func (c *Config) GetIdleLongBuild() int {
 	return c.v.GetInt(idleLongBuild)
 }
