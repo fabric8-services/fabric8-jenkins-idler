@@ -135,7 +135,7 @@ func TestNew(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *Config
+		want    Configuration
 		wantErr bool
 	}{
 		{

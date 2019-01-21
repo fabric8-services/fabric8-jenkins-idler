@@ -38,7 +38,7 @@ const (
 
 // New creates a configuration reader object using a configurable configuration
 // file path.
-func New(configFilePath string) (*Config, error) {
+func New(configFilePath string) (Configuration, error) {
 	c := Config{
 		v: viper.New(),
 	}
