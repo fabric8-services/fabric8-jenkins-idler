@@ -12,42 +12,42 @@ import (
 )
 
 func TestConfig_GetDebugMode(t *testing.T) {
-	os.Setenv(DebugMode, "false")
+	os.Setenv(debugMode, "false")
 	c, _ := New("")
 	assert.Equal(t, c.GetDebugMode(), false, "Debug Mode should be false")
 }
 
 func TestConfig_GetProxyURL(t *testing.T) {
 	want := "https://proxy.openshift.io"
-	os.Setenv(ProxyURL, want)
+	os.Setenv(proxyURL, want)
 	c, _ := New("")
 	assert.Equal(t, want, c.GetProxyURL(), "Proxy URL don't match")
 }
 
 func TestConfig_GetTenantURL(t *testing.T) {
 	want := "https://tenent.openshift.io"
-	os.Setenv(TenantURL, want)
+	os.Setenv(tenantURL, want)
 	c, _ := New("")
 	assert.Equal(t, want, c.GetTenantURL(), "Tenant URL")
 }
 
 func TestConfig_GetToggleURL(t *testing.T) {
 	want := "https://toggle.openshift.io"
-	os.Setenv(ToggleURL, want)
+	os.Setenv(toggleURL, want)
 	c, _ := New("")
 	assert.Equal(t, c.GetToggleURL(), want, "Toggle URL Mismatch")
 }
 
 func TestConfig_GetAuthURL(t *testing.T) {
 	want := "https://auth.openshift.io"
-	os.Setenv(AuthURL, want)
+	os.Setenv(authURL, want)
 	c, _ := New("")
 	assert.Equal(t, c.GetAuthURL(), want, "Auth URL Mismatch")
 }
 
 func TestConfig_GetServiceAccountID(t *testing.T) {
 	want := "1234567"
-	os.Setenv(ServiceAccountID, want)
+	os.Setenv(serviceAccountID, want)
 	c, _ := New("")
 	assert.Equal(t, c.GetServiceAccountID(), want,
 		"Service Account ID Mismatch")
@@ -55,7 +55,7 @@ func TestConfig_GetServiceAccountID(t *testing.T) {
 
 func TestConfig_GetServiceAccountSecret(t *testing.T) {
 	want := "secretSvcAcnt"
-	os.Setenv(ServiceAccountSecret, want)
+	os.Setenv(serviceAccountSecret, want)
 	c, _ := New("")
 	assert.Equal(t, c.GetServiceAccountSecret(), want,
 		"Service Account Secret Mismatch")
@@ -63,7 +63,7 @@ func TestConfig_GetServiceAccountSecret(t *testing.T) {
 
 func TestConfig_GetAuthTokenKey(t *testing.T) {
 	want := "authtokenkey"
-	os.Setenv(AuthTokenKey, want)
+	os.Setenv(authTokenKey, want)
 	c, _ := New("")
 	assert.Equal(t, c.GetAuthTokenKey(), want, "Auth Token Key Mismatch")
 }
@@ -106,7 +106,7 @@ func TestConfig_GetCheckInterval(t *testing.T) {
 }
 
 func TestConfig_GetFixedUuids(t *testing.T) {
-	os.Setenv(FixedUuids, "uuid1,uuid2,uuid3")
+	os.Setenv(fixedUuids, "uuid1,uuid2,uuid3")
 	want := []string{"uuid1", "uuid2", "uuid3"}
 	c, _ := New("")
 	assert.Equal(t, c.GetFixedUuids(), want, "FixedUUids Mismatch")
@@ -114,13 +114,13 @@ func TestConfig_GetFixedUuids(t *testing.T) {
 
 func TestConfig_Verify(t *testing.T) {
 	os.Clearenv()
-	os.Setenv(AuthTokenKey, "tokenkey")
-	os.Setenv(ServiceAccountSecret, "secret")
-	os.Setenv(ServiceAccountID, "1234567")
-	os.Setenv(AuthURL, "https://auth.openshift.io")
-	os.Setenv(ToggleURL, "https://toggle.openshift.io")
-	os.Setenv(TenantURL, "https://tenent.openshift.io")
-	os.Setenv(ProxyURL, "https://proxy.openshift.io")
+	os.Setenv(authTokenKey, "tokenkey")
+	os.Setenv(serviceAccountSecret, "secret")
+	os.Setenv(serviceAccountID, "1234567")
+	os.Setenv(authURL, "https://auth.openshift.io")
+	os.Setenv(toggleURL, "https://toggle.openshift.io")
+	os.Setenv(tenantURL, "https://tenent.openshift.io")
+	os.Setenv(proxyURL, "https://proxy.openshift.io")
 
 	want := util.MultiError{}
 
@@ -161,13 +161,13 @@ func TestNew(t *testing.T) {
 
 func TestConfig_String(t *testing.T) {
 	os.Clearenv()
-	os.Setenv(AuthTokenKey, "tokenkey")
-	os.Setenv(ServiceAccountSecret, "secret")
-	os.Setenv(ServiceAccountID, "1234567")
-	os.Setenv(AuthURL, "https://auth.openshift.io")
-	os.Setenv(ToggleURL, "https://toggle.openshift.io")
-	os.Setenv(TenantURL, "https://tenent.openshift.io")
-	os.Setenv(ProxyURL, "https://proxy.openshift.io")
+	os.Setenv(authTokenKey, "tokenkey")
+	os.Setenv(serviceAccountSecret, "secret")
+	os.Setenv(serviceAccountID, "1234567")
+	os.Setenv(authURL, "https://auth.openshift.io")
+	os.Setenv(toggleURL, "https://toggle.openshift.io")
+	os.Setenv(tenantURL, "https://tenent.openshift.io")
+	os.Setenv(proxyURL, "https://proxy.openshift.io")
 
 	c, _ := New("")
 	assert.True(t, strings.Contains(c.String(), "jc_idle_after:"+strconv.Itoa(defaultIdleAfter)), "IdlerAfter Config String doesn't match")
