@@ -2,7 +2,6 @@ package configuration
 
 import (
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -129,34 +128,9 @@ func TestConfig_Verify(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	type args struct {
-		configFilePath string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    Configuration
-		wantErr bool
-	}{
-		{
-			name:    "Test Config New",
-			args:    args{"test.yaml"},
-			want:    nil,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := New(tt.args.configFilePath)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("New() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	_, err := New("fileNotFound.yaml")
+	assert.Error(t, err,
+		"Error expected when file not found")
 }
 
 func TestConfig_String(t *testing.T) {
