@@ -4,16 +4,11 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	log "github.com/sirupsen/logrus"
 )
 
 // IdlerAPI defines the REST endpoints of the Idler
 type IdlerAPI struct {
-}
-
-// Info writes a JSON representation of internal state of the specified namespace to the response writer.
-func (i *IdlerAPI) Info(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	w.Write([]byte("Info"))
-	w.WriteHeader(http.StatusOK)
 }
 
 // Idle triggers an idling of the Jenkins service running in the namespace specified in the namespace
@@ -56,5 +51,22 @@ func (i *IdlerAPI) Reset(w http.ResponseWriter, r *http.Request, ps httprouter.P
 // ClusterDNSView writes a JSON representation of the current cluster state to the response writer.
 func (i *IdlerAPI) ClusterDNSView(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	w.Write([]byte("GetClusterDNSView"))
+	w.WriteHeader(http.StatusOK)
+}
+
+//SetUserIdlerStatus sets the user status
+func (i *IdlerAPI) SetUserIdlerStatus(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	_, err := w.Write([]byte("SetUserIdlerStatus"))
+	if err != nil {
+		log.Error(err)
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+//GetDisabledUserIdlers set the user status
+func (i *IdlerAPI) GetDisabledUserIdlers(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	if _, err := w.Write([]byte("GetDisabledUserIdlers")); err != nil {
+		log.Error(err)
+	}
 	w.WriteHeader(http.StatusOK)
 }

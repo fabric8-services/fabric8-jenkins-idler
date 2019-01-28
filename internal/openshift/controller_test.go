@@ -219,7 +219,8 @@ func setUp(t *testing.T) {
 	defer cancel()
 
 	userIdlers := NewUserIdlerMap()
-	controller = NewController(ctx, "", "", userIdlers, tenantService, features, &mock.Config{}, &wg, cancel)
+	disabledUsers := model.NewStringSet()
+	controller = NewController(ctx, "", "", userIdlers, tenantService, features, &mock.Config{}, &wg, cancel, disabledUsers)
 }
 
 func emptyChannel(ch chan model.User) {
