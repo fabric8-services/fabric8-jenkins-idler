@@ -12,6 +12,7 @@ type Cluster struct {
 
 	User  string
 	Token string
+	Type  string
 }
 
 func (c Cluster) String() string {
@@ -22,6 +23,7 @@ func (c Cluster) String() string {
 	tmp = append(tmp, fmt.Sprintf("MetricsURL: %s", c.MetricsURL))
 	tmp = append(tmp, fmt.Sprintf("LoggingURL: %s", c.LoggingURL))
 	tmp = append(tmp, fmt.Sprintf("AppDNS: %s", c.AppDNS))
+	tmp = append(tmp, fmt.Sprintf("Type: %s", c.Type))
 
 	return fmt.Sprintf("%+v", tmp)
 }

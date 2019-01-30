@@ -2,9 +2,7 @@ package cluster
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
-	"regexp"
 
 	"strings"
 
@@ -20,11 +18,7 @@ import (
 )
 
 const (
-	// ClusterSubstrAllowedRegexp :TEMPFIX: :chmouel:
-	// filter cluster url on name with a regexp until we have a proper way to do
-	// this see
-	// https://chat.openshift.io/developers/pl/j6ccecpebfr1zj4xxfu4cppm9y
-	ClusterSubstrAllowedRegexp = "(start|free)"
+	osioType = "OSO"
 )
 
 // Service the interface for the cluster service
@@ -33,8 +27,30 @@ type Service interface {
 }
 
 // NewService creates a Resolver that rely on the Auth service to retrieve tokens
-func NewService(authURL string, serviceToken string, resolveToken token.Resolve, decode token.Decode, options ...configuration.HTTPClientOption) Service {
-	return &clusterService{authURL: authURL, serviceToken: serviceToken, resolveToken: resolveToken, decode: decode, clientOptions: options}
+func NewService(authURL, serviceToken string, resolveToken token.Resolve,
+	decode token.Decode, ocClient openShiftClient.OpenShiftClient,
+	options ...configuration.HTTPClientOption) (Service, error) {
+
+	client, err := auth.NewClient(authURL, serviceToken, options...)
+	if err != nil {
+		return nil, err
+	}
+	client.SetJWTSigner(
+		&goaclient.JWTSigner{
+			TokenSource: &goaclient.StaticTokenSource{
+				StaticToken: &goaclient.StaticToken{
+					Value: serviceToken,
+					Type:  "Bearer"}}})
+
+	return &clusterService{authURL: authURL, serviceToken: serviceToken,
+		resolveToken: resolveToken, decode: decode, ocClient: ocClient,
+		clientOptions: options, authClient: client}, nil
+}
+
+type authService interface {
+	auth.ValidateAuth
+	ShowClusters(ctx context.Context, path string) (*http.Response, error)
+	DecodeClusterList(resp *http.Response) (*authClient.ClusterList, error)
 }
 
 type clusterService struct {
@@ -43,6 +59,8 @@ type clusterService struct {
 	serviceToken  string
 	resolveToken  token.Resolve
 	decode        token.Decode
+	authClient    authService
+	ocClient      openShiftClient.OpenShiftClient
 }
 
 func cleanURL(url string) string {
@@ -53,21 +71,7 @@ func cleanURL(url string) string {
 }
 
 func (s *clusterService) GetClusterView(ctx context.Context) (View, error) {
-	client, err := auth.NewClient(s.authURL, s.serviceToken, s.clientOptions...)
-	if err != nil {
-		return nil, err
-	}
-	client.SetJWTSigner(
-		&goaclient.JWTSigner{
-			TokenSource: &goaclient.StaticTokenSource{
-				StaticToken: &goaclient.StaticToken{
-					Value: s.serviceToken,
-					Type:  "Bearer"}}})
-
-	res, err := client.ShowClusters(ctx, authClient.ShowClustersPath())
-	if res.StatusCode != http.StatusOK {
-		err = fmt.Errorf("got status %s (%d) from %s", res.Status, res.StatusCode, s.authURL)
-	}
+	res, err := s.authClient.ShowClusters(ctx, authClient.ShowClustersPath())
 	if err != nil {
 		return nil, errors.Wrapf(err, "error while doing the request")
 	}
@@ -76,19 +80,19 @@ func (s *clusterService) GetClusterView(ctx context.Context) (View, error) {
 		res.Body.Close()
 	}()
 
-	validationError := auth.ValidateResponse(client, res)
+	validationError := auth.ValidateResponse(s.authClient, res)
 	if validationError != nil {
 		return nil, errors.Wrapf(validationError, "error from server %q", s.authURL)
 	}
 
-	clusters, err := client.DecodeClusterList(res)
+	clusters, err := s.authClient.DecodeClusterList(res)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error from server %q", s.authURL)
 	}
 
 	var clusterList []Cluster
 	for _, cluster := range clusters.Data {
-		if matched, _ := regexp.MatchString(ClusterSubstrAllowedRegexp, cluster.APIURL); !matched {
+		if cluster.Type != osioType {
 			continue
 		}
 		// resolve/obtain the cluster token
@@ -98,8 +102,7 @@ func (s *clusterService) GetClusterView(ctx context.Context) (View, error) {
 		}
 
 		// verify the token
-		openShiftClient := openShiftClient.NewOpenShift()
-		_, err = openShiftClient.WhoAmI(cluster.APIURL, clusterToken)
+		_, err = s.ocClient.WhoAmI(cluster.APIURL, clusterToken)
 		if err != nil {
 			return nil, errors.Wrapf(err, "token retrieved for cluster %v is invalid", cluster.APIURL)
 		}
@@ -116,6 +119,7 @@ func (s *clusterService) GetClusterView(ctx context.Context) (View, error) {
 			LoggingURL: cluster.LoggingURL,
 			User:       clusterUser,
 			Token:      clusterToken,
+			Type:       cluster.Type,
 		})
 	}
 	return NewView(clusterList), nil

@@ -95,6 +95,14 @@
   revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
 
 [[projects]]
+  digest = "1:530233672f656641b365f8efb38ed9fba80e420baff2ce87633813ab3755ed6d"
+  name = "github.com/golang/mock"
+  packages = ["gomock"]
+  pruneopts = ""
+  revision = "51421b967af1f557f93a59e0057aaf15ca02e29c"
+  version = "v1.2.0"
+
+[[projects]]
   digest = "1:bcb38c8fc9b21bb8682ce2d605a7d4aeb618abc7f827e3ac0b27c0371fdb23fb"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
@@ -447,6 +455,7 @@
     "github.com/goadesign/goa/client",
     "github.com/goadesign/goa/encoding/form",
     "github.com/goadesign/goa/uuid",
+    "github.com/golang/mock/gomock",
     "github.com/julienschmidt/httprouter",
     "github.com/orcaman/concurrent-map",
     "github.com/pkg/errors",
