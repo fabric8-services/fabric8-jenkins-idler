@@ -43,7 +43,7 @@ func Test_graceful_shutdown(t *testing.T) {
 	// register a global log hook to capture the log output
 	hook := test.NewGlobal()
 
-	config, _ := configuration.NewConfiguration()
+	config, _ := configuration.New("")
 	idler := NewIdler(&mockFeatureToggle{}, &mock.TenantService{}, &mockClusterView{}, config)
 
 	go func() {
