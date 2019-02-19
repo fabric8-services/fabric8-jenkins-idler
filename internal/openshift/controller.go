@@ -17,6 +17,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Status of Users
+type Status bool
+
 const (
 	availableCond          = "Available"
 	channelSendTimeout     = 1
@@ -44,6 +47,7 @@ type controllerImpl struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	unknownUsers  *UnknownUsersMap
+	disabledUsers *model.StringSet
 }
 
 // NewController creates an instance of controllerImpl.
@@ -54,7 +58,9 @@ func NewController(
 	t tenant.Service,
 	features toggles.Features,
 	config configuration.Configuration,
-	wg *sync.WaitGroup, cancel context.CancelFunc) Controller {
+	wg *sync.WaitGroup,
+	cancel context.CancelFunc,
+	disabledUsers *model.StringSet) Controller {
 
 	logger.WithField("cluster", openshiftURL).Info("Creating new controller instance")
 
@@ -69,6 +75,7 @@ func NewController(
 		ctx:           ctx,
 		cancel:        cancel,
 		unknownUsers:  NewUnknownUsersMap(),
+		disabledUsers: disabledUsers,
 	}
 
 	return &controller
@@ -85,7 +92,6 @@ func (c *controllerImpl) HandleBuild(o model.Object) error {
 		"event":     "build",
 		"openshift": c.openshiftURL,
 	})
-
 	ok, err := c.createIfNotExist(ns)
 	if err != nil {
 		log.Errorf("Creating user-idler record failed: %s", err)
@@ -104,6 +110,10 @@ func (c *controllerImpl) HandleBuild(o model.Object) error {
 		"name": user.Name,
 	})
 
+	if c.disabledUsers.Has(user.Name) {
+		log.Infof("Status disabled for user: %s", user.Name)
+		return nil
+	}
 	evalConditions := false
 
 	if c.isActive(&o.Object) {
@@ -173,6 +183,11 @@ func (c *controllerImpl) HandleDeploymentConfig(dc model.DCObject) error {
 	// idled/unidled even if there aren't any build events
 	userIdler := c.userIdlerForNamespace(ns)
 	user := userIdler.GetUser()
+
+	if c.disabledUsers.Has(user.Name) {
+		log.Infof("Status disabled for user: %s", user.Name)
+		return nil
+	}
 
 	log = log.WithFields(logrus.Fields{
 		"id":   user.ID,

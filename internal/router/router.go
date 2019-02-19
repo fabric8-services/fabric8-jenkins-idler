@@ -86,9 +86,6 @@ func (r *Router) Shutdown() {
 func CreateAPIRouter(api api.IdlerAPI) *httprouter.Router {
 	router := httprouter.New()
 
-	router.GET("/api/idler/info/:namespace", api.Info)
-	router.GET("/api/idler/info/:namespace/", api.Info)
-
 	router.GET("/api/idler/idle/:namespace", api.Idle)
 	router.GET("/api/idler/idle/:namespace/", api.Idle)
 
@@ -106,6 +103,12 @@ func CreateAPIRouter(api api.IdlerAPI) *httprouter.Router {
 
 	router.POST("/api/idler/reset/:namespace", api.Reset)
 	router.POST("/api/idler/reset/:namespace/", api.Reset)
+
+	router.GET("/api/idler/userstatus", api.GetDisabledUserIdlers)
+	router.GET("/api/idler/userstatus/", api.GetDisabledUserIdlers)
+
+	router.POST("/api/idler/userstatus", api.SetUserIdlerStatus)
+	router.POST("/api/idler/userstatus/", api.SetUserIdlerStatus)
 
 	return router
 }

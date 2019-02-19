@@ -36,8 +36,6 @@ func Test_all_routes_are_setup(t *testing.T) {
 		route  string
 		target string
 	}{
-		{"/api/idler/info/my-namepace", "Info"},
-		{"/api/idler/info/my-namepace/", "Info"},
 		{"/api/idler/idle/my-namepace", "Idle"},
 		{"/api/idler/idle/my-namepace/", "Idle"},
 		{"/api/idler/unidle/my-namepace", "UnIdle"},
@@ -46,6 +44,10 @@ func Test_all_routes_are_setup(t *testing.T) {
 		{"/api/idler/isidle/my-namepace/", "IsIdle"},
 		{"/api/idler/cluster", "GetClusterDNSView"},
 		{"/api/idler/cluster/", "GetClusterDNSView"},
+		{"/api/idler/userstatus", "SetUserIdlerStatus"},
+		{"/api/idler/userstatus/", "SetUserIdlerStatus"},
+		{"/api/idler/userstatus", "GetDisabledUserIdlers"},
+		{"/api/idler/userstatus/", "GetDisabledUserIdlers"},
 
 		{"/api/idler/foo", "404 page not found\n"},
 		{"/api/idler/builds/foo/bar", "404 page not found\n"},
@@ -53,11 +55,17 @@ func Test_all_routes_are_setup(t *testing.T) {
 
 	for _, testRoute := range routes {
 		w := new(mock.ResponseWriter)
+		if testRoute.target == "SetUserIdlerStatus" {
+			req, _ := http.NewRequest("POST", testRoute.route, nil)
+			router.ServeHTTP(w, req)
 
-		req, _ := http.NewRequest("GET", testRoute.route, nil)
-		router.ServeHTTP(w, req)
+			assert.Equal(t, testRoute.target, w.GetBody(), fmt.Sprintf("Routing failed for %s", testRoute.route))
+		} else {
+			req, _ := http.NewRequest("GET", testRoute.route, nil)
+			router.ServeHTTP(w, req)
 
-		assert.Equal(t, testRoute.target, w.GetBody(), fmt.Sprintf("Routing failed for %s", testRoute.route))
+			assert.Equal(t, testRoute.target, w.GetBody(), fmt.Sprintf("Routing failed for %s", testRoute.route))
+		}
 	}
 }
 
@@ -80,10 +88,10 @@ func Test_router_start(t *testing.T) {
 
 	// we need to give a bit time for the server to come up
 	time.Sleep(1 * time.Second)
-	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/api/idler/info/foo", testPort))
-	assert.NoError(t, err, "The call to the API should have succeeded.")
-	body, err := ioutil.ReadAll(resp.Body)
-	assert.Equal(t, "Info", string(body), "Unexpected result from HTTP request")
+	//resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/api/idler/info/foo", testPort))
+	//assert.NoError(t, err, "The call to the API should have succeeded.")
+	//body, err := ioutil.ReadAll(resp.Body)
+	//assert.Equal(t, "Info", string(body), "Unexpected result from HTTP request")
 
 	go func() {
 		// Cancel the operation after 2 second.
@@ -111,7 +119,7 @@ func Test_cluster_dns_view(t *testing.T) {
 	tenantService, cleanup := stubTenantService()
 	defer cleanup()
 
-	idlerAPI := api.NewIdlerAPI(openshift.NewUserIdlerMap(), clusterView, tenantService)
+	idlerAPI := api.NewIdlerAPI(openshift.NewUserIdlerMap(), clusterView, tenantService, model.NewStringSet())
 	router := NewRouterWithPort(CreateAPIRouter(idlerAPI), testPort)
 
 	var wg sync.WaitGroup
@@ -160,7 +168,8 @@ func Test_openshift_url_parameter_is_used(t *testing.T) {
 	}
 
 	clusterView := cluster.NewView([]cluster.Cluster{dummyCluster})
-	idlerAPI := api.NewIdlerAPI(openshift.NewUserIdlerMap(), clusterView, tenantService)
+
+	idlerAPI := api.NewIdlerAPI(openshift.NewUserIdlerMap(), clusterView, tenantService, model.NewStringSet())
 	router := NewRouterWithPort(CreateAPIRouter(idlerAPI), testPort)
 
 	// start the router

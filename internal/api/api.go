@@ -14,6 +14,7 @@ import (
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/openshift/client"
 	"github.com/fabric8-services/fabric8-jenkins-idler/internal/tenant"
+
 	"github.com/fabric8-services/fabric8-jenkins-idler/metric"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
@@ -51,30 +52,42 @@ type IdlerAPI interface {
 	// If an error occurs a response with the HTTP status 400 or 500 is returned.
 	Status(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 
-	// Info writes a JSON representation of internal state of the specified namespace to the response writer.
-	Info(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
-
 	// ClusterDNSView writes a JSON representation of the current cluster state to the response writer.
 	ClusterDNSView(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 
 	// Reset deletes a pod and starts a new one
 	Reset(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
+
+	// SetUserIdlerStatus set users status for idler.
+	SetUserIdlerStatus(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
+
+	// GetDisabledUserIdlers gets the user status for idler.
+	GetDisabledUserIdlers(w http.ResponseWriter, r *http.Request, ps httprouter.Params)
 }
 
 type idler struct {
 	userIdlers      *openshift.UserIdlerMap
 	clusterView     cluster.View
 	openShiftClient client.OpenShiftClient
-	controller      openshift.Controller
 	tenantService   tenant.Service
+	disabledUsers   *model.StringSet
 }
 
 type status struct {
 	IsIdle bool `json:"is_idle"`
 }
 
+type userStatus struct {
+	Disable []string `json:"disable"`
+	Enable  []string `json:"enable"`
+}
+
 // NewIdlerAPI creates a new instance of IdlerAPI.
-func NewIdlerAPI(userIdlers *openshift.UserIdlerMap, clusterView cluster.View, ts tenant.Service) IdlerAPI {
+func NewIdlerAPI(
+	userIdlers *openshift.UserIdlerMap,
+	clusterView cluster.View,
+	ts tenant.Service,
+	du *model.StringSet) IdlerAPI {
 	// Initialize metrics
 	Recorder.Initialize()
 	return &idler{
@@ -82,6 +95,7 @@ func NewIdlerAPI(userIdlers *openshift.UserIdlerMap, clusterView cluster.View, t
 		clusterView:     clusterView,
 		openShiftClient: client.NewOpenShift(),
 		tenantService:   ts,
+		disabledUsers:   du,
 	}
 }
 
@@ -208,17 +222,6 @@ func (api *idler) Status(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	writeResponse(w, http.StatusOK, *response)
 }
 
-func (api *idler) Info(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	namespace := ps.ByName("namespace")
-
-	userIdler, ok := api.userIdlers.Load(namespace)
-	if ok {
-		writeResponse(w, http.StatusOK, userIdler.GetUser())
-	} else {
-		respondWithError(w, http.StatusNotFound, fmt.Errorf("Could not find queried namespace"))
-	}
-}
-
 func (api *idler) ClusterDNSView(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	writeResponse(w, http.StatusOK, api.clusterView.GetDNSView())
 }
@@ -244,6 +247,30 @@ func (api *idler) Reset(w http.ResponseWriter, r *http.Request, ps httprouter.Pa
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+//SetUserIdlerStatus sets the user status
+func (api *idler) SetUserIdlerStatus(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	var users userStatus
+	if err := json.NewDecoder(r.Body).Decode(&users); err != nil {
+		respondWithError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// enabled users will take precedence over disabled
+	api.disabledUsers.Add(users.Disable)
+	api.disabledUsers.Remove(users.Enable)
+	w.WriteHeader(http.StatusOK)
+}
+
+type idlerStatusResponse struct {
+	Users []string `json:"users,omitempty"`
+}
+
+//GetDisabledUserIdlers set the user status
+func (api *idler) GetDisabledUserIdlers(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	users := &idlerStatusResponse{Users: api.disabledUsers.Keys()}
+	writeResponse(w, http.StatusOK, users)
 }
 
 func (api *idler) getURLAndToken(r *http.Request) (string, string, error) {

@@ -37,6 +37,8 @@ type Idler struct {
 	tenantService  tenant.Service
 	clusterView    cluster.View
 	config         configuration.Configuration
+	disabledUsers  *model.StringSet
+	userIdlers     *openshift.UserIdlerMap
 }
 
 // struct used to pass in cancelable task
@@ -47,12 +49,15 @@ type task struct {
 }
 
 // NewIdler creates a new instance of Idler. The configuration as well as feature toggle handler needs to be passed.
-func NewIdler(features toggles.Features, tenantService tenant.Service, clusterView cluster.View, config configuration.Configuration) *Idler {
+func NewIdler(features toggles.Features, tenantService tenant.Service, clusterView cluster.View,
+	config configuration.Configuration) *Idler {
 	return &Idler{
 		featureService: features,
 		tenantService:  tenantService,
 		clusterView:    clusterView,
 		config:         config,
+		disabledUsers:  model.NewStringSet(),
+		userIdlers:     openshift.NewUserIdlerMap(),
 	}
 }
 
@@ -73,16 +78,17 @@ func (idler *Idler) Run() {
 func (idler *Idler) startWorkers(t *task, addProfiler bool) {
 	idlerLogger.Info("Starting all Idler workers")
 
-	// Create synchronized map for UserIdler instances
-	userIdlers := openshift.NewUserIdlerMap()
-
 	// Start the controllers to monitor the OpenShift clusters
-	idler.watchOpenshiftEvents(t, userIdlers)
+	idler.watchOpenshiftEvents(t)
 
 	// Start API router
 	go func() {
 		// Create and start a Router instance to serve the REST API
-		idlerAPI := api.NewIdlerAPI(userIdlers, idler.clusterView, idler.tenantService)
+		idlerAPI := api.NewIdlerAPI(
+			idler.userIdlers,
+			idler.clusterView,
+			idler.tenantService,
+			idler.disabledUsers)
 		apirouter := router.CreateAPIRouter(idlerAPI)
 		router := router.NewRouter(apirouter)
 		router.AddMetrics(apirouter)
@@ -98,7 +104,7 @@ func (idler *Idler) startWorkers(t *task, addProfiler bool) {
 	}
 }
 
-func (idler *Idler) watchOpenshiftEvents(t *task, userIdlers *openshift.UserIdlerMap) {
+func (idler *Idler) watchOpenshiftEvents(t *task) {
 	oc := client.NewOpenShift()
 
 	for _, c := range idler.clusterView.GetClusters() {
@@ -107,12 +113,13 @@ func (idler *Idler) watchOpenshiftEvents(t *task, userIdlers *openshift.UserIdle
 			t.ctx,
 			c.APIURL,
 			c.Token,
-			userIdlers,
+			idler.userIdlers,
 			idler.tenantService,
 			idler.featureService,
 			idler.config,
 			t.wg,
 			t.cancel,
+			idler.disabledUsers,
 		)
 
 		t.wg.Add(2)
