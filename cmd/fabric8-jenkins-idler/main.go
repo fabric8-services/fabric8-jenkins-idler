@@ -108,9 +108,10 @@ func createFeatureToggle(config configuration.Configuration) toggles.Features {
 	var err error
 	var features toggles.Features
 	if len(config.GetFixedUuids()) > 0 {
-		mainLogger.Infof("Using fixed UUID list for toggle feature: %s", config.GetFixedUuids())
+		mainLogger.Warnf("Using fixed UUID list for toggle feature: %s", config.GetFixedUuids())
 		features, err = toggles.NewFixedUUIDToggle(config.GetFixedUuids())
 	} else {
+		mainLogger.Warn("Using feature toggle through unleash client")
 		features, err = toggles.NewUnleashToggle(config.GetToggleURL())
 	}
 	if err != nil {
