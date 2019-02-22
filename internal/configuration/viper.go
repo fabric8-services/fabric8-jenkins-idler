@@ -81,7 +81,7 @@ func (c *Config) setConfigDefaults() {
 	c.v.SetDefault(checkInterval, defaultCheckInterval)
 
 	c.v.SetDefault(debugMode, false)
-	c.v.SetDefault(fixedUuids, "")
+	c.v.SetDefault(fixedUuids, []string{})
 }
 
 // GetDebugMode returns `true` if development related features (as set via default, config file, or environment variable),
@@ -156,10 +156,11 @@ func (c *Config) GetCheckInterval() int {
 	return c.v.GetInt(checkInterval)
 }
 
-// GetFixedUuids returns a slice of fixed user uuids. The uuids are specified comma separated in the environment variable.
+// GetFixedUuids returns a slice of fixed user uuids.
+// The uuids are whitespace separated in the environment variable.
 // JC_FIXED_UUIDS.
 func (c *Config) GetFixedUuids() []string {
-	return strings.Split(c.v.GetString(fixedUuids), ",")
+	return c.v.GetStringSlice(fixedUuids)
 }
 
 // String returns string representation of configuration

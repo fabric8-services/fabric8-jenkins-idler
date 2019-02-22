@@ -104,9 +104,17 @@ func TestConfig_GetCheckInterval(t *testing.T) {
 	assert.Equal(t, c.GetCheckInterval(), want, "Check Interval Mismatch")
 }
 
+func TestConfig_GetFixedUuids_None(t *testing.T) {
+	os.Setenv(fixedUuids, "")
+	c, _ := New("")
+	assert.Len(t, c.GetFixedUuids(), 0, "FixedUUids Mismatch")
+}
+
 func TestConfig_GetFixedUuids(t *testing.T) {
-	os.Setenv(fixedUuids, "uuid1,uuid2,uuid3")
-	want := []string{"uuid1", "uuid2", "uuid3"}
+	os.Setenv(fixedUuids, "uuid1 uuid2    uuid3 foo,bar   ")
+	//                          ^      ^^^         ^   ^^
+	//                whitespace      mulitple    coma  trailing
+	want := []string{"uuid1", "uuid2", "uuid3", "foo,bar"}
 	c, _ := New("")
 	assert.Equal(t, c.GetFixedUuids(), want, "FixedUUids Mismatch")
 }
